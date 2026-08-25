@@ -1,5 +1,5 @@
 import { User } from 'firebase/auth';
-import { apps, getVisibleApps, type Role } from '../lib/router';
+import { getVisibleApps, type Role } from '../lib/router';
 import './Nav.css';
 
 interface NavProps {
@@ -30,14 +30,17 @@ export function Nav({
           </button>
         </div>
       </div>
-      <div className="nav-apps">
+      <div className="nav-apps" role="tablist" aria-label="Apps">
         {visibleApps.map((app) => (
           <button
             key={app.id}
             onClick={() => onNavigate(app.id)}
             className={`nav-app ${app.id === currentAppId ? 'active' : ''}`}
+            role="tab"
+            aria-selected={app.id === currentAppId}
           >
-            {app.name}
+            <app.icon className="nav-app-icon" aria-hidden="true" />
+            <span>{app.name}</span>
           </button>
         ))}
       </div>

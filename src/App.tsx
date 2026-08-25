@@ -1,6 +1,11 @@
 import { useEffect, useState } from 'react';
 import { User } from 'firebase/auth';
-import { onAuthReady, signInWithGoogle, signOutUser } from './lib/firebase';
+import {
+  isFirebaseConfigured,
+  onAuthReady,
+  signInWithGoogle,
+  signOutUser,
+} from './lib/firebase';
 import { apps, canAccessApp, type Role } from './lib/router';
 import { AuthScreen } from './components/AuthScreen';
 import { Nav } from './components/Nav';
@@ -15,6 +20,10 @@ export function App() {
   const [updateAvailable, setUpdateAvailable] = useState(false);
 
   useEffect(() => {
+    if (!isFirebaseConfigured) {
+      setLoading(false);
+      return;
+    }
     const unsubscribe = onAuthReady((user) => {
       setUser(user);
       if (user) {
@@ -73,17 +82,43 @@ export function App() {
     });
   };
 
+  const currentApp = apps.find((app) => app.id === currentAppId);
+  const hasAccess = currentApp ? canAccessApp(currentApp, userRole) : false;
+
+  useEffect(() => {
+    if (user && (!currentApp || !hasAccess)) {
+      setCurrentAppId('blocks');
+    }
+  }, [user, currentApp, hasAccess]);
+
   if (loading) {
-    return <div className="loading">Loading...</div>;
+    return (
+      <div className="loading" role="status" aria-live="polite">
+        Loading...
+      </div>
+    );
+  }
+
+  if (!isFirebaseConfigured) {
+    return (
+      <div className="auth-screen">
+        <div className="auth-container">
+          <h1>Family Hub</h1>
+          <p>
+            Firebase isn&rsquo;t configured yet. Copy{' '}
+            <code>.env.example</code> to <code>.env.local</code> and fill in
+            your Firebase project credentials, then restart the dev server.
+          </p>
+        </div>
+      </div>
+    );
   }
 
   if (!user) {
     return <AuthScreen onSignIn={signInWithGoogle} />;
   }
 
-  const currentApp = apps.find((app) => app.id === currentAppId);
-  if (!currentApp || !canAccessApp(currentApp, userRole)) {
-    setCurrentAppId('blocks');
+  if (!currentApp || !hasAccess) {
     return null;
   }
 

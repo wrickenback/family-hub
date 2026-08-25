@@ -20,16 +20,11 @@ registerRoute(
   new CacheFirst({ cacheName: 'assets' })
 );
 
-// Handle skipWaiting message from client
+// Wait for the user to tap "Update now" before taking over — see UpdatePrompt.tsx
 self.addEventListener('message', (event) => {
   if (event.data?.type === 'SKIP_WAITING') {
     self.skipWaiting();
   }
-});
-
-// Install: take control immediately
-self.addEventListener('install', () => {
-  self.skipWaiting();
 });
 
 // Activate: claim existing clients

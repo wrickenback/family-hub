@@ -1,6 +1,6 @@
 .nav {
-  background: white;
-  border-bottom: 1px solid #e0e0e0;
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--sand-200);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
 
@@ -9,13 +9,13 @@
   align-items: center;
   justify-content: space-between;
   padding: 1rem 1.5rem;
-  border-bottom: 1px solid #f0f0f0;
+  border-bottom: 1px solid var(--sand-100);
 }
 
 .nav-title {
   font-size: 1.5rem;
   margin: 0;
-  color: #333;
+  color: var(--text-primary);
 }
 
 .nav-user {
@@ -26,7 +26,7 @@
 
 .user-name {
   font-size: 0.875rem;
-  color: #666;
+  color: var(--text-secondary);
 }
 
 .nav-apps {
@@ -38,9 +38,13 @@
 }
 
 .nav-app {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
   padding: 0.75rem 1rem;
+  min-height: 44px;
   background: none;
-  color: #666;
+  color: var(--text-secondary);
   border: none;
   border-bottom: 3px solid transparent;
   font-weight: 500;
@@ -48,14 +52,20 @@
   transition: all 0.2s;
 }
 
+.nav-app-icon {
+  width: 1.1rem;
+  height: 1.1rem;
+  flex-shrink: 0;
+}
+
 .nav-app:hover {
-  color: #333;
-  background: rgba(0, 102, 204, 0.05);
+  color: var(--text-primary);
+  background: rgba(168, 82, 37, 0.05);
 }
 
 .nav-app.active {
-  color: #0066cc;
-  border-bottom-color: #0066cc;
+  color: var(--rust);
+  border-bottom-color: var(--rust);
 }
 
 @media (max-width: 640px) {
