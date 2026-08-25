@@ -9,6 +9,10 @@ export default defineConfig({
     svgr(),
     VitePWA({
       strategies: 'injectManifest',
+      // We register the service worker ourselves in main.tsx to drive our
+      // own "tap to update" flow — don't let the plugin inject a second,
+      // competing registration via registerSW.js.
+      injectRegister: false,
       srcDir: 'src',
       filename: 'sw.ts',
       outDir: 'dist',

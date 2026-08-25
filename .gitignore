@@ -1,9 +1,11 @@
 node_modules/
 dist/
+.firebase/
 .DS_Store
 .env
 .env.local
 .env.*.local
+*firebase-adminsdk*.json
 *.log
 .vscode/
 .idea/
