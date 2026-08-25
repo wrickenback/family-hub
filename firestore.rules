@@ -1,0 +1,87 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isAllowed() {
+      // Check if user's email is in the family allowlist
+      let allowed = get(/databases/$(database)/documents/config/allowedEmails).data.emails;
+      return request.auth.token.email in allowed;
+    }
+
+    function userRole() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
+    }
+
+    function isParent() {
+      return userRole() == 'parent';
+    }
+
+    function isKid() {
+      return userRole() == 'kid' || userRole() == 'parent';
+    }
+
+    // Config (allowlist) - parent-only read
+    match /config/{document=**} {
+      allow read: if isSignedIn() && isParent();
+      allow write: if false; // Managed via CLI/console only for security
+    }
+
+    // User profiles
+    match /users/{uid} {
+      allow read: if isSignedIn() && isAllowed();
+      allow create: if request.auth.uid == uid && isAllowed();
+      allow update: if request.auth.uid == uid;
+
+      match /profile {
+        allow read: if isSignedIn() && isAllowed();
+        allow write: if request.auth.uid == uid;
+      }
+
+      match /stats/{document=**} {
+        allow read: if isSignedIn() && isAllowed();
+        allow write: if request.auth.uid == uid;
+      }
+    }
+
+    // Real-time 2-player games
+    match /games/{gameId} {
+      allow read: if isSignedIn() && (
+        request.auth.uid in resource.data.players ||
+        resource.data.status == 'waiting'
+      );
+      allow create: if isSignedIn() && isAllowed() && isKid();
+      allow update: if isSignedIn() && request.auth.uid in resource.data.players;
+
+      // Battleship: hidden ship positions only readable by owner
+      match /players/{playerId} {
+        allow read: if isSignedIn() && request.auth.uid == playerId;
+        allow write: if isSignedIn() && request.auth.uid == playerId;
+      }
+    }
+
+    // Countdowns
+    match /countdowns/{countdownId} {
+      allow read: if isSignedIn() && isAllowed();
+      allow create: if isSignedIn() && isAllowed() && isKid();
+      allow update: if isSignedIn() && isAllowed();
+      allow delete: if isSignedIn() && isAllowed();
+    }
+
+    // Schedule (merged from calendar + ICS)
+    match /schedule/{eventId} {
+      allow read: if isSignedIn() && isAllowed();
+      allow write: if false; // Server-side only (Cloud Functions)
+    }
+
+    // Invite links for guest access to specific games
+    match /invites/{inviteId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isAllowed();
+      allow update: if isSignedIn() && isAllowed();
+    }
+  }
+}
