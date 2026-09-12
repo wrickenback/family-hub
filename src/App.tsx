@@ -14,6 +14,11 @@ import {
   watchCountdowns,
   type FirestoreCountdown,
 } from './lib/firestoreCountdowns';
+import {
+  startPresenceHeartbeat,
+  watchPresence,
+  type PresenceEntry,
+} from './lib/presence';
 import { AuthScreen } from './components/AuthScreen';
 import { UpdatePrompt } from './components/UpdatePrompt';
 import { Home } from './screens/Home';
@@ -32,6 +37,7 @@ export function App() {
   const [userRole, setUserRole] = useState<Role | null>(null);
   const [unauthorized, setUnauthorized] = useState(false);
   const [countdowns, setCountdowns] = useState<FirestoreCountdown[]>([]);
+  const [presence, setPresence] = useState<PresenceEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [stack, setStack] = useState<Route[]>(() =>
     parentChainFor(pathToRoute(window.location.pathname) ?? HOME)
@@ -100,6 +106,20 @@ export function App() {
   useEffect(() => {
     if (!user || !userRole) return;
     return watchCountdowns(setCountdowns, () => setCountdowns([]));
+  }, [user, userRole]);
+
+  useEffect(() => {
+    if (!user || !userRole) return;
+    const stopHeartbeat = startPresenceHeartbeat(
+      user.uid,
+      user.displayName || user.email || 'Someone',
+      user.photoURL
+    );
+    const stopWatching = watchPresence(setPresence, () => setPresence([]));
+    return () => {
+      stopHeartbeat();
+      stopWatching();
+    };
   }, [user, userRole]);
 
   // Every push adds a history entry so the Android/browser back button pops
@@ -223,6 +243,7 @@ export function App() {
             user={user}
             userRole={userRole}
             countdowns={countdowns}
+            presence={presence}
             onNavigate={navigate}
             onSignOut={() => signOutUser()}
           />

@@ -1,0 +1,19 @@
+.avatar-img,
+.avatar-fallback {
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.avatar-img {
+  object-fit: cover;
+}
+
+.avatar-fallback {
+  background: var(--rust);
+  color: #fff;
+  font-weight: 700;
+  font-family: Poppins, system-ui, sans-serif;
+}

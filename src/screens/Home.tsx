@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { User } from 'firebase/auth';
 import {
   IconCalendar,
@@ -8,9 +9,11 @@ import {
   IconHourglass,
   IconTrophy,
 } from '../components/icons';
+import { Avatar } from '../components/Avatar';
 import { dayLabel, daysUntil, timeLabel } from '../lib/format';
 import { sampleEvents } from '../lib/sampleData';
 import type { FirestoreCountdown } from '../lib/firestoreCountdowns';
+import { isActive, type PresenceEntry } from '../lib/presence';
 import type { Role, Route } from '../lib/router';
 import { getVisibleGames } from '../lib/router';
 import './Home.css';
@@ -19,6 +22,7 @@ interface HomeProps {
   user: User;
   userRole: Role | null;
   countdowns: FirestoreCountdown[];
+  presence: PresenceEntry[];
   onNavigate: (route: Route) => void;
   onSignOut: () => void;
 }
@@ -27,6 +31,7 @@ export function Home({
   user,
   userRole,
   countdowns: rawCountdowns,
+  presence,
   onNavigate,
   onSignOut,
 }: HomeProps) {
@@ -41,6 +46,20 @@ export function Home({
     .slice(0, 3);
   const gameCount = getVisibleGames(userRole).length;
 
+  // Presence is only refreshed when Firestore data changes, but "active"
+  // status decays purely with the passage of time — tick every 15s so
+  // someone's avatar actually disappears once their heartbeat goes stale,
+  // not just whenever someone else's presence doc happens to update.
+  const [, forceTick] = useState(0);
+  useEffect(() => {
+    const id = window.setInterval(() => forceTick((n) => n + 1), 15_000);
+    return () => window.clearInterval(id);
+  }, []);
+
+  const othersActive = presence.filter(
+    (p) => p.uid !== user.uid && isActive(p)
+  );
+
   return (
     <div className="home">
       <header className="home-header">
@@ -48,12 +67,31 @@ export function Home({
           <p className="home-greeting">Hi {firstName}</p>
           <h1 className="home-title">Family Hub</h1>
         </div>
-        <button className="btn btn-text" onClick={onSignOut}>
-          Sign out
-        </button>
+        <AccountMenu user={user} onSignOut={onSignOut} />
       </header>
 
       <div className="home-body">
+        {othersActive.length > 0 && (
+          <section className="section">
+            <div className="section-head">
+              <span className="section-title online-title">
+                <span className="online-dot" />
+                Online now
+              </span>
+            </div>
+            <ul className="presence-strip" aria-label="Family members online">
+              {othersActive.map((p) => (
+                <li key={p.uid} className="presence-item">
+                  <Avatar name={p.displayName} photoURL={p.photoURL} size={44} />
+                  <span className="presence-name">
+                    {p.displayName.split(' ')[0]}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+
         {countdowns.length > 0 && (
           <section className="section">
             <div className="section-head">
@@ -155,6 +193,56 @@ export function Home({
           </div>
         </section>
       </div>
+    </div>
+  );
+}
+
+function AccountMenu({
+  user,
+  onSignOut,
+}: {
+  user: User;
+  onSignOut: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const onClickOutside = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', onClickOutside);
+    return () => document.removeEventListener('mousedown', onClickOutside);
+  }, [open]);
+
+  return (
+    <div className="account-menu" ref={ref}>
+      <button
+        className="account-avatar-btn"
+        onClick={() => setOpen((o) => !o)}
+        aria-label="Account menu"
+        aria-expanded={open}
+      >
+        <Avatar
+          name={user.displayName || user.email || '?'}
+          photoURL={user.photoURL}
+          size={40}
+        />
+      </button>
+      {open && (
+        <div className="account-dropdown card">
+          <p className="account-dropdown-name">
+            {user.displayName || 'Signed in'}
+          </p>
+          <p className="account-dropdown-email">{user.email}</p>
+          <button className="btn btn-text account-signout" onClick={onSignOut}>
+            Sign out
+          </button>
+        </div>
+      )}
     </div>
   );
 }

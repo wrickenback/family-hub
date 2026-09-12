@@ -8,7 +8,9 @@ import BattleshipIcon from '../assets/game-icons/battleship.svg?react';
 import DotsAndBoxesIcon from '../assets/game-icons/dots-boxes.svg?react';
 import WarIcon from '../assets/game-icons/war.svg?react';
 import UnoIcon from '../assets/game-icons/uno.svg?react';
-import { IconGrid, IconStopwatch, IconWordTiles } from '../components/icons';
+import WordSearchIcon from '../assets/game-icons/wordsearch.svg?react';
+import WordleIcon from '../assets/game-icons/wordle.svg?react';
+import ReactionIcon from '../assets/game-icons/reaction.svg?react';
 
 export type Route =
   | { screen: 'home' }
@@ -73,7 +75,7 @@ export const games: GameApp[] = [
     visibility: 'familyOnly',
     players: 'solo',
     scoring: 'bestDuration',
-    icon: IconGrid,
+    icon: WordSearchIcon,
     blurb: 'Pick any topic and hunt down the hidden words.',
     modes: [
       {
@@ -95,7 +97,7 @@ export const games: GameApp[] = [
     visibility: 'familyOnly',
     players: 'solo',
     scoring: 'wins',
-    icon: IconWordTiles,
+    icon: WordleIcon,
     blurb: 'Six guesses, five letters. Same word for the whole family.',
   },
   {
@@ -105,7 +107,7 @@ export const games: GameApp[] = [
     visibility: 'familyOnly',
     players: 'solo',
     scoring: 'bestMs',
-    icon: IconStopwatch,
+    icon: ReactionIcon,
     blurb: 'Tap the moment it changes. Fastest thumb in the family wins.',
   },
   {

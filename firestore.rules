@@ -88,6 +88,14 @@ service cloud.firestore {
       allow delete: if isSignedIn() && isAllowed();
     }
 
+    // Presence heartbeats — "seen in the last minute" is a heuristic, not a
+    // true live-connection signal (Firestore has no onDisconnect like
+    // Realtime Database), but it's enough to show who's likely around.
+    match /presence/{uid} {
+      allow read: if isSignedIn() && isAllowed();
+      allow write: if request.auth.uid == uid && isAllowed();
+    }
+
     // Leaderboard entries. Immutable once written — no update/delete — so a
     // family top-10 can't be tampered with after the fact; the client can
     // only submit their own uid as the scorer.

@@ -29,6 +29,109 @@
     calc(2rem + var(--safe-bottom)) calc(var(--gutter) + var(--safe-left));
 }
 
+/* ---------- account menu ---------- */
+
+.account-menu {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.account-avatar-btn {
+  padding: 0;
+  min-height: 0;
+  border-radius: 50%;
+  line-height: 0;
+}
+
+.account-avatar-btn:hover {
+  opacity: 0.85;
+}
+
+.account-dropdown {
+  position: absolute;
+  top: calc(100% + 0.5rem);
+  right: 0;
+  z-index: 30;
+  width: 13.5rem;
+  padding: 0.875rem 1rem;
+  text-align: left;
+}
+
+.account-dropdown-name {
+  font-size: 0.9rem;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.account-dropdown-email {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-bottom: 0.5rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.account-signout {
+  width: 100%;
+  padding-left: 0;
+  justify-content: flex-start;
+}
+
+/* ---------- presence ---------- */
+
+.online-title {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.online-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #3fae7a;
+  box-shadow: 0 0 0 3px rgba(63, 174, 122, 0.25);
+}
+
+.presence-strip {
+  display: flex;
+  gap: 1rem;
+  list-style: none;
+  overflow-x: auto;
+  margin-inline: calc(-1 * (var(--gutter) + var(--safe-left)))
+    calc(-1 * (var(--gutter) + var(--safe-right)));
+  padding-inline: calc(var(--gutter) + var(--safe-left))
+    calc(var(--gutter) + var(--safe-right));
+  padding-bottom: 0.25rem;
+  scrollbar-width: none;
+}
+
+.presence-strip::-webkit-scrollbar {
+  display: none;
+}
+
+.presence-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+  flex-shrink: 0;
+  width: 3.5rem;
+}
+
+.presence-name {
+  font-size: 0.7rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 /* ---------- countdown strip ---------- */
 
 .countdown-strip {
