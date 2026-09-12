@@ -46,7 +46,7 @@ export function TopicPicker({ onSelect, busy = false }: TopicPickerProps) {
 
       <form className="topic-custom" onSubmit={handleCustomSubmit}>
         <label>
-          <span>Or ask for your own</span>
+          <span>Create with your own topic:</span>
           <input
             type="text"
             value={custom}

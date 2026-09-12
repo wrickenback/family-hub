@@ -7,10 +7,18 @@
 
 .ws-library-item {
   display: flex;
-  flex-direction: column;
-  align-items: flex-start;
+  align-items: center;
+  gap: 0.5rem;
   width: 100%;
   padding: 0.875rem 1rem;
+}
+
+.ws-library-open {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: flex-start;
+  min-width: 0;
   text-align: left;
 }
 
@@ -24,4 +32,26 @@
   font-size: 0.75rem;
   color: var(--text-muted);
   margin-top: 0.15rem;
+}
+
+.ws-library-delete {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--sand-100);
+  color: var(--text-muted);
+  font-size: 1.25rem;
+  line-height: 1;
+}
+
+.ws-library-delete:hover {
+  background: var(--rust-soft);
+  color: var(--rust);
+}
+
+.ws-library-delete:disabled {
+  opacity: 0.5;
 }

@@ -2,7 +2,11 @@ import { useEffect, useRef, useState } from 'react';
 import type { PointerEvent as ReactPointerEvent } from 'react';
 import { Screen } from '../components/Screen';
 import {
+  deleteWordSearchProgress,
   fetchPuzzle,
+  loadWordSearchProgress,
+  saveWordSearchProgress,
+  type PlacedWord,
   type WordSearchPuzzle,
 } from '../lib/firestoreWordSearch';
 import { submitScore } from '../lib/firestoreScores';
@@ -53,6 +57,16 @@ function pathBetween(start: Cell, end: Cell, dRow: number, dCol: number): Cell[]
   return path;
 }
 
+/** Recovers the full cell path for a placed word — used to restore
+ * highlights for words already found in a resumed puzzle. */
+function cellsForWord(w: PlacedWord): Cell[] {
+  const cells: Cell[] = [];
+  for (let i = 0; i < w.word.length; i++) {
+    cells.push({ r: w.row + w.dRow * i, c: w.col + w.dCol * i });
+  }
+  return cells;
+}
+
 function formatElapsed(ms: number): string {
   const totalSeconds = Math.floor(ms / 1000);
   const mins = Math.floor(totalSeconds / 60);
@@ -81,19 +95,39 @@ export function WordSearchGame({
 
   useEffect(() => {
     let cancelled = false;
-    fetchPuzzle(puzzleId).then((p) => {
-      if (cancelled) return;
-      if (!p) {
-        setLoadError(true);
-      } else {
+    Promise.all([fetchPuzzle(puzzleId), loadWordSearchProgress(uid, puzzleId)]).then(
+      ([p, progress]) => {
+        if (cancelled) return;
+        if (!p) {
+          setLoadError(true);
+          return;
+        }
         setPuzzle(p);
-        startTimeRef.current = Date.now();
+        if (progress) {
+          const resumedWords = new Set(
+            progress.foundWords.filter((w) => p.words.some((pw) => pw.word === w))
+          );
+          setFoundWords(resumedWords);
+          setFoundCells(() => {
+            const next = new Set<string>();
+            p.words
+              .filter((pw) => resumedWords.has(pw.word))
+              .forEach((pw) =>
+                cellsForWord(pw).forEach((c) => next.add(`${c.r}-${c.c}`))
+              );
+            return next;
+          });
+          startTimeRef.current = Date.now() - progress.elapsedMs;
+          setElapsedMs(progress.elapsedMs);
+        } else {
+          startTimeRef.current = Date.now();
+        }
       }
-    });
+    );
     return () => {
       cancelled = true;
     };
-  }, [puzzleId]);
+  }, [puzzleId, uid]);
 
   useEffect(() => {
     if (!puzzle || completed) return;
@@ -150,12 +184,21 @@ export function WordSearchGame({
       // Bigger celebration for the final word than for a regular find.
       playClear(justCompleted ? 3 : 0);
       if (justCompleted) setCompleted(true);
-      setFoundWords((prev) => new Set(prev).add(match.word));
+      const nextFoundWords = new Set(foundWords).add(match.word);
+      setFoundWords(nextFoundWords);
       setFoundCells((prev) => {
         const next = new Set(prev);
         dragCells.forEach((c) => next.add(`${c.r}-${c.c}`));
         return next;
       });
+      if (justCompleted) {
+        deleteWordSearchProgress(uid, puzzleId).catch(() => {});
+      } else {
+        saveWordSearchProgress(uid, puzzleId, {
+          foundWords: Array.from(nextFoundWords),
+          elapsedMs: Date.now() - startTimeRef.current,
+        }).catch(() => {});
+      }
     }
 
     setDragStart(null);

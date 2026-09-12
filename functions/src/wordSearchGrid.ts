@@ -2,7 +2,7 @@
 // Gemini — placing those words into a grid is ordinary local logic, so an
 // AI hiccup can only ever mean "fewer words," never a broken puzzle.
 
-export const GRID_SIZE = 12;
+export const GRID_SIZE = 10;
 
 export interface PlacedWord {
   word: string;

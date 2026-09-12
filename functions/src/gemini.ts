@@ -36,7 +36,7 @@ Rules:
 - This is for a family app used by kids as young as 8. If the topic itself is not clearly suitable for children — anything violent, sexual, hateful, drug-related, or otherwise inappropriate — do not generate any words. Instead respond with exactly: []
 - Otherwise, words must be appropriate for children aged 13 and under.
 - Each word must be a single unbroken token of only letters A-Z (no spaces, hyphens, numbers, or punctuation) — join multi-word names/phrases into one word, e.g. "TAYLORSWIFT" not "Taylor Swift".
-- Each word must be 3 to 12 letters long.
+- Each word must be 3 to 9 letters long.
 - Prefer common, recognizable words a kid would know.
 - Respond with ONLY a JSON array of the words as strings, nothing else. Example: ["EXAMPLE","WORDS","HERE"]`;
 
@@ -58,7 +58,7 @@ Rules:
     for (const raw of parsed) {
       if (typeof raw !== 'string') continue;
       const word = raw.trim().toUpperCase();
-      if (!/^[A-Z]{3,12}$/.test(word)) continue;
+      if (!/^[A-Z]{3,9}$/.test(word)) continue;
       if (seen.has(word)) continue;
       seen.add(word);
       words.push(word);

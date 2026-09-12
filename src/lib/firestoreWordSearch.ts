@@ -1,12 +1,14 @@
 import { httpsCallable } from 'firebase/functions';
 import {
   collection,
+  deleteDoc,
   doc,
   getDoc,
   limit as fbLimit,
   onSnapshot,
   orderBy,
   query,
+  setDoc,
 } from 'firebase/firestore';
 import { db, functions } from './firebase';
 
@@ -46,6 +48,46 @@ export async function generatePuzzle(topic: string): Promise<WordSearchPuzzle> {
         : null;
     throw new Error(message || 'Something went wrong generating that puzzle.');
   }
+}
+
+export async function deleteWordSearchPuzzle(id: string): Promise<void> {
+  if (!db) return;
+  await deleteDoc(doc(db, 'wordSearchPuzzles', id));
+}
+
+export interface WordSearchProgress {
+  foundWords: string[];
+  elapsedMs: number;
+}
+
+/** In-progress state lives per-user so resuming a puzzle someone else is
+ * also playing never clobbers their progress. Words found + elapsed time
+ * is enough to fully reconstruct the board — cell highlights are derived
+ * from the puzzle's own word placements, not stored separately. */
+export async function saveWordSearchProgress(
+  uid: string,
+  puzzleId: string,
+  progress: WordSearchProgress
+): Promise<void> {
+  if (!db) return;
+  await setDoc(doc(db, 'users', uid, 'wordSearchProgress', puzzleId), progress);
+}
+
+export async function loadWordSearchProgress(
+  uid: string,
+  puzzleId: string
+): Promise<WordSearchProgress | null> {
+  if (!db) return null;
+  const snap = await getDoc(doc(db, 'users', uid, 'wordSearchProgress', puzzleId));
+  return snap.exists() ? (snap.data() as WordSearchProgress) : null;
+}
+
+export async function deleteWordSearchProgress(
+  uid: string,
+  puzzleId: string
+): Promise<void> {
+  if (!db) return;
+  await deleteDoc(doc(db, 'users', uid, 'wordSearchProgress', puzzleId));
 }
 
 export async function fetchPuzzle(id: string): Promise<WordSearchPuzzle | null> {
