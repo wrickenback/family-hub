@@ -103,6 +103,9 @@
   justify-content: space-between;
   gap: 0.5rem;
   flex-shrink: 0;
+  /* Chips scale up + gain a ring when active — inset from the row's own
+     edges so that growth never reaches the screen edge. */
+  padding-inline: 0.5rem;
 }
 
 .ttt-chip {
