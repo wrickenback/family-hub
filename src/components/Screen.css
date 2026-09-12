@@ -1,0 +1,69 @@
+.screen {
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.screen-header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: calc(var(--safe-top) + 0.5rem) var(--gutter) 0.75rem;
+  padding-left: calc(var(--gutter) + var(--safe-left) - 8px);
+  padding-right: calc(var(--gutter) + var(--safe-right));
+  background: rgba(250, 248, 245, 0.88);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--sand-200);
+}
+
+.back-btn {
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  min-height: 44px;
+  border-radius: var(--radius-pill);
+  color: var(--text-primary);
+}
+
+.back-btn svg {
+  width: 24px;
+  height: 24px;
+}
+
+.back-btn:hover {
+  background: var(--sand-100);
+}
+
+.screen-heading {
+  min-width: 0;
+}
+
+.screen-heading h2 {
+  font-size: 1.25rem;
+}
+
+.screen-heading p {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin-top: 0.1rem;
+}
+
+.screen-body {
+  flex: 1;
+  padding: 1.25rem calc(var(--gutter) + var(--safe-right)) 2rem
+    calc(var(--gutter) + var(--safe-left));
+  padding-bottom: calc(2rem + var(--safe-bottom));
+}
+
+@media (min-width: 700px) {
+  .screen-header,
+  .screen-body {
+    max-width: 760px;
+    margin-inline: auto;
+    width: 100%;
+  }
+}

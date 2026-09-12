@@ -1,0 +1,68 @@
+.scoreboard {
+  list-style: none;
+  overflow: hidden;
+}
+
+.score-row {
+  display: grid;
+  grid-template-columns: 1.75rem 1fr auto;
+  grid-template-areas:
+    'rank name value'
+    'rank date value';
+  align-items: center;
+  column-gap: 0.75rem;
+  padding: 0.75rem 1rem;
+}
+
+.score-row + .score-row {
+  border-top: 1px solid var(--sand-100);
+}
+
+.score-rank {
+  grid-area: rank;
+  display: grid;
+  place-items: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: var(--radius-pill);
+  background: var(--sand-100);
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.score-rank.rank-1 {
+  background: #f6e4bb;
+  color: #8a6414;
+}
+
+.score-rank.rank-2 {
+  background: #e6e4e1;
+  color: #6b6660;
+}
+
+.score-rank.rank-3 {
+  background: #f0ddcf;
+  color: #8f5a33;
+}
+
+.score-name {
+  grid-area: name;
+  font-size: 0.9375rem;
+  font-weight: 600;
+}
+
+.score-date {
+  grid-area: date;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.score-value {
+  grid-area: value;
+  font-family: Poppins, system-ui, sans-serif;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--rust);
+  white-space: nowrap;
+}

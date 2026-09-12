@@ -2,9 +2,9 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  height: 100vh;
+  min-height: 100dvh;
   background: var(--bg-ground);
-  padding: 2rem;
+  padding: 2rem calc(var(--gutter) + 0.5rem);
 }
 
 .auth-container {
@@ -13,31 +13,34 @@
 }
 
 .auth-container h1 {
-  font-size: 2.5rem;
+  font-size: 2.25rem;
   margin-bottom: 0.5rem;
   color: var(--text-primary);
 }
 
 .auth-container > p {
   font-size: 1rem;
+  line-height: 1.5;
   color: var(--text-secondary);
   margin-bottom: 2rem;
 }
 
+.auth-container code {
+  font-size: 0.875rem;
+  background: var(--sand-100);
+  padding: 0.1rem 0.3rem;
+  border-radius: 4px;
+}
+
 .app-container {
+  min-height: 100dvh;
   display: flex;
   flex-direction: column;
-  height: 100vh;
 }
 
 .app-content {
   flex: 1;
-  overflow-y: auto;
-  padding: 1rem;
-}
-
-@media (max-width: 640px) {
-  .auth-container h1 {
-    font-size: 2rem;
-  }
+  /* Momentum scrolling on the page rather than an inner box keeps the iOS
+     URL-bar collapse behaviour working in the browser tab. */
+  min-height: 0;
 }

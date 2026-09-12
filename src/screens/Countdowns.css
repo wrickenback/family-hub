@@ -1,0 +1,64 @@
+.countdown-list {
+  display: grid;
+  gap: 0.75rem;
+  list-style: none;
+}
+
+.countdown-row {
+  padding: 1rem;
+}
+
+.countdown-row-top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.countdown-row-label {
+  font-family: Poppins, system-ui, sans-serif;
+  font-size: 1.0625rem;
+  font-weight: 600;
+}
+
+.countdown-row-days {
+  display: flex;
+  align-items: baseline;
+  gap: 0.25rem;
+  font-family: Poppins, system-ui, sans-serif;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--rust);
+  white-space: nowrap;
+}
+
+.countdown-row-days span {
+  font-family: Inter, sans-serif;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+}
+
+.countdown-bar {
+  display: block;
+  height: 6px;
+  border-radius: var(--radius-pill);
+  background: var(--sand-100);
+  overflow: hidden;
+  margin-bottom: 0.5rem;
+}
+
+.countdown-bar span {
+  display: block;
+  height: 100%;
+  border-radius: var(--radius-pill);
+  background: linear-gradient(90deg, var(--rust), #d07a3f);
+}
+
+.countdown-row-date {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}

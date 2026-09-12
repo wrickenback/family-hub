@@ -8,111 +8,129 @@ import BattleshipIcon from '../assets/game-icons/battleship.svg?react';
 import DotsAndBoxesIcon from '../assets/game-icons/dots-boxes.svg?react';
 import WarIcon from '../assets/game-icons/war.svg?react';
 import UnoIcon from '../assets/game-icons/uno.svg?react';
-// TODO: no source icon was provided for Countdowns/Schedule — swap this placeholder out
-import PlaceholderIcon from '../assets/game-icons/placeholder.svg?react';
+
+export type Route =
+  | { screen: 'home' }
+  | { screen: 'games' }
+  | { screen: 'scores' }
+  | { screen: 'calendar' }
+  | { screen: 'countdowns' }
+  | { screen: 'game'; gameId: string };
 
 export type Role = 'guest' | 'kid' | 'parent';
 export type Visibility = 'all' | 'familyOnly' | 'parentOnly';
+export type PlayerMode = 'solo' | 'multi' | 'both';
+export type Scoring = 'highScore' | 'wins';
 
-export interface App {
+export interface GameApp {
   id: string;
   name: string;
   path: string;
   visibility: Visibility;
+  players: PlayerMode;
+  scoring: Scoring;
   icon: ComponentType<SVGProps<SVGSVGElement>>;
-  component: ComponentType;
+  blurb: string;
 }
 
-export const apps: App[] = [
+export const games: GameApp[] = [
   {
     id: 'blocks',
     name: 'Blocks',
     path: '/blocks',
     visibility: 'familyOnly',
+    players: 'solo',
+    scoring: 'highScore',
     icon: BlocksIcon,
-    component: () => <div>Blocks (coming soon)</div>,
-  },
-  {
-    id: 'tictactoe',
-    name: 'Tic Tac Toe',
-    path: '/tictactoe',
-    visibility: 'familyOnly',
-    icon: TicTacToeIcon,
-    component: () => <div>Tic Tac Toe (coming soon)</div>,
-  },
-  {
-    id: 'connect4',
-    name: 'Connect 4',
-    path: '/connect4',
-    visibility: 'familyOnly',
-    icon: ConnectFourIcon,
-    component: () => <div>Connect 4 (coming soon)</div>,
+    blurb: 'Fit the pieces, clear the lines, chase the family high score.',
   },
   {
     id: 'hangman',
     name: 'Hangman',
     path: '/hangman',
     visibility: 'familyOnly',
+    players: 'both',
+    scoring: 'wins',
     icon: HangmanIcon,
-    component: () => <div>Hangman (coming soon)</div>,
+    blurb: 'Guess the word letter by letter. Play solo or pick an opponent.',
   },
   {
-    id: 'battleship',
-    name: 'Battleship',
-    path: '/battleship',
+    id: 'tictactoe',
+    name: 'Tic Tac Toe',
+    path: '/tictactoe',
     visibility: 'familyOnly',
-    icon: BattleshipIcon,
-    component: () => <div>Battleship (coming soon)</div>,
+    players: 'multi',
+    scoring: 'wins',
+    icon: TicTacToeIcon,
+    blurb: 'Three in a row. Quick games, long-running rivalry.',
+  },
+  {
+    id: 'connect4',
+    name: 'Connect 4',
+    path: '/connect4',
+    visibility: 'familyOnly',
+    players: 'multi',
+    scoring: 'wins',
+    icon: ConnectFourIcon,
+    blurb: 'Drop discs and line up four before the other player does.',
   },
   {
     id: 'dotsandboxes',
     name: 'Dots and Boxes',
     path: '/dotsandboxes',
     visibility: 'familyOnly',
+    players: 'multi',
+    scoring: 'wins',
     icon: DotsAndBoxesIcon,
-    component: () => <div>Dots and Boxes (coming soon)</div>,
+    blurb: 'Draw lines, close boxes, claim the most squares.',
+  },
+  {
+    id: 'battleship',
+    name: 'Battleship',
+    path: '/battleship',
+    visibility: 'familyOnly',
+    players: 'multi',
+    scoring: 'wins',
+    icon: BattleshipIcon,
+    blurb: 'Hide your fleet and hunt down theirs.',
   },
   {
     id: 'war',
     name: 'War',
     path: '/war',
     visibility: 'familyOnly',
+    players: 'multi',
+    scoring: 'wins',
     icon: WarIcon,
-    component: () => <div>War (coming soon)</div>,
+    blurb: 'Highest card takes the pile. Pure luck, pure chaos.',
   },
   {
     id: 'uno',
     name: 'Uno',
     path: '/uno',
     visibility: 'familyOnly',
+    players: 'multi',
+    scoring: 'wins',
     icon: UnoIcon,
-    component: () => <div>Uno (coming soon)</div>,
-  },
-  {
-    id: 'countdowns',
-    name: 'Countdowns',
-    path: '/countdowns',
-    visibility: 'familyOnly',
-    icon: PlaceholderIcon,
-    component: () => <div>Countdowns (coming soon)</div>,
-  },
-  {
-    id: 'schedule',
-    name: 'Schedule',
-    path: '/schedule',
-    visibility: 'familyOnly',
-    icon: PlaceholderIcon,
-    component: () => <div>Schedule (coming soon)</div>,
+    blurb: 'Match colours and numbers, and never forget to call it.',
   },
 ];
 
-export function canAccessApp(app: App, role: Role | null): boolean {
-  if (app.visibility === 'all') return true;
-  if (app.visibility === 'familyOnly') return role === 'kid' || role === 'parent';
-  if (app.visibility === 'parentOnly') return role === 'parent';
+export function canAccess(
+  item: { visibility: Visibility },
+  role: Role | null
+): boolean {
+  if (item.visibility === 'all') return true;
+  if (item.visibility === 'familyOnly')
+    return role === 'kid' || role === 'parent';
+  if (item.visibility === 'parentOnly') return role === 'parent';
   return false;
 }
 
-export function getVisibleApps(role: Role | null): App[] {
-  return apps.filter((app) => canAccessApp(app, role));
+export function getVisibleGames(role: Role | null): GameApp[] {
+  return games.filter((game) => canAccess(game, role));
+}
+
+export function getGame(id: string): GameApp | undefined {
+  return games.find((game) => game.id === id);
 }

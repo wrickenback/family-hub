@@ -1,0 +1,35 @@
+.score-tabs {
+  display: flex;
+  gap: 0.5rem;
+  overflow-x: auto;
+  margin-inline: calc(-1 * (var(--gutter) + var(--safe-left)))
+    calc(-1 * (var(--gutter) + var(--safe-right)));
+  padding-inline: calc(var(--gutter) + var(--safe-left))
+    calc(var(--gutter) + var(--safe-right));
+  padding-bottom: 0.25rem;
+  margin-bottom: 1.5rem;
+  scrollbar-width: none;
+}
+
+.score-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.score-tab {
+  flex-shrink: 0;
+  padding: 0.5rem 0.875rem;
+  min-height: 38px;
+  border-radius: var(--radius-pill);
+  background: var(--bg-surface);
+  box-shadow: var(--shadow-card);
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.score-tab.active {
+  background: var(--rust);
+  color: #fff;
+  font-weight: 600;
+}
