@@ -3,7 +3,7 @@ import * as admin from 'firebase-admin';
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { defineSecret } from 'firebase-functions/params';
 import { generateTopicWords } from './gemini';
-import { buildWordSearchGrid } from './wordSearchGrid';
+import { buildWordSearchGrid, type Difficulty } from './wordSearchGrid';
 
 admin.initializeApp();
 const db = admin.firestore();
@@ -45,6 +45,8 @@ export const generateWordSearchPuzzle = onCall(
       throw new HttpsError('invalid-argument', 'Give a topic between 1 and 60 characters.');
     }
 
+    const difficulty: Difficulty = request.data?.difficulty === 'easy' ? 'easy' : 'hard';
+
     const words = await generateTopicWords(geminiApiKey.value(), topic);
     if (words.length < 4) {
       throw new HttpsError(
@@ -53,7 +55,11 @@ export const generateWordSearchPuzzle = onCall(
       );
     }
 
-    const puzzle = buildWordSearchGrid(words, Date.now() ^ Math.floor(Math.random() * 1e9));
+    const puzzle = buildWordSearchGrid(
+      words,
+      Date.now() ^ Math.floor(Math.random() * 1e9),
+      difficulty
+    );
     if (puzzle.words.length < 4) {
       throw new HttpsError(
         'internal',
@@ -64,6 +70,7 @@ export const generateWordSearchPuzzle = onCall(
     const docRef = await db.collection('wordSearchPuzzles').add({
       topic,
       topicSlug: slugify(topic),
+      difficulty,
       size: puzzle.size,
       grid: puzzle.grid,
       words: puzzle.words,
@@ -72,7 +79,7 @@ export const generateWordSearchPuzzle = onCall(
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
     });
 
-    return { id: docRef.id, ...puzzle, topic };
+    return { id: docRef.id, ...puzzle, topic, difficulty };
   }
 );
 

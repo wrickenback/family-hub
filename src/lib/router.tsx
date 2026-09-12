@@ -18,9 +18,18 @@ export type Route =
   | { screen: 'scores' }
   | { screen: 'calendar' }
   | { screen: 'countdowns' }
-  | { screen: 'game'; gameId: string }
+  | { screen: 'game'; gameId: string; modeId?: string }
   | { screen: 'play-blocks'; mode: 'free' | 'daily' }
-  | { screen: 'play-wordsearch'; puzzleId: string };
+  | { screen: 'play-wordsearch'; puzzleId: string }
+  | { screen: 'play-tictactoe'; mode: 'pass' | 'online' }
+  | { screen: 'play-connect4'; mode: 'pass' | 'online' }
+  | { screen: 'play-reaction' };
+
+/** Mode string used for any game that doesn't partition its leaderboard by
+ * mode (i.e. everything except Blocks' free/daily split and the online
+ * board for Tic Tac Toe/Connect 4). One constant so the games, their score
+ * submissions, and their leaderboard reads can't drift out of sync. */
+export const DEFAULT_MODE = 'default';
 
 export type Role = 'guest' | 'kid' | 'parent';
 export type Visibility = 'all' | 'familyOnly' | 'parentOnly';
@@ -115,6 +124,7 @@ export const games: GameApp[] = [
     scoring: 'bestMs',
     icon: ReactionIcon,
     blurb: 'Tap the moment it changes. Fastest thumb in the family wins.',
+    built: true,
   },
   {
     id: 'hangman',
@@ -135,6 +145,19 @@ export const games: GameApp[] = [
     scoring: 'wins',
     icon: TicTacToeIcon,
     blurb: 'Three in a row. Quick games, long-running rivalry.',
+    built: true,
+    modes: [
+      {
+        id: 'pass',
+        name: 'Pass and play',
+        blurb: 'Two of you, one phone. Stays on this device.',
+      },
+      {
+        id: 'online',
+        name: 'Play a family member',
+        blurb: 'Two devices, live. Wins count on the family board.',
+      },
+    ],
   },
   {
     id: 'connect4',
@@ -145,6 +168,19 @@ export const games: GameApp[] = [
     scoring: 'wins',
     icon: ConnectFourIcon,
     blurb: 'Drop discs and line up four before the other player does.',
+    built: true,
+    modes: [
+      {
+        id: 'pass',
+        name: 'Pass and play',
+        blurb: 'Two of you, one phone. Stays on this device.',
+      },
+      {
+        id: 'online',
+        name: 'Play a family member',
+        blurb: 'Two devices, live. Wins count on the family board.',
+      },
+    ],
   },
   {
     id: 'dotsandboxes',
@@ -220,11 +256,19 @@ export function routeToPath(route: Route): string {
     case 'countdowns':
       return '/countdowns';
     case 'game':
-      return `/games/${route.gameId}`;
+      return route.modeId
+        ? `/games/${route.gameId}/${route.modeId}`
+        : `/games/${route.gameId}`;
     case 'play-blocks':
       return `/play/blocks/${route.mode}`;
     case 'play-wordsearch':
       return `/play/wordsearch/${route.puzzleId}`;
+    case 'play-tictactoe':
+      return `/play/tictactoe/${route.mode}`;
+    case 'play-connect4':
+      return `/play/connect4/${route.mode}`;
+    case 'play-reaction':
+      return '/play/reaction';
   }
 }
 
@@ -235,7 +279,9 @@ export function pathToRoute(pathname: string): Route | null {
   const [first, second, third] = segments;
   switch (first) {
     case 'games':
-      return second ? { screen: 'game', gameId: second } : { screen: 'games' };
+      return second
+        ? { screen: 'game', gameId: second, modeId: third }
+        : { screen: 'games' };
     case 'scores':
       return { screen: 'scores' };
     case 'calendar':
@@ -248,6 +294,15 @@ export function pathToRoute(pathname: string): Route | null {
       }
       if (second === 'wordsearch' && third) {
         return { screen: 'play-wordsearch', puzzleId: third };
+      }
+      if (second === 'tictactoe' && (third === 'pass' || third === 'online')) {
+        return { screen: 'play-tictactoe', mode: third };
+      }
+      if (second === 'connect4' && (third === 'pass' || third === 'online')) {
+        return { screen: 'play-connect4', mode: third };
+      }
+      if (second === 'reaction') {
+        return { screen: 'play-reaction' };
       }
       return null;
     }
@@ -278,6 +333,27 @@ export function parentChainFor(route: Route): Route[] {
         HOME,
         { screen: 'games' },
         { screen: 'game', gameId: 'wordsearch' },
+        route,
+      ];
+    case 'play-tictactoe':
+      return [
+        HOME,
+        { screen: 'games' },
+        { screen: 'game', gameId: 'tictactoe' },
+        route,
+      ];
+    case 'play-connect4':
+      return [
+        HOME,
+        { screen: 'games' },
+        { screen: 'game', gameId: 'connect4' },
+        route,
+      ];
+    case 'play-reaction':
+      return [
+        HOME,
+        { screen: 'games' },
+        { screen: 'game', gameId: 'reaction' },
         route,
       ];
     default:

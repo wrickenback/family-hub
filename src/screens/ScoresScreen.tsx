@@ -1,9 +1,8 @@
 import { useState } from 'react';
 import { Screen } from '../components/Screen';
 import { Scoreboard } from '../components/Scoreboard';
-import { BlocksLeaderboard } from '../components/BlocksLeaderboard';
-import { WordSearchLeaderboard } from '../components/WordSearchLeaderboard';
-import { getVisibleGames, type Role } from '../lib/router';
+import { GameLeaderboard } from '../components/GameLeaderboard';
+import { DEFAULT_MODE, getVisibleGames, type Role } from '../lib/router';
 import { IS_SAMPLE_DATA, sampleScores } from '../lib/sampleData';
 import './Scores.css';
 
@@ -50,18 +49,25 @@ export function ScoresScreen({
 
       <div className="section-head">
         <span className="section-title">{selected.name}</span>
-        {selected.id !== 'blocks' &&
-          selected.id !== 'wordsearch' &&
-          IS_SAMPLE_DATA &&
-          sampleScores[selected.id] && (
-            <span className="pill pill-sample">Sample</span>
-          )}
+        {!selected.built && IS_SAMPLE_DATA && sampleScores[selected.id] && (
+          <span className="pill pill-sample">Sample</span>
+        )}
       </div>
 
-      {selected.id === 'blocks' ? (
-        <BlocksLeaderboard mode="free" />
-      ) : selected.id === 'wordsearch' ? (
-        <WordSearchLeaderboard />
+      {selected.built ? (
+        <GameLeaderboard
+          gameId={selected.id}
+          // Blocks' all-time board is free play; Tic Tac Toe's is the online
+          // board (pass-and-play wins never leave the device).
+          mode={
+            selected.id === 'blocks'
+              ? 'free'
+              : selected.id === 'tictactoe' || selected.id === 'connect4'
+              ? 'online'
+              : DEFAULT_MODE
+          }
+          scoring={selected.scoring}
+        />
       ) : (
         <Scoreboard
           entries={sampleScores[selected.id] ?? []}

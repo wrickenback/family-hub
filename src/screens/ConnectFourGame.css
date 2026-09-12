@@ -1,0 +1,212 @@
+.c4-scorebar {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  margin-bottom: 0.75rem;
+  background: linear-gradient(135deg, var(--teal) 0%, #24564c 100%);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-card);
+  color: #fff;
+  text-align: center;
+}
+
+.c4-tally {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  min-width: 0;
+}
+
+.c4-tally-label {
+  font-size: 0.6rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  opacity: 0.8;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.c4-tally-value {
+  font-family: Poppins, system-ui, sans-serif;
+  font-size: 1.25rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.c4-status {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  min-height: 1.5rem;
+  margin-bottom: 0.5rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.c4-status.settled {
+  color: var(--rust);
+}
+
+.c4-status-spinner {
+  width: 15px;
+  height: 15px;
+  color: var(--teal);
+  animation: c4-spin 0.8s linear infinite;
+}
+
+@keyframes c4-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* 7 columns x 6 rows. Columns are the buttons — dropping into a column is
+   the actual move, and a full-height target is far easier to hit on a
+   phone than one slot would be. */
+.c4-board {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+  width: 100%;
+  max-width: 30rem;
+  aspect-ratio: 7 / 6;
+  margin: 0 auto 1rem;
+  padding: 4px;
+  background: var(--teal);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-card);
+}
+
+.c4-column {
+  display: grid;
+  grid-template-rows: repeat(6, 1fr);
+  gap: 2px;
+  min-height: 0;
+  padding: 0;
+  border-radius: 4px;
+  background: transparent;
+}
+
+.c4-column:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.c4-column:active {
+  transform: none;
+}
+
+.c4-column:disabled {
+  cursor: default;
+}
+
+.c4-slot {
+  display: block;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  border-radius: 50%;
+  /* Empty slots read as holes punched in the board. */
+  background: var(--bg-ground);
+  box-shadow: inset 0 1px 3px rgba(26, 20, 16, 0.25);
+}
+
+.c4-slot.disc-R {
+  background: var(--rust);
+}
+
+.c4-slot.disc-Y {
+  background: var(--gold);
+}
+
+.c4-slot.winning {
+  box-shadow: 0 0 0 3px #fff, 0 2px 8px rgba(0, 0, 0, 0.35);
+  animation: c4-pop 0.4s ease-out;
+}
+
+@keyframes c4-pop {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.12);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.c4-result {
+  padding: 1.25rem;
+  margin-bottom: 1rem;
+  text-align: center;
+}
+
+.c4-result h3 {
+  font-size: 1.25rem;
+  margin-bottom: 0.875rem;
+}
+
+.c4-note {
+  font-size: 0.75rem;
+  line-height: 1.4;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+/* ---------- online lobby ---------- */
+
+.c4-lobby {
+  display: grid;
+  gap: 0.5rem;
+  list-style: none;
+  margin-bottom: 1.5rem;
+}
+
+.c4-lobby-item {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.15rem;
+  width: 100%;
+  padding: 0.875rem 1rem;
+  text-align: left;
+}
+
+.c4-lobby-item:hover {
+  box-shadow: var(--shadow-raised);
+}
+
+.c4-lobby-item:disabled {
+  opacity: 0.6;
+}
+
+.c4-lobby-name {
+  font-family: Poppins, system-ui, sans-serif;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.c4-lobby-meta {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.c4-error {
+  padding: 0.875rem 1rem;
+  margin-bottom: 1rem;
+  background: var(--rust-soft);
+  border-radius: var(--radius-md);
+  font-size: 0.85rem;
+  color: var(--rust);
+}
+
+.c4-leave {
+  display: block;
+  width: 100%;
+  margin-top: 0.5rem;
+}

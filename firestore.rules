@@ -75,7 +75,21 @@ service cloud.firestore {
         resource.data.status == 'waiting'
       );
       allow create: if isSignedIn() && isAllowed() && isKid();
-      allow update: if isSignedIn() && request.auth.uid in resource.data.players;
+      // Either you're already a player making a move, or you're a family
+      // member joining a game that's still waiting for an opponent — the
+      // second clause is what lets a joiner add themselves to `players`,
+      // since at that moment they aren't in the *existing* doc yet. Capped
+      // at two players so a third person can't overwrite a live game.
+      allow update: if isSignedIn() && isAllowed() && (
+        request.auth.uid in resource.data.players ||
+        (
+          resource.data.status == 'waiting' &&
+          request.auth.uid in request.resource.data.players &&
+          request.resource.data.players.size() <= 2
+        )
+      );
+      // Abandoned lobbies are cleaned up by whoever created them.
+      allow delete: if isSignedIn() && request.auth.uid in resource.data.players;
 
       // Battleship: hidden ship positions only readable by owner
       match /players/{playerId} {

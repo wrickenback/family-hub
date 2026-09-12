@@ -86,35 +86,18 @@ export const sampleEvents: ScheduleEvent[] = [
 
 // 'blocks' and 'blocks:daily' aren't seeded here — Blocks gameplay is real
 // now, and its leaderboards come from Firestore (see BlocksLeaderboard).
+// Only games that aren't built yet are seeded here. A built game reads real
+// Firestore scores (see GameLeaderboard), so leaving a seed in place would
+// print invented names and times on its card and leaderboard as if they
+// were real family results — and set a fake target to beat. 'wordsearch',
+// 'reaction', 'tictactoe' and 'connect4' were all dropped from this list as they
+// shipped.
 export const sampleScores: Record<string, ScoreEntry[]> = {
-  reaction: [
-    { name: 'Iris', value: 187, date: at(-1, 18, 30) },
-    { name: 'Max', value: 201, date: at(-3, 17, 15) },
-    { name: 'Nora', value: 214, date: at(0, 12, 5) },
-    { name: 'Sam', value: 236, date: at(-2, 20, 40) },
-    { name: 'Will', value: 268, date: at(-6, 21, 12) },
-    { name: 'Theo', value: 295, date: at(-8, 16, 55) },
-  ],
-  // 'wordsearch' isn't seeded here — it's real now, backed by Firestore
-  // (see WordSearchLeaderboard).
   wordle: [
     { name: 'Will', value: 18, date: at(0, 7, 15) },
     { name: 'Nora', value: 16, date: at(0, 7, 50) },
     { name: 'Sam', value: 12, date: at(-1, 8, 5) },
     { name: 'Iris', value: 9, date: at(0, 9, 30) },
-  ],
-  connect4: [
-    { name: 'Will', value: 27, date: at(-1, 20, 10) },
-    { name: 'Nora', value: 24, date: at(-1, 20, 10) },
-    { name: 'Sam', value: 19, date: at(-4, 18, 25) },
-    { name: 'Theo', value: 11, date: at(-8, 17, 0) },
-    { name: 'Iris', value: 6, date: at(-15, 19, 5) },
-  ],
-  tictactoe: [
-    { name: 'Iris', value: 41, date: at(0, 12, 30) },
-    { name: 'Max', value: 38, date: at(0, 12, 30) },
-    { name: 'Sam', value: 22, date: at(-7, 16, 45) },
-    { name: 'Will', value: 15, date: at(-11, 20, 15) },
   ],
 };
 

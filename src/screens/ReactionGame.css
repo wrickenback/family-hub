@@ -1,0 +1,162 @@
+.reaction-scorebar {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.4rem 0.9rem;
+  margin-bottom: 0.875rem;
+  background: linear-gradient(135deg, var(--teal) 0%, #24564c 100%);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-card);
+  color: #fff;
+}
+
+.reaction-stat {
+  display: flex;
+  align-items: baseline;
+  gap: 0.3rem;
+}
+
+.reaction-stat-right {
+  flex-direction: row-reverse;
+}
+
+.reaction-stat-value {
+  font-family: Poppins, system-ui, sans-serif;
+  font-size: 0.95rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.reaction-stat-label {
+  font-size: 0.6rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  opacity: 0.75;
+}
+
+/* One big target: the whole panel is the button, so there's no hunting for
+   a small tap area when every millisecond is being measured. */
+.reaction-panel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  width: 100%;
+  min-height: 16rem;
+  padding: 2rem 1.25rem;
+  margin-bottom: 1rem;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+  text-align: center;
+  /* No tap-delay or accidental text selection while hammering the panel. */
+  touch-action: manipulation;
+  user-select: none;
+  transition: background-color 0.06s linear;
+}
+
+.reaction-panel:active {
+  /* The global button :active scale would add a frame of layout work on
+     the exact tap we're timing. */
+  transform: none;
+}
+
+.reaction-panel-big {
+  font-family: Poppins, system-ui, sans-serif;
+  font-size: 2.25rem;
+  font-weight: 700;
+  line-height: 1.1;
+}
+
+.reaction-panel-small {
+  font-size: 0.85rem;
+  font-weight: 500;
+  opacity: 0.85;
+}
+
+.reaction-panel.phase-idle,
+.reaction-panel.phase-scored,
+.reaction-panel.phase-done {
+  background: var(--sand-100);
+  color: var(--text-primary);
+}
+
+.reaction-panel.phase-waiting {
+  background: var(--rust);
+  color: #fff;
+}
+
+.reaction-panel.phase-go {
+  background: #1f7a4d;
+  color: #fff;
+}
+
+.reaction-panel.phase-tooSoon {
+  background: var(--gold);
+  color: #fff;
+}
+
+.reaction-times {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 0.4rem;
+  list-style: none;
+  margin-bottom: 1.25rem;
+}
+
+.reaction-time {
+  padding: 0.45rem 0.25rem;
+  border-radius: var(--radius-sm);
+  background: var(--sand-100);
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.reaction-time.filled {
+  color: var(--text-primary);
+}
+
+.reaction-time.best {
+  background: var(--teal-soft);
+  color: var(--teal);
+}
+
+.reaction-time.void {
+  background: var(--rust-soft);
+  color: var(--rust);
+}
+
+.reaction-result {
+  padding: 1.5rem 1.25rem;
+  text-align: center;
+}
+
+.reaction-result h3 {
+  font-family: Poppins, system-ui, sans-serif;
+  font-size: 2rem;
+  color: var(--teal);
+  margin-bottom: 0.25rem;
+}
+
+.reaction-result-detail {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  margin-bottom: 0.5rem;
+}
+
+.reaction-result-flag {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--gold);
+  margin-bottom: 1rem;
+}
+
+.reaction-result-gap {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin-bottom: 1rem;
+}

@@ -1,0 +1,211 @@
+.ttt-scorebar {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.5rem;
+  padding: 0.6rem 0.75rem;
+  margin-bottom: 0.875rem;
+  background: linear-gradient(135deg, var(--teal) 0%, #24564c 100%);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-card);
+  color: #fff;
+  text-align: center;
+}
+
+.ttt-tally {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  min-width: 0;
+}
+
+.ttt-tally-mark {
+  font-size: 0.65rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  opacity: 0.8;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ttt-tally-value {
+  font-family: Poppins, system-ui, sans-serif;
+  font-size: 1.4rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.ttt-tally-draw {
+  opacity: 0.85;
+}
+
+.ttt-status {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  min-height: 1.5rem;
+  margin-bottom: 0.625rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-align: center;
+}
+
+.ttt-status-spinner {
+  width: 15px;
+  height: 15px;
+  color: var(--teal);
+  animation: ttt-spin 0.8s linear infinite;
+}
+
+@keyframes ttt-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.ttt-status.settled {
+  color: var(--rust);
+}
+
+.ttt-board {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(3, 1fr);
+  gap: 6px;
+  width: 100%;
+  max-width: 22rem;
+  aspect-ratio: 1;
+  margin: 0 auto 1.25rem;
+  padding: 6px;
+  background: var(--sand-200);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+}
+
+.ttt-cell {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+  font-family: Poppins, system-ui, sans-serif;
+  font-size: clamp(2.25rem, 14vw, 3.5rem);
+  font-weight: 700;
+  line-height: 1;
+  color: var(--text-primary);
+}
+
+.ttt-cell:disabled {
+  cursor: default;
+}
+
+/* Each player keeps one colour everywhere — board, tally, result. */
+.ttt-cell.mark-x,
+.ttt-tally-mark.mark-x {
+  color: var(--rust);
+}
+
+.ttt-cell.mark-o,
+.ttt-tally-mark.mark-o {
+  color: var(--teal);
+}
+
+.ttt-tally-mark.mark-x,
+.ttt-tally-mark.mark-o {
+  color: #fff;
+  opacity: 0.9;
+}
+
+.ttt-cell.winning {
+  background: var(--gold);
+  color: #fff;
+  animation: ttt-pop 0.35s ease-out;
+}
+
+@keyframes ttt-pop {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.08);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.ttt-result {
+  padding: 1.25rem;
+  margin-bottom: 1rem;
+  text-align: center;
+}
+
+.ttt-result h3 {
+  font-size: 1.25rem;
+  margin-bottom: 0.875rem;
+}
+
+.ttt-note {
+  font-size: 0.75rem;
+  line-height: 1.4;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+/* ---------- online lobby ---------- */
+
+.ttt-lobby {
+  display: grid;
+  gap: 0.5rem;
+  list-style: none;
+  margin-bottom: 1.5rem;
+}
+
+.ttt-lobby-item {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.15rem;
+  width: 100%;
+  padding: 0.875rem 1rem;
+  text-align: left;
+}
+
+.ttt-lobby-item:hover {
+  box-shadow: var(--shadow-raised);
+}
+
+.ttt-lobby-item:disabled {
+  opacity: 0.6;
+}
+
+.ttt-lobby-name {
+  font-family: Poppins, system-ui, sans-serif;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.ttt-lobby-meta {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.ttt-error {
+  padding: 0.875rem 1rem;
+  margin-bottom: 1rem;
+  background: var(--rust-soft);
+  border-radius: var(--radius-md);
+  font-size: 0.85rem;
+  color: var(--rust);
+}
+
+.ttt-leave {
+  display: block;
+  width: 100%;
+  margin-top: 0.5rem;
+}

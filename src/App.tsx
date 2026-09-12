@@ -29,6 +29,11 @@ import { CalendarScreen } from './screens/CalendarScreen';
 import { CountdownsScreen } from './screens/CountdownsScreen';
 import { BlocksGame } from './screens/BlocksGame';
 import { WordSearchGame } from './screens/WordSearchGame';
+import { TicTacToeGame } from './screens/TicTacToeGame';
+import { TicTacToeOnline } from './screens/TicTacToeOnline';
+import { ConnectFourGame } from './screens/ConnectFourGame';
+import { ConnectFourOnline } from './screens/ConnectFourOnline';
+import { ReactionGame } from './screens/ReactionGame';
 import './App.css';
 
 const HOME: Route = { screen: 'home' };
@@ -260,11 +265,27 @@ export function App() {
         {route.screen === 'game' && (
           <GameDetail
             gameId={route.gameId}
+            initialModeId={route.modeId}
+            uid={user.uid}
             onBack={back}
+            onModeChange={(modeId) =>
+              window.history.replaceState(
+                null,
+                '',
+                routeToPath({ screen: 'game', gameId: route.gameId, modeId })
+              )
+            }
             onPlayBlocks={(mode) => navigate({ screen: 'play-blocks', mode })}
             onPlayWordSearch={(puzzleId) =>
               navigate({ screen: 'play-wordsearch', puzzleId })
             }
+            onPlayTicTacToe={(mode) =>
+              navigate({ screen: 'play-tictactoe', mode })
+            }
+            onPlayConnectFour={(mode) =>
+              navigate({ screen: 'play-connect4', mode })
+            }
+            onPlayReaction={() => navigate({ screen: 'play-reaction' })}
           />
         )}
         {route.screen === 'play-blocks' && (
@@ -278,6 +299,33 @@ export function App() {
         {route.screen === 'play-wordsearch' && (
           <WordSearchGame
             puzzleId={route.puzzleId}
+            uid={user.uid}
+            displayName={user.displayName || user.email || 'Someone'}
+            onBack={back}
+          />
+        )}
+        {route.screen === 'play-tictactoe' &&
+          (route.mode === 'online' ? (
+            <TicTacToeOnline
+              uid={user.uid}
+              displayName={user.displayName || user.email || 'Someone'}
+              onBack={back}
+            />
+          ) : (
+            <TicTacToeGame onBack={back} />
+          ))}
+        {route.screen === 'play-connect4' &&
+          (route.mode === 'online' ? (
+            <ConnectFourOnline
+              uid={user.uid}
+              displayName={user.displayName || user.email || 'Someone'}
+              onBack={back}
+            />
+          ) : (
+            <ConnectFourGame onBack={back} />
+          ))}
+        {route.screen === 'play-reaction' && (
+          <ReactionGame
             uid={user.uid}
             displayName={user.displayName || user.email || 'Someone'}
             onBack={back}

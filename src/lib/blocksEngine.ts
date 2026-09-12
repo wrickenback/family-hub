@@ -201,11 +201,15 @@ export function seedFromDateKey(dateKey: string): number {
   return hash;
 }
 
+/** UTC, not local time — the daily seed has to be the same for every family
+ * member regardless of which timezone their device is in, or two people
+ * playing "today's" challenge could get different boards. */
 export function todayKey(): string {
   const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(
-    d.getDate()
-  ).padStart(2, '0')}`;
+  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(
+    2,
+    '0'
+  )}-${String(d.getUTCDate()).padStart(2, '0')}`;
 }
 
 function weightedPick(rng: () => number, pool: Shape[] = SHAPES): Shape {
