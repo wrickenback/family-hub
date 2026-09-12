@@ -60,7 +60,13 @@ body {
   overscroll-behavior-y: none;
 }
 
-html,
+html {
+  width: 100%;
+  /* dvh (not vh/%) so mobile browsers' collapsing address bar doesn't leave
+     a sliver of extra scrollable space below the fold. */
+  min-height: 100dvh;
+}
+
 body,
 #root {
   width: 100%;

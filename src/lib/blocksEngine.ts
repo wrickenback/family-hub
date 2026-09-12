@@ -23,13 +23,14 @@ export function emptyBoard(): Board {
 // standard for this genre (Block Blast, 1010!) since the player never
 // rotates pieces themselves.
 //
-// This list intentionally sticks to shapes confirmed to exist in the real
-// game (1x1/1x2/1x3 "easiest" pieces, standard tetrominoes L/J/S/Z/T/square,
-// 1x4/1x5 bars, a 2x3 rectangle, and the 3x3 square) — no plus/cross shape
-// and no 5-cell L exist in the real game, and both were cut. Weight biases
-// the random draw heavily toward the confirmed-easy small pieces; the
-// pieces callable "difficult" once the board is crowded (1x5, 2x3, 3x3)
-// stay rare rather than routine.
+// This list sticks to shapes confirmed to exist in the real game (1x1/1x2/
+// 1x3 "easiest" pieces, standard tetrominoes L/J/S/Z/T/square, 1x4/1x5 bars,
+// 2x3/3x2 rectangles, and 3x3/4x4 squares) — no plus/cross shape and no
+// 5-cell L exist in the real game, and both were cut. Weight biases the
+// random draw heavily toward the small pieces; 1x5/2x3 stay uncommon since
+// they get unwieldy once the board fills in, but the 3x3 is a normal
+// regular of a draw (not a rare novelty) per direct playtesting, and only
+// the 4x4 is kept genuinely rare.
 export const SHAPES: Shape[] = [
   { id: 'dot', cells: [[0, 0]], weight: 10 },
   { id: 'h2', cells: [[0, 0], [0, 1]], weight: 12 },
@@ -68,10 +69,19 @@ export const SHAPES: Shape[] = [
     [1, 0], [1, 1],
     [2, 0], [2, 1],
   ], weight: 2 },
+  // The user's actual reference app ("Block Puzzle") deals the 3x3 fairly
+  // often, not as a rare novelty — corrected from the earlier weight-1
+  // guess after direct playtesting feedback. A 4x4 is rarer still but real.
   { id: 'square3', cells: [
     [0, 0], [0, 1], [0, 2],
     [1, 0], [1, 1], [1, 2],
     [2, 0], [2, 1], [2, 2],
+  ], weight: 5 },
+  { id: 'square4', cells: [
+    [0, 0], [0, 1], [0, 2], [0, 3],
+    [1, 0], [1, 1], [1, 2], [1, 3],
+    [2, 0], [2, 1], [2, 2], [2, 3],
+    [3, 0], [3, 1], [3, 2], [3, 3],
   ], weight: 1 },
 ];
 
@@ -252,35 +262,107 @@ function mostPlaceableShape(board: Board): Shape {
 
 const EASY_SHAPES = SHAPES.filter((s) => s.cells.length <= 3);
 
+/** The most lines a shape could clear with one optimal placement right now
+ * (0 if no placement clears anything). Used to find "cash-in" pieces —
+ * ones that let the player complete a line the board already has set up. */
+function bestClearForShape(board: Board, shape: Shape): number {
+  const { height, width } = shapeBounds(shape);
+  let best = 0;
+  for (let r = 0; r <= BOARD_SIZE - height; r++) {
+    for (let c = 0; c <= BOARD_SIZE - width; c++) {
+      if (!canPlace(board, shape, r, c)) continue;
+      const hypothetical = placePiece(board, shape, r, c, 1);
+      const { rows, cols } = findFullLines(hypothetical);
+      const cleared = rows.length + cols.length;
+      if (cleared > best) best = cleared;
+    }
+  }
+  return best;
+}
+
+function bestClearingShape(board: Board): { shape: Shape; clears: number } | null {
+  let best: Shape | null = null;
+  let bestClears = 0;
+  for (const shape of SHAPES) {
+    const clears = bestClearForShape(board, shape);
+    if (clears > bestClears) {
+      best = shape;
+      bestClears = clears;
+    }
+  }
+  return best ? { shape: best, clears: bestClears } : null;
+}
+
+// How often a draw with no clearing opportunity gets one handed to it
+// anyway, when the board actually has a line ready to complete. Not 100%
+// — some draws should still make the player wait a turn — but high enough
+// that "the right piece for a double" shows up often, matching how this
+// genre is meant to feel (confirmed by direct playtesting: the real app
+// noticeably does this, though how it does isn't publicly documented).
+const MOMENTUM_CHANCE = 0.7;
+
 /** Draws 3 pieces. Retries a few times if the draw is an instant dead end,
  * then falls back to swapping in whichever single shape currently fits in
  * the most board positions — real dead ends only happen when nothing does.
  * `easyStart` gives a fresh board's very first draw a gentler opening,
- * matching how this genre generally ramps up rather than starting hard. */
+ * matching how this genre generally ramps up rather than starting hard.
+ *
+ * After the fairness pass, also checks whether the board has a line that's
+ * ready to complete and, if none of the 3 drawn pieces could cash it in,
+ * swaps one in most of the time — "momentum": a run of small early wins
+ * that build on each other, rather than lines only clearing by accident. */
 export function drawPieces(
   board: Board,
   rng: () => number,
   easyStart = false
 ): Shape[] {
+  let draw: Shape[];
+
   if (easyStart) {
     const [a, b] = weightedPickThree(rng, EASY_SHAPES);
     const [c] = weightedPickThree(rng, SHAPES.filter((s) => s.id !== a.id && s.id !== b.id));
-    return [a, b, c];
+    draw = [a, b, c];
+  } else {
+    draw = weightedPickThree(rng);
+    let attempt = 0;
+    while (attempt < 15 && !draw.some((shape) => canPlaceAnywhere(board, shape))) {
+      draw = weightedPickThree(rng);
+      attempt++;
+    }
+    if (!draw.some((shape) => canPlaceAnywhere(board, shape))) {
+      const mercy = mostPlaceableShape(board);
+      if (placementCount(board, mercy) > 0) {
+        const rest = weightedPickThree(
+          rng,
+          SHAPES.filter((s) => s.id !== mercy.id)
+        ).slice(0, 2);
+        draw = [mercy, ...rest];
+      }
+      // else: nothing fits anywhere — isGameOver catches this regardless,
+      // so the (still unplaceable) draw is left as-is.
+    }
   }
 
-  for (let attempt = 0; attempt < 15; attempt++) {
-    const draw = weightedPickThree(rng);
-    if (draw.some((shape) => canPlaceAnywhere(board, shape))) return draw;
+  const opportunity = bestClearingShape(board);
+  if (opportunity && opportunity.clears > 0) {
+    const alreadyCovered = draw.some(
+      (s) => bestClearForShape(board, s) > 0
+    );
+    if (!alreadyCovered && rng() < MOMENTUM_CHANCE) {
+      // Replace whichever drawn piece currently fits in the fewest spots —
+      // the piece the player would find least useful anyway.
+      let worstIndex = 0;
+      let worstCount = Infinity;
+      draw.forEach((s, i) => {
+        const count = placementCount(board, s);
+        if (count < worstCount) {
+          worstCount = count;
+          worstIndex = i;
+        }
+      });
+      draw = draw.map((s, i) => (i === worstIndex ? opportunity.shape : s));
+    }
   }
 
-  const mercy = mostPlaceableShape(board);
-  if (placementCount(board, mercy) > 0) {
-    const rest = weightedPickThree(
-      rng,
-      SHAPES.filter((s) => s.id !== mercy.id)
-    ).slice(0, 2);
-    return [mercy, ...rest];
-  }
-  // Nothing fits anywhere at all — isGameOver will catch this regardless.
-  return weightedPickThree(rng);
+  return draw;
 }
