@@ -12,7 +12,7 @@ import {
   where,
 } from 'firebase/firestore';
 import { db } from './firebase';
-import { LINES, type Mark } from './ticTacToeEngine';
+import { LINES, other, type Mark } from './ticTacToeEngine';
 
 /** The board travels as a 9-character string ('-' for an empty square)
  * rather than an array: it's one atomic field to write, it reads clearly in
@@ -185,6 +185,19 @@ export async function playOnlineMove(
     const full = !board.includes('-');
     const opponent = game.players.find((p) => p !== uid) ?? uid;
 
+    // If exactly one square remains, whoever moves next has no choice which
+    // square they take — so the outcome for that forced move is already
+    // knowable, and a draw can be called now instead of after that tap.
+    const emptyIndex = board.indexOf('-');
+    const oneLeft = emptyIndex !== -1 && board.indexOf('-', emptyIndex + 1) === -1;
+    const nextMark = other(mark);
+    const forcedDraw =
+      oneLeft &&
+      !lineFor(
+        board.slice(0, emptyIndex) + nextMark + board.slice(emptyIndex + 1),
+        nextMark
+      );
+
     if (line) {
       tx.update(ref, {
         board,
@@ -198,6 +211,18 @@ export async function playOnlineMove(
     } else if (full) {
       tx.update(ref, {
         board,
+        status: 'done',
+        outcome: 'draw',
+        winnerUid: null,
+        line: null,
+        draws: game.draws + 1,
+        updatedAt: serverTimestamp(),
+      });
+    } else if (forcedDraw) {
+      const filled =
+        board.slice(0, emptyIndex) + nextMark + board.slice(emptyIndex + 1);
+      tx.update(ref, {
+        board: filled,
         status: 'done',
         outcome: 'draw',
         winnerUid: null,

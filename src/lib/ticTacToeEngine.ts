@@ -35,6 +35,21 @@ export function isFull(board: Board): boolean {
   return board.every((cell) => cell !== null);
 }
 
+/** True when exactly one square is empty and placing `mark` there — the
+ * only move left for anyone to make — would not complete a line. The
+ * outcome is already decided at that point, so callers can declare the
+ * draw immediately instead of waiting for a tap that can't change it. */
+export function isForcedDraw(board: Board, mark: Mark): boolean {
+  const emptyIndexes = board.reduce<number[]>(
+    (acc, cell, i) => (cell === null ? [...acc, i] : acc),
+    []
+  );
+  if (emptyIndexes.length !== 1) return false;
+  const filled = [...board];
+  filled[emptyIndexes[0]] = mark;
+  return winningLine(filled) === null;
+}
+
 export function other(mark: Mark): Mark {
   return mark === 'X' ? 'O' : 'X';
 }

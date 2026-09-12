@@ -3,6 +3,7 @@ import { Screen } from '../components/Screen';
 import { Confetti, MarkGlyph, StrikeLine } from '../components/TttMarks';
 import {
   emptyBoard,
+  isForcedDraw,
   isFull,
   winningLine,
   other,
@@ -45,6 +46,7 @@ export function TicTacToeGame({ onBack }: { onBack: () => void }) {
       setBoard(next);
 
       const line = winningLine(next);
+      const nextMark = other(mark);
       if (line) {
         setResult({ type: 'win', mark, line });
         setTally((t) => ({ ...t, [mark]: t[mark] + 1 }));
@@ -55,9 +57,19 @@ export function TicTacToeGame({ onBack }: { onBack: () => void }) {
         setTally((t) => ({ ...t, draw: t.draw + 1 }));
         setStreak({ X: 0, O: 0 });
         playGameOver();
+      } else if (isForcedDraw(next, nextMark)) {
+        // Last square left, and filling it can't win for anyone — call the
+        // draw now instead of making someone tap out a foregone result.
+        const filled = [...next];
+        filled[next.indexOf(null)] = nextMark;
+        setBoard(filled);
+        setResult({ type: 'draw' });
+        setTally((t) => ({ ...t, draw: t.draw + 1 }));
+        setStreak({ X: 0, O: 0 });
+        playGameOver();
       } else {
         playPlace();
-        setTurn(other(mark));
+        setTurn(nextMark);
       }
     },
     [board]
