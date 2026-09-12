@@ -91,9 +91,15 @@ service cloud.firestore {
       // Abandoned lobbies are cleaned up by whoever created them.
       allow delete: if isSignedIn() && request.auth.uid in resource.data.players;
 
-      // Battleship: hidden ship positions only readable by owner
+      // Battleship: each player's fleet lives in their own subdoc. Writes
+      // stay owner-only (nobody can tamper with someone else's fleet); reads
+      // are open to the two players at that table, since the firing device
+      // resolves shots against the opponent's layout client-side. Family
+      // app, not a bank — the secret is only secret from non-players.
       match /players/{playerId} {
-        allow read: if isSignedIn() && request.auth.uid == playerId;
+        allow read: if isSignedIn() && isAllowed() &&
+          request.auth.uid in
+            get(/databases/$(database)/documents/games/$(gameId)).data.players;
         allow write: if isSignedIn() && request.auth.uid == playerId;
       }
     }

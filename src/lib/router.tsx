@@ -23,6 +23,7 @@ export type Route =
   | { screen: 'play-wordsearch'; puzzleId: string }
   | { screen: 'play-tictactoe'; mode: 'pass' | 'online' }
   | { screen: 'play-connect4'; mode: 'pass' | 'online' }
+  | { screen: 'play-battleship' }
   | { screen: 'play-reaction' };
 
 /** Mode string used for any game that doesn't partition its leaderboard by
@@ -201,6 +202,14 @@ export const games: GameApp[] = [
     scoring: 'wins',
     icon: BattleshipIcon,
     blurb: 'Hide your fleet and hunt down theirs.',
+    built: true,
+    modes: [
+      {
+        id: 'online',
+        name: 'Play a family member',
+        blurb: 'Two phones, hidden fleets. Wins count on the family board.',
+      },
+    ],
   },
   {
     id: 'war',
@@ -267,6 +276,8 @@ export function routeToPath(route: Route): string {
       return `/play/tictactoe/${route.mode}`;
     case 'play-connect4':
       return `/play/connect4/${route.mode}`;
+    case 'play-battleship':
+      return '/play/battleship';
     case 'play-reaction':
       return '/play/reaction';
   }
@@ -300,6 +311,9 @@ export function pathToRoute(pathname: string): Route | null {
       }
       if (second === 'connect4' && (third === 'pass' || third === 'online')) {
         return { screen: 'play-connect4', mode: third };
+      }
+      if (second === 'battleship') {
+        return { screen: 'play-battleship' };
       }
       if (second === 'reaction') {
         return { screen: 'play-reaction' };
@@ -347,6 +361,13 @@ export function parentChainFor(route: Route): Route[] {
         HOME,
         { screen: 'games' },
         { screen: 'game', gameId: 'connect4' },
+        route,
+      ];
+    case 'play-battleship':
+      return [
+        HOME,
+        { screen: 'games' },
+        { screen: 'game', gameId: 'battleship' },
         route,
       ];
     case 'play-reaction':

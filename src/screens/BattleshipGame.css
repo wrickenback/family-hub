@@ -1,0 +1,255 @@
+/* Battleship — lobby, placement, and battle phases. Follows the same
+   conventions as ConnectFourGame.css / TicTacToeGame.css. */
+
+.bs-error {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--danger, #c0392b);
+  font-size: 14px;
+}
+
+.bs-lobby {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.bs-lobby-item {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+}
+
+.bs-lobby-name {
+  font-weight: 600;
+}
+
+.bs-lobby-meta {
+  font-size: 13px;
+  opacity: 0.65;
+}
+
+.bs-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  justify-content: center;
+  font-size: 15px;
+  font-weight: 600;
+  text-align: center;
+  margin: 4px 0 12px;
+}
+
+.bs-status.settled {
+  opacity: 0.8;
+}
+
+.bs-status-spinner {
+  width: 16px;
+  height: 16px;
+  animation: bs-spin 1s linear infinite;
+}
+
+@keyframes bs-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Score bar */
+.bs-scorebar {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.bs-tally {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 8px 4px;
+  background: var(--card-bg, #fff);
+  border-radius: 12px;
+}
+
+.bs-tally-label {
+  font-size: 12px;
+  opacity: 0.65;
+}
+
+.bs-tally-value {
+  font-size: 18px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Grids */
+.bs-grids {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.bs-grid-section {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.bs-grid-label {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  opacity: 0.6;
+}
+
+.bs-board {
+  display: grid;
+  grid-template-columns: repeat(10, 1fr);
+  gap: 2px;
+  width: 100%;
+  max-width: 360px;
+  margin: 0 auto;
+  background: #b3d9f2;
+  border: 2px solid #7fb8dd;
+  border-radius: 8px;
+  padding: 4px;
+  box-sizing: border-box;
+}
+
+.bs-cell {
+  aspect-ratio: 1;
+  border: none;
+  border-radius: 3px;
+  padding: 0;
+  background: #dceefb;
+  cursor: default;
+  min-width: 0;
+}
+
+.bs-cell.fireable {
+  cursor: pointer;
+}
+
+.bs-cell.fireable:not(:disabled):active {
+  filter: brightness(0.85);
+}
+
+.bs-cell:disabled {
+  cursor: default;
+}
+
+/* Ship colors — one hue per ship so a sunk ship reads as "that ship". */
+.bs-cell.ship-c {
+  background: #7c5cbf;
+}
+
+.bs-cell.ship-b {
+  background: #3f6fbf;
+}
+
+.bs-cell.ship-r {
+  background: #bf5c56;
+}
+
+.bs-cell.ship-s {
+  background: #4f8f5e;
+}
+
+.bs-cell.ship-d {
+  background: #b08a3e;
+}
+
+/* Shot markers */
+.bs-cell.shot-miss {
+  background: #dceefb;
+  position: relative;
+}
+
+.bs-cell.shot-miss::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  width: 30%;
+  height: 30%;
+  border-radius: 50%;
+  background: #6b7f8e;
+}
+
+.bs-cell.shot-hit {
+  background: #e2574c;
+  position: relative;
+}
+
+.bs-cell.shot-hit::after {
+  content: '✕';
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: clamp(8px, 2.6vw, 13px);
+  font-weight: 800;
+  line-height: 1;
+}
+
+/* Placement */
+.bs-ship-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: center;
+  margin: 10px 0;
+}
+
+.bs-ship-chip {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 8px;
+  border-radius: 999px;
+}
+
+.bs-ship-chip.pending {
+  background: #dceefb;
+  color: #2c5d8f;
+}
+
+.bs-ship-chip.placed {
+  background: #4f8f5e;
+  color: #fff;
+}
+
+.bs-place-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin: 8px 0;
+}
+
+.bs-leave {
+  margin-top: 10px;
+  color: var(--danger, #c0392b);
+}
+
+.bs-result {
+  text-align: center;
+  padding: 16px;
+}
+
+.bs-result h3 {
+  margin: 0 0 10px;
+}

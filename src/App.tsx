@@ -33,6 +33,7 @@ import { TicTacToeGame } from './screens/TicTacToeGame';
 import { TicTacToeOnline } from './screens/TicTacToeOnline';
 import { ConnectFourGame } from './screens/ConnectFourGame';
 import { ConnectFourOnline } from './screens/ConnectFourOnline';
+import { BattleshipOnline } from './screens/BattleshipOnline';
 import { ReactionGame } from './screens/ReactionGame';
 import './App.css';
 
@@ -285,6 +286,7 @@ export function App() {
             onPlayConnectFour={(mode) =>
               navigate({ screen: 'play-connect4', mode })
             }
+            onPlayBattleship={() => navigate({ screen: 'play-battleship' })}
             onPlayReaction={() => navigate({ screen: 'play-reaction' })}
           />
         )}
@@ -324,6 +326,13 @@ export function App() {
           ) : (
             <ConnectFourGame onBack={back} />
           ))}
+        {route.screen === 'play-battleship' && (
+          <BattleshipOnline
+            uid={user.uid}
+            displayName={user.displayName || user.email || 'Someone'}
+            onBack={back}
+          />
+        )}
         {route.screen === 'play-reaction' && (
           <ReactionGame
             uid={user.uid}

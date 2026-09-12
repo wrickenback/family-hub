@@ -43,6 +43,7 @@ export function GameDetail({
   onPlayWordSearch,
   onPlayTicTacToe,
   onPlayConnectFour,
+  onPlayBattleship,
   onPlayReaction,
 }: {
   gameId: string;
@@ -56,6 +57,7 @@ export function GameDetail({
   onPlayWordSearch: (puzzleId: string) => void;
   onPlayTicTacToe: (mode: 'pass' | 'online') => void;
   onPlayConnectFour: (mode: 'pass' | 'online') => void;
+  onPlayBattleship: () => void;
   onPlayReaction: () => void;
 }) {
   const game = getGame(gameId);
@@ -93,13 +95,14 @@ export function GameDetail({
   const isTicTacToe = game.id === 'tictactoe';
   const isReaction = game.id === 'reaction';
   const isConnectFour = game.id === 'connect4';
+  const isBattleship = game.id === 'battleship';
   // Which slice of the scores collection this game's board reads. Only
   // Blocks partitions its board by the selected mode; Tic Tac Toe always
   // shows the online board, since pass-and-play wins are never submitted
   // (the second player isn't signed in on that device to attribute them to).
   const leaderboardMode = isBlocks
     ? mode?.id ?? 'free'
-    : isTicTacToe || isConnectFour
+    : isTicTacToe || isConnectFour || isBattleship
     ? 'online'
     : DEFAULT_MODE;
   // Scores for a daily-seeded mode aren't comparable to free play, so they get
@@ -200,6 +203,15 @@ export function GameDetail({
           }
         >
           {mode?.id === 'online' ? 'Find a family member' : 'Start on this phone'}
+        </button>
+      )}
+
+      {isBattleship && (
+        <button
+          className="btn btn-primary blocks-play-btn"
+          onClick={onPlayBattleship}
+        >
+          Find a family member
         </button>
       )}
 

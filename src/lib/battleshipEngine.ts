@@ -1,0 +1,182 @@
+// Pure Battleship logic — no React, no Firestore. Shared by the online
+// screen's shot transaction so the client and any future consumer agree on
+// what a hit, a sink, and a win are.
+//
+// The board is a 100-character string, row-major from the top left ('-' for
+// empty water, otherwise the ship's id character). Same representation
+// locally and in Firestore, so there's no conversion layer.
+
+export const GRID = 10;
+export const TOTAL_SHIP_CELLS = 17;
+
+export type ShipId = 'C' | 'B' | 'R' | 'S' | 'D';
+
+export interface ShipDef {
+  id: ShipId;
+  name: string;
+  size: number;
+}
+
+/** The classic fleet: Carrier 5, Battleship 4, Cruiser 3, Submarine 3,
+ * Destroyer 2 — 17 cells total, so 17 hits wins. */
+export const FLEET: ShipDef[] = [
+  { id: 'C', name: 'Carrier', size: 5 },
+  { id: 'B', name: 'Battleship', size: 4 },
+  { id: 'R', name: 'Cruiser', size: 3 },
+  { id: 'S', name: 'Submarine', size: 3 },
+  { id: 'D', name: 'Destroyer', size: 2 },
+];
+
+export const EMPTY_FLEET = '-'.repeat(GRID * GRID);
+
+export function indexOf(row: number, col: number): number {
+  return row * GRID + col;
+}
+
+export function rowOf(index: number): number {
+  return Math.floor(index / GRID);
+}
+
+export function colOf(index: number): number {
+  return index % GRID;
+}
+
+export type Orientation = 'h' | 'v';
+
+/** The cells a ship would occupy placed at (row, col), or null if it would
+ * run off the board or overlap another ship. */
+export function shipCells(
+  fleet: string,
+  ship: ShipDef,
+  row: number,
+  col: number,
+  orientation: Orientation
+): number[] | null {
+  const cells: number[] = [];
+  for (let i = 0; i < ship.size; i++) {
+    const r = orientation === 'h' ? row : row + i;
+    const c = orientation === 'h' ? col + i : col;
+    if (r < 0 || r >= GRID || c < 0 || c >= GRID) return null;
+    const index = indexOf(r, c);
+    if (fleet[index] !== '-') return null; // overlap
+    cells.push(index);
+  }
+  return cells;
+}
+
+/** Fleet string with the ship laid down at (row, col). Assumes shipCells
+ * validated the placement first. */
+export function placeShip(
+  fleet: string,
+  ship: ShipDef,
+  row: number,
+  col: number,
+  orientation: Orientation
+): string {
+  const cells = shipCells(fleet, ship, row, col, orientation);
+  if (!cells) return fleet;
+  let next = fleet;
+  for (const index of cells) {
+    next = next.slice(0, index) + ship.id + next.slice(index + 1);
+  }
+  return next;
+}
+
+/** Which fleet ships have been placed so far, by id. */
+export function placedShipIds(fleet: string): Set<ShipId> {
+  const placed = new Set<ShipId>();
+  for (const ch of fleet) {
+    if (ch !== '-') placed.add(ch as ShipId);
+  }
+  return placed;
+}
+
+export function isFleetComplete(fleet: string): boolean {
+  return [...fleet].filter((c) => c !== '-').length === TOTAL_SHIP_CELLS;
+}
+
+/** A full random layout — every ship placed legally, no overlaps. Used for
+ * the "Random" button so kids can skip manual placement. Deterministic per
+ * call site; no seeding needed since layouts are secret anyway. */
+export function randomFleet(): string {
+  for (;;) {
+    let fleet = EMPTY_FLEET;
+    let ok = true;
+    for (const ship of FLEET) {
+      let placed = false;
+      for (let attempt = 0; attempt < 200 && !placed; attempt++) {
+        const orientation: Orientation =
+          Math.random() < 0.5 ? 'h' : 'v';
+        const maxRow = orientation === 'h' ? GRID : GRID - ship.size;
+        const maxCol = orientation === 'v' ? GRID : GRID - ship.size;
+        const row = Math.floor(Math.random() * maxRow);
+        const col = Math.floor(Math.random() * maxCol);
+        if (shipCells(fleet, ship, row, col, orientation)) {
+          fleet = placeShip(fleet, ship, row, col, orientation);
+          placed = true;
+        }
+      }
+      if (!placed) {
+        ok = false;
+        break;
+      }
+    }
+    if (ok) return fleet;
+    // Extremely unlikely with this fleet on 10×10, but retry rather than
+    // ever returning a partial layout.
+  }
+}
+
+export type ShotResult = 'miss' | 'hit' | 'sunk';
+
+export interface ShotOutcome {
+  result: ShotResult;
+  /** The ship id when result is 'hit' or 'sunk'. */
+  shipId: ShipId | null;
+  /** All 17 cells hit — the game is over. */
+  won: boolean;
+}
+
+/** Applies a shot to a fleet layout. The cell may already have been shot
+ * (a double-tap racing the snapshot) — that reads as a miss and is a no-op
+ * for the hit count, so it can't be used to farm extra information. */
+export function applyShot(
+  fleet: string,
+  index: number
+): { fleet: string; outcome: ShotOutcome } {
+  const occupant = fleet[index];
+  if (occupant === '-') {
+    return {
+      fleet,
+      outcome: { result: 'miss', shipId: null, won: false },
+    };
+  }
+  const shipId = occupant as ShipId;
+  const next = fleet.slice(0, index) + 'X' + fleet.slice(index + 1);
+  // A ship is sunk when none of its cells remain unhit ('X' replaces the
+  // ship id at every hit cell, so any surviving id char means still afloat).
+  const sunk = ![...next].some((c) => c === shipId);
+  const won = ![...next].some((c) => c !== '-' && c !== 'X');
+  return {
+    fleet: next,
+    outcome: {
+      result: sunk ? 'sunk' : 'hit',
+      shipId,
+      won,
+    },
+  };
+}
+
+export function allShipsSunk(fleet: string): boolean {
+  return ![...fleet].some((c) => c !== '-' && c !== 'X');
+}
+
+/** The cell indexes of a ship's remaining (unhit) parts — used to highlight
+ * a freshly sunk ship on the owner's own grid. */
+export function shipCellIndexes(fleet: string, shipId: ShipId): number[] {
+  const cells: number[] = [];
+  [...fleet].forEach((c, i) => {
+    if (c === shipId) cells.push(i);
+  });
+  return cells;
+}
