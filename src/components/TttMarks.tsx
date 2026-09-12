@@ -2,22 +2,26 @@ import type { Mark } from '../lib/ticTacToeEngine';
 
 /** SVG X and O glyphs that draw themselves in with a stroke animation,
  * shared by the pass-and-play and online boards so both feel the same.
+ * Each stroke is a gently bowed curve rather than a perfect line/circle, so
+ * the marks read as sketched by hand instead of drafted with a ruler.
  * Stroke colour comes from the cell's `color` (currentColor), so the
  * existing mark-x / mark-o palette rules keep working. */
 export function MarkGlyph({ mark }: { mark: Mark }) {
   return mark === 'X' ? (
     <svg className="ttt-glyph" viewBox="0 0 100 100" aria-hidden="true">
-      <line className="ttt-glyph-stroke" x1="24" y1="24" x2="76" y2="76" pathLength={100} />
-      <line
+      <path className="ttt-glyph-stroke" d="M 23 21 Q 55 45 78 79" pathLength={100} />
+      <path
         className="ttt-glyph-stroke ttt-glyph-x2"
-        x1="76" y1="24" x2="24" y2="76" pathLength={100}
+        d="M 79 22 Q 45 55 21 78" pathLength={100}
       />
     </svg>
   ) : (
     <svg className="ttt-glyph" viewBox="0 0 100 100" aria-hidden="true">
-      <circle
-        className="ttt-glyph-stroke ttt-glyph-o"
-        cx="50" cy="50" r="29" pathLength={100}
+      <path
+        className="ttt-glyph-stroke"
+        d="M 61 24 C 82 32 90 55 82 71 C 73 89 45 92 30 78
+           C 16 65 17 41 32 28 C 42 19 54 18 61 22"
+        pathLength={100}
       />
     </svg>
   );

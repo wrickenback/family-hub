@@ -111,6 +111,7 @@
   width: 2.4rem;
   height: 2.4rem;
   flex-shrink: 0;
+  overflow: hidden;
   border-radius: 50%;
   background: var(--sand-200);
   opacity: 0.45;
@@ -183,16 +184,16 @@
   position: relative;
   flex: 1;
   min-height: 0;
-  display: grid;
-  place-items: center;
-  container-type: size;
+  display: flex;
 }
 
 .ttt-board-frame {
   position: relative;
-  width: min(22rem, 100cqw, 100cqh);
+  width: 100%;
+  max-width: 22rem;
+  max-height: 100%;
   aspect-ratio: 1;
-  container-type: size;
+  margin: auto;
   padding: 6px;
   background: var(--sand-200);
   border-radius: var(--radius-lg);
@@ -294,11 +295,6 @@
   animation-delay: 0.16s;
 }
 
-.ttt-glyph-o {
-  transform: rotate(-90deg);
-  transform-origin: 50% 50%;
-}
-
 @keyframes ttt-draw {
   to {
     stroke-dashoffset: 0;
@@ -315,12 +311,13 @@
 }
 
 .ttt-strike line {
-  stroke: var(--gold);
+  stroke: var(--text-primary);
   stroke-width: 8;
   stroke-linecap: round;
   stroke-dasharray: 100;
   stroke-dashoffset: 100;
-  filter: drop-shadow(0 2px 4px rgba(26, 20, 16, 0.3));
+  filter: drop-shadow(0 0 3px rgba(255, 255, 255, 0.85))
+    drop-shadow(0 2px 3px rgba(26, 20, 16, 0.35));
   animation: ttt-draw 0.35s ease-out 0.15s forwards;
 }
 
@@ -376,7 +373,9 @@
   }
   100% {
     opacity: 0;
-    transform: translate(var(--drift), 105cqh) rotate(280deg);
+    /* Falls well past the largest possible board frame (22rem) so it always
+       clears the bottom, however small the frame shrinks on short screens. */
+    transform: translate(var(--drift), 26rem) rotate(280deg);
   }
 }
 
