@@ -31,6 +31,14 @@
   box-shadow: var(--shadow-raised);
 }
 
+.game-card.coming-soon {
+  opacity: 0.55;
+}
+
+.game-card.coming-soon .game-icon {
+  filter: grayscale(1);
+}
+
 .game-icon {
   grid-area: icon;
   display: grid;

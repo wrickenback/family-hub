@@ -65,16 +65,22 @@ function randomColor(): number {
   return 1 + Math.floor(Math.random() * PIECE_COLORS);
 }
 
-function comboLabel(linesCleared: number, streak: number): string {
+// A plain single-line clear with no streak yet doesn't get a banner — the
+// flash and score bump already say "you did it"; reserving text for
+// doubles/triples/streaks keeps it meaning something when it shows up.
+function comboLabel(linesCleared: number, streak: number): string | null {
   const base =
     linesCleared >= 4
-      ? 'MEGA CLEAR!'
+      ? 'BLAST!'
       : linesCleared === 3
       ? 'TRIPLE!'
       : linesCleared === 2
       ? 'DOUBLE!'
-      : 'LINE!';
-  return streak > 1 ? `${base}  ×${streak} STREAK` : base;
+      : null;
+  if (base) {
+    return streak > 1 ? `${base}  ×${streak} STREAK` : base;
+  }
+  return streak >= 3 ? `×${streak} STREAK` : null;
 }
 
 export function BlocksGame({ mode, uid, displayName, onBack }: BlocksGameProps) {
@@ -225,7 +231,8 @@ export function BlocksGame({ mode, uid, displayName, onBack }: BlocksGameProps) 
     setScoreBump((b) => b + 1);
     setBoard(placed); // show the completed lines briefly before they vanish
     setClearingLines({ rows: new Set(rows), cols: new Set(cols) });
-    setBanner({ id: Date.now(), text: comboLabel(linesCleared, nextStreak) });
+    const label = comboLabel(linesCleared, nextStreak);
+    if (label) setBanner({ id: Date.now(), text: label });
     if (typeof navigator.vibrate === 'function') {
       navigator.vibrate(linesCleared >= 2 ? [30, 40, 30] : 25);
     }
@@ -371,7 +378,7 @@ export function BlocksGame({ mode, uid, displayName, onBack }: BlocksGameProps) 
             {drag.shape.cells.map(([dr, dc]) => (
               <span
                 key={`${dr}-${dc}`}
-                className="blocks-ghost-cell"
+                className={`blocks-ghost-cell piece-color-${drag.color}`}
                 style={{
                   left: dc * ghost.cellSize,
                   top: dr * ghost.cellSize,

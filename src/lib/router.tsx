@@ -43,6 +43,9 @@ export interface GameApp {
   icon: ComponentType<SVGProps<SVGSVGElement>>;
   blurb: string;
   modes?: GameMode[];
+  /** Defaults to false — set true once a game has real gameplay, not just
+   * the shell/leaderboard. Drives the "coming soon" treatment on the list. */
+  built?: boolean;
 }
 
 export const games: GameApp[] = [
@@ -55,6 +58,7 @@ export const games: GameApp[] = [
     scoring: 'highScore',
     icon: BlocksIcon,
     blurb: 'Fit the pieces, clear the lines, chase the family high score.',
+    built: true,
     modes: [
       {
         id: 'free',

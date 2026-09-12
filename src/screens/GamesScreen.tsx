@@ -86,11 +86,11 @@ function GameSection({ title, icon, games, onOpenGame }: GameSectionProps) {
       </div>
       <ul className="game-grid">
         {games.map((game) => {
-          const top = getTopScore(game.id, game.scoring);
+          const top = game.built ? getTopScore(game.id, game.scoring) : undefined;
           return (
             <li key={game.id}>
               <button
-                className="game-card"
+                className={`game-card ${!game.built ? 'coming-soon' : ''}`}
                 onClick={() => onOpenGame(game.id)}
               >
                 <span className="game-icon">
@@ -118,6 +118,9 @@ function GameSection({ title, icon, games, onOpenGame }: GameSectionProps) {
                       ? '2 players'
                       : '1–2'}
                   </span>
+                  {!game.built && (
+                    <span className="pill pill-sample">Coming soon</span>
+                  )}
                   {top && (
                     <span className="game-top-score">
                       <IconTrophy aria-hidden="true" />

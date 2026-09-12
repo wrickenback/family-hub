@@ -21,56 +21,58 @@ export function emptyBoard(): Board {
 
 // Shapes are pre-rotated, fixed variants rather than a rotation system —
 // standard for this genre (Block Blast, 1010!) since the player never
-// rotates pieces themselves. Weight biases the random draw. Real Block Blast
-// deals medium/large pieces (4-5 cells, the big square, plus-shapes) often
-// enough that they define the puzzle, not just 1-3 cell filler — weights
-// here lean that direction rather than making big pieces a rare novelty.
+// rotates pieces themselves.
+//
+// This list intentionally sticks to shapes confirmed to exist in the real
+// game (1x1/1x2/1x3 "easiest" pieces, standard tetrominoes L/J/S/Z/T/square,
+// 1x4/1x5 bars, a 2x3 rectangle, and the 3x3 square) — no plus/cross shape
+// and no 5-cell L exist in the real game, and both were cut. Weight biases
+// the random draw heavily toward the confirmed-easy small pieces; the
+// pieces callable "difficult" once the board is crowded (1x5, 2x3, 3x3)
+// stay rare rather than routine.
 export const SHAPES: Shape[] = [
-  { id: 'dot', cells: [[0, 0]], weight: 3 },
-  { id: 'h2', cells: [[0, 0], [0, 1]], weight: 6 },
-  { id: 'v2', cells: [[0, 0], [1, 0]], weight: 6 },
-  { id: 'h3', cells: [[0, 0], [0, 1], [0, 2]], weight: 7 },
-  { id: 'v3', cells: [[0, 0], [1, 0], [2, 0]], weight: 7 },
-  { id: 'h4', cells: [[0, 0], [0, 1], [0, 2], [0, 3]], weight: 6 },
-  { id: 'v4', cells: [[0, 0], [1, 0], [2, 0], [3, 0]], weight: 6 },
-  { id: 'h5', cells: [[0, 0], [0, 1], [0, 2], [0, 3], [0, 4]], weight: 4 },
-  { id: 'v5', cells: [[0, 0], [1, 0], [2, 0], [3, 0], [4, 0]], weight: 4 },
-  { id: 'square2', cells: [[0, 0], [0, 1], [1, 0], [1, 1]], weight: 6 },
-  { id: 'square3', cells: [
-    [0, 0], [0, 1], [0, 2],
-    [1, 0], [1, 1], [1, 2],
-    [2, 0], [2, 1], [2, 2],
-  ], weight: 4 },
-  { id: 'plus', cells: [[0, 1], [1, 0], [1, 1], [1, 2], [2, 1]], weight: 4 },
+  { id: 'dot', cells: [[0, 0]], weight: 10 },
+  { id: 'h2', cells: [[0, 0], [0, 1]], weight: 12 },
+  { id: 'v2', cells: [[0, 0], [1, 0]], weight: 12 },
+  { id: 'h3', cells: [[0, 0], [0, 1], [0, 2]], weight: 10 },
+  { id: 'v3', cells: [[0, 0], [1, 0], [2, 0]], weight: 10 },
+  { id: 'square2', cells: [[0, 0], [0, 1], [1, 0], [1, 1]], weight: 8 },
   // L-tromino, four rotations
-  { id: 'l3a', cells: [[0, 0], [1, 0], [1, 1]], weight: 5 },
-  { id: 'l3b', cells: [[0, 0], [0, 1], [1, 0]], weight: 5 },
-  { id: 'l3c', cells: [[0, 0], [0, 1], [1, 1]], weight: 5 },
-  { id: 'l3d', cells: [[0, 1], [1, 0], [1, 1]], weight: 5 },
-  // L-tetromino, four rotations
-  { id: 'l4a', cells: [[0, 0], [1, 0], [2, 0], [2, 1]], weight: 5 },
-  { id: 'l4b', cells: [[0, 0], [0, 1], [0, 2], [1, 0]], weight: 5 },
-  { id: 'l4c', cells: [[0, 0], [0, 1], [1, 1], [2, 1]], weight: 5 },
-  { id: 'l4d', cells: [[1, 0], [1, 1], [1, 2], [0, 2]], weight: 5 },
-  // corner tromino, four rotations (2x2 minus one cell — duplicates l3 set
-  // shape-wise but kept distinct for readable ids/weights)
-  { id: 'corner_tl', cells: [[0, 0], [0, 1], [1, 0]], weight: 4 },
-  { id: 'corner_tr', cells: [[0, 0], [0, 1], [1, 1]], weight: 4 },
-  { id: 'corner_bl', cells: [[0, 0], [1, 0], [1, 1]], weight: 4 },
-  { id: 'corner_br', cells: [[0, 1], [1, 0], [1, 1]], weight: 4 },
+  { id: 'l3a', cells: [[0, 0], [1, 0], [1, 1]], weight: 6 },
+  { id: 'l3b', cells: [[0, 0], [0, 1], [1, 0]], weight: 6 },
+  { id: 'l3c', cells: [[0, 0], [0, 1], [1, 1]], weight: 6 },
+  { id: 'l3d', cells: [[0, 1], [1, 0], [1, 1]], weight: 6 },
+  { id: 'h4', cells: [[0, 0], [0, 1], [0, 2], [0, 3]], weight: 5 },
+  { id: 'v4', cells: [[0, 0], [1, 0], [2, 0], [3, 0]], weight: 5 },
   // S/Z tetromino
   { id: 's4', cells: [[0, 1], [0, 2], [1, 0], [1, 1]], weight: 4 },
   { id: 'z4', cells: [[0, 0], [0, 1], [1, 1], [1, 2]], weight: 4 },
   // T-tetromino, four rotations
-  { id: 't4a', cells: [[0, 0], [0, 1], [0, 2], [1, 1]], weight: 5 },
-  { id: 't4b', cells: [[0, 1], [1, 0], [1, 1], [2, 1]], weight: 5 },
-  { id: 't4c', cells: [[1, 0], [1, 1], [1, 2], [0, 1]], weight: 5 },
-  { id: 't4d', cells: [[0, 0], [1, 0], [1, 1], [2, 0]], weight: 5 },
-  // big L-pentomino, four rotations — a genuinely awkward, rare shape
-  { id: 'l5a', cells: [[0, 0], [1, 0], [2, 0], [3, 0], [3, 1]], weight: 2 },
-  { id: 'l5b', cells: [[0, 0], [0, 1], [0, 2], [0, 3], [1, 0]], weight: 2 },
-  { id: 'l5c', cells: [[0, 0], [0, 1], [1, 1], [2, 1], [3, 1]], weight: 2 },
-  { id: 'l5d', cells: [[1, 0], [1, 1], [1, 2], [1, 3], [0, 3]], weight: 2 },
+  { id: 't4a', cells: [[0, 0], [0, 1], [0, 2], [1, 1]], weight: 4 },
+  { id: 't4b', cells: [[0, 1], [1, 0], [1, 1], [2, 1]], weight: 4 },
+  { id: 't4c', cells: [[1, 0], [1, 1], [1, 2], [0, 1]], weight: 4 },
+  { id: 't4d', cells: [[0, 0], [1, 0], [1, 1], [2, 0]], weight: 4 },
+  // L-tetromino, four rotations
+  { id: 'l4a', cells: [[0, 0], [1, 0], [2, 0], [2, 1]], weight: 4 },
+  { id: 'l4b', cells: [[0, 0], [0, 1], [0, 2], [1, 0]], weight: 4 },
+  { id: 'l4c', cells: [[0, 0], [0, 1], [1, 1], [2, 1]], weight: 4 },
+  { id: 'l4d', cells: [[1, 0], [1, 1], [1, 2], [0, 2]], weight: 4 },
+  { id: 'h5', cells: [[0, 0], [0, 1], [0, 2], [0, 3], [0, 4]], weight: 2 },
+  { id: 'v5', cells: [[0, 0], [1, 0], [2, 0], [3, 0], [4, 0]], weight: 2 },
+  { id: 'rect2x3', cells: [
+    [0, 0], [0, 1], [0, 2],
+    [1, 0], [1, 1], [1, 2],
+  ], weight: 2 },
+  { id: 'rect3x2', cells: [
+    [0, 0], [0, 1],
+    [1, 0], [1, 1],
+    [2, 0], [2, 1],
+  ], weight: 2 },
+  { id: 'square3', cells: [
+    [0, 0], [0, 1], [0, 2],
+    [1, 0], [1, 1], [1, 2],
+    [2, 0], [2, 1], [2, 2],
+  ], weight: 1 },
 ];
 
 export function shapeBounds(shape: Shape) {
@@ -206,6 +208,20 @@ function weightedPick(rng: () => number, pool: Shape[] = SHAPES): Shape {
   return pool[pool.length - 1];
 }
 
+/** Draws 3 *distinct* shapes (weighted, without replacement) — a draw of
+ * two identical pieces reads as a bug/repetition, not a fair puzzle. */
+function weightedPickThree(rng: () => number, pool: Shape[] = SHAPES): Shape[] {
+  const remaining = [...pool];
+  const picks: Shape[] = [];
+  for (let i = 0; i < 3 && remaining.length > 0; i++) {
+    const shape = weightedPick(rng, remaining);
+    picks.push(shape);
+    const index = remaining.findIndex((s) => s.id === shape.id);
+    remaining.splice(index, 1);
+  }
+  return picks;
+}
+
 /** Counts how many board positions a shape fits — not just whether it fits
  * at all. Used to find a genuinely-useful "mercy" piece when the board is
  * crowded, rather than one that technically fits in exactly one cramped
@@ -247,22 +263,24 @@ export function drawPieces(
   easyStart = false
 ): Shape[] {
   if (easyStart) {
-    return [
-      weightedPick(rng, EASY_SHAPES),
-      weightedPick(rng, EASY_SHAPES),
-      weightedPick(rng),
-    ];
+    const [a, b] = weightedPickThree(rng, EASY_SHAPES);
+    const [c] = weightedPickThree(rng, SHAPES.filter((s) => s.id !== a.id && s.id !== b.id));
+    return [a, b, c];
   }
 
   for (let attempt = 0; attempt < 15; attempt++) {
-    const draw = [weightedPick(rng), weightedPick(rng), weightedPick(rng)];
+    const draw = weightedPickThree(rng);
     if (draw.some((shape) => canPlaceAnywhere(board, shape))) return draw;
   }
 
   const mercy = mostPlaceableShape(board);
   if (placementCount(board, mercy) > 0) {
-    return [mercy, weightedPick(rng), weightedPick(rng)];
+    const rest = weightedPickThree(
+      rng,
+      SHAPES.filter((s) => s.id !== mercy.id)
+    ).slice(0, 2);
+    return [mercy, ...rest];
   }
   // Nothing fits anywhere at all — isGameOver will catch this regardless.
-  return [weightedPick(rng), weightedPick(rng), weightedPick(rng)];
+  return weightedPickThree(rng);
 }
