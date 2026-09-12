@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Sparkles } from 'lucide-react';
 import { pickRandomTopics, wordSearchTopics } from '../lib/wordSearchTopics';
 import './TopicPicker.css';
 
@@ -44,9 +45,12 @@ export function TopicPicker({ onSelect, busy = false }: TopicPickerProps) {
         ))}
       </ul>
 
-      <form className="topic-custom" onSubmit={handleCustomSubmit}>
-        <label>
-          <span>Create with your own topic:</span>
+      <div className="topic-custom-panel">
+        <span className="topic-custom-label">
+          <Sparkles size={15} strokeWidth={2.25} />
+          Create with your own topic
+        </span>
+        <form className="topic-custom" onSubmit={handleCustomSubmit}>
           <input
             type="text"
             value={custom}
@@ -55,15 +59,15 @@ export function TopicPicker({ onSelect, busy = false }: TopicPickerProps) {
             maxLength={60}
             disabled={busy}
           />
-        </label>
-        <button
-          type="submit"
-          className="btn btn-primary topic-custom-submit"
-          disabled={busy || !custom.trim()}
-        >
-          {busy ? 'Building puzzle…' : 'Build puzzle'}
-        </button>
-      </form>
+          <button
+            type="submit"
+            className="btn btn-primary topic-custom-submit"
+            disabled={busy || !custom.trim()}
+          >
+            {busy ? 'Building puzzle…' : 'Build puzzle'}
+          </button>
+        </form>
+      </div>
       <p className="topic-note">
         {wordSearchTopics.length} topics to shuffle through. Custom requests get
         checked before the puzzle is built.

@@ -239,6 +239,11 @@ export function WordSearchGame({
   }
 
   const dragCellKeys = new Set(dragCells.map((c) => `${c.r}-${c.c}`));
+  // Shown above the board while dragging so the traced letters stay
+  // visible even though a finger is covering the cell it's actually on.
+  const traceLetters = dragStart
+    ? dragCells.map((c) => puzzle.grid[c.r][c.c]).join('')
+    : '';
 
   return (
     <Screen title={puzzle.topic} onBack={onBack}>
@@ -255,10 +260,17 @@ export function WordSearchGame({
         </div>
       </div>
 
+      <div className={`ws-trace ${traceLetters ? 'active' : ''}`}>
+        {traceLetters || 'Drag across letters to trace a word'}
+      </div>
+
       <div
         className="ws-board"
         ref={boardRef}
-        style={{ gridTemplateColumns: `repeat(${puzzle.size}, 1fr)` }}
+        style={{
+          gridTemplateColumns: `repeat(${puzzle.size}, 1fr)`,
+          gridTemplateRows: `repeat(${puzzle.size}, 1fr)`,
+        }}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}

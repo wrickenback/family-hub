@@ -36,6 +36,25 @@
   margin-top: 0.15rem;
 }
 
+.ws-trace {
+  height: 1.9rem;
+  margin-bottom: 0.5rem;
+  display: grid;
+  place-items: center;
+  font-family: Poppins, system-ui, sans-serif;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--text-muted);
+  letter-spacing: 0.02em;
+}
+
+.ws-trace.active {
+  font-size: 1.15rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: var(--teal);
+}
+
 .ws-board {
   display: grid;
   gap: 2px;
@@ -56,15 +75,21 @@
   place-items: center;
   background: var(--bg-surface);
   border-radius: 2px;
+  overflow: hidden;
   font-family: Poppins, system-ui, sans-serif;
   font-weight: 700;
+  line-height: 1;
   font-size: clamp(1rem, 5.5vw, 1.6rem);
   color: var(--text-secondary);
 }
 
 .ws-cell.dragging {
-  background: var(--teal);
+  background: var(--rust);
   color: #fff;
+  transform: scale(1.12);
+  box-shadow: 0 0 0 2px #fff, 0 2px 6px rgba(0, 0, 0, 0.35);
+  z-index: 1;
+  position: relative;
 }
 
 .ws-cell.found {
