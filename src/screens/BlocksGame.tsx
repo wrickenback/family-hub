@@ -5,20 +5,24 @@ import {
   BOARD_SIZE,
   PIECE_COLORS,
   canPlace,
-  clearFullLines,
+  cellPoints,
+  clearLines,
   drawPieces,
   emptyBoard,
+  findFullLines,
   isGameOver,
+  lineClearScore,
   mulberry32,
   placePiece,
-  scorePlacement,
   seedFromDateKey,
   shapeBounds,
+  streakMultiplier,
   todayKey,
   type Board,
   type Shape,
 } from '../lib/blocksEngine';
-import { submitScore } from '../lib/firestoreScores';
+import { submitScore, watchTopScores } from '../lib/firestoreScores';
+import { playClear, playGameOver, playPlace } from '../lib/sound';
 import './BlocksGame.css';
 
 interface BlocksGameProps {
@@ -29,8 +33,16 @@ interface BlocksGameProps {
 }
 
 interface TraySlot {
+  id: number;
   shape: Shape;
   color: number;
+}
+
+let pieceIdCounter = 0;
+
+function makeSlot(shape: Shape): TraySlot {
+  pieceIdCounter += 1;
+  return { id: pieceIdCounter, shape, color: randomColor() };
 }
 
 interface DragState {
@@ -41,10 +53,28 @@ interface DragState {
   clientY: number;
 }
 
+interface ClearingLines {
+  rows: Set<number>;
+  cols: Set<number>;
+}
+
 const LIFT_PX = 64;
+const CLEAR_ANIM_MS = 280;
 
 function randomColor(): number {
   return 1 + Math.floor(Math.random() * PIECE_COLORS);
+}
+
+function comboLabel(linesCleared: number, streak: number): string {
+  const base =
+    linesCleared >= 4
+      ? 'MEGA CLEAR!'
+      : linesCleared === 3
+      ? 'TRIPLE!'
+      : linesCleared === 2
+      ? 'DOUBLE!'
+      : 'LINE!';
+  return streak > 1 ? `${base}  ×${streak} STREAK` : base;
 }
 
 export function BlocksGame({ mode, uid, displayName, onBack }: BlocksGameProps) {
@@ -56,23 +86,42 @@ export function BlocksGame({ mode, uid, displayName, onBack }: BlocksGameProps) 
   const [board, setBoard] = useState<Board>(() => emptyBoard());
   const [tray, setTray] = useState<(TraySlot | null)[]>([]);
   const [score, setScore] = useState(0);
+  const [best, setBest] = useState(0);
+  const [streak, setStreak] = useState(0);
   const [gameOver, setGameOver] = useState(false);
   const [scoreSaved, setScoreSaved] = useState(false);
   const [drag, setDrag] = useState<DragState | null>(null);
+  const [clearingLines, setClearingLines] = useState<ClearingLines | null>(null);
+  const [banner, setBanner] = useState<{ id: number; text: string } | null>(null);
+  const [scoreBump, setScoreBump] = useState(0);
 
   const boardRef = useRef<HTMLDivElement>(null);
 
+  const [familyBest, setFamilyBest] = useState<number | null>(null);
+  const personalBestAtStart = useRef(0);
+  // familyBest is a live subscription — freeze it the instant the game ends
+  // so submitting this game's own score (which can become the new top entry
+  // and update the live value) can't flip "New family record!" back to "0
+  // points from the record" a moment after it's shown.
+  const familyBestAtEnd = useRef<number | null>(null);
+
   useEffect(() => {
     const initialBoard = emptyBoard();
-    const pieces = drawPieces(initialBoard, rngRef.current);
+    const pieces = drawPieces(initialBoard, rngRef.current, true);
     setBoard(initialBoard);
-    setTray(pieces.map((shape) => ({ shape, color: randomColor() })));
-    // Re-run if the mode itself changes (e.g. switching Free/Daily while on
-    // this screen); a fresh key per mode would be cleaner but this keeps the
-    // effect simple since BlocksGame is remounted by the router on mode
-    // change anyway (mode is baked into the route).
+    setTray(pieces.map(makeSlot));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    return watchTopScores(
+      'blocks',
+      mode,
+      (entries) => setFamilyBest(entries[0]?.value ?? 0),
+      () => setFamilyBest(null),
+      1
+    );
+  }, [mode]);
 
   const anchorFor = (shape: Shape, clientX: number, clientY: number) => {
     const rect = boardRef.current?.getBoundingClientRect();
@@ -113,12 +162,32 @@ export function BlocksGame({ mode, uid, displayName, onBack }: BlocksGameProps) 
     setDrag({ ...drag, clientX: e.clientX, clientY: e.clientY });
   };
 
+  // Draws fresh pieces if the tray just emptied, then checks whether the
+  // resulting board+tray combination is a dead end.
+  const finishTurn = (
+    newBoard: Board,
+    trayAfterUse: (TraySlot | null)[]
+  ) => {
+    let nextTray = trayAfterUse;
+    if (nextTray.every((slot) => slot === null)) {
+      const pieces = drawPieces(newBoard, rngRef.current);
+      nextTray = pieces.map(makeSlot);
+    }
+    setBoard(newBoard);
+    setTray(nextTray);
+    const remainingShapes = nextTray.map((slot) => slot?.shape ?? null);
+    if (isGameOver(newBoard, remainingShapes)) {
+      familyBestAtEnd.current = familyBest;
+      setGameOver(true);
+      playGameOver();
+    }
+  };
+
   const handlePointerUp = (e: ReactPointerEvent<HTMLButtonElement>) => {
     if (!drag) return;
     const target = anchorFor(drag.shape, e.clientX, e.clientY);
     setDrag(null);
     if (!target) return;
-
     if (!canPlace(board, drag.shape, target.anchorRow, target.anchorCol)) {
       return;
     }
@@ -130,26 +199,52 @@ export function BlocksGame({ mode, uid, displayName, onBack }: BlocksGameProps) 
       target.anchorCol,
       drag.color
     );
-    const { board: cleared, linesCleared } = clearFullLines(placed);
-    const gained = scorePlacement(drag.shape.cells.length, linesCleared);
-
-    let nextTray = tray.map((slot, i) =>
+    const { rows, cols } = findFullLines(placed);
+    const linesCleared = rows.length + cols.length;
+    const cellsPlaced = drag.shape.cells.length;
+    const trayAfterUse = tray.map((slot, i) =>
       i === drag.slotIndex ? null : slot
     );
-    if (nextTray.every((slot) => slot === null)) {
-      const pieces = drawPieces(cleared, rngRef.current);
-      nextTray = pieces.map((shape) => ({ shape, color: randomColor() }));
+
+    if (linesCleared === 0) {
+      playPlace();
+      setStreak(0);
+      setScore((s) => s + cellsPlaced);
+      finishTurn(placed, trayAfterUse);
+      return;
     }
 
-    setBoard(cleared);
-    setTray(nextTray);
+    const nextStreak = streak + 1;
+    const gained =
+      cellPoints(cellsPlaced) +
+      Math.round(lineClearScore(linesCleared) * streakMultiplier(nextStreak));
+
+    playClear(linesCleared);
+    setStreak(nextStreak);
     setScore((s) => s + gained);
-
-    const remainingShapes = nextTray.map((slot) => slot?.shape ?? null);
-    if (isGameOver(cleared, remainingShapes)) {
-      setGameOver(true);
+    setScoreBump((b) => b + 1);
+    setBoard(placed); // show the completed lines briefly before they vanish
+    setClearingLines({ rows: new Set(rows), cols: new Set(cols) });
+    setBanner({ id: Date.now(), text: comboLabel(linesCleared, nextStreak) });
+    if (typeof navigator.vibrate === 'function') {
+      navigator.vibrate(linesCleared >= 2 ? [30, 40, 30] : 25);
     }
+
+    window.setTimeout(() => {
+      setClearingLines(null);
+      finishTurn(clearLines(placed, rows, cols), trayAfterUse);
+    }, CLEAR_ANIM_MS);
   };
+
+  useEffect(() => {
+    if (!banner) return;
+    const t = window.setTimeout(() => setBanner(null), 900);
+    return () => window.clearTimeout(t);
+  }, [banner]);
+
+  useEffect(() => {
+    if (score > best) setBest(score);
+  }, [score, best]);
 
   useEffect(() => {
     if (!gameOver || scoreSaved || score === 0) return;
@@ -162,45 +257,108 @@ export function BlocksGame({ mode, uid, displayName, onBack }: BlocksGameProps) 
       name: displayName,
       value: score,
     }).catch(() => {
-      // Best-effort — a failed leaderboard write shouldn't block seeing your
-      // final score on screen.
       setScoreSaved(false);
     });
   }, [gameOver, scoreSaved, score, mode, dateKey, uid, displayName]);
 
   const handleRestart = () => {
+    personalBestAtStart.current = best;
+    familyBestAtEnd.current = null;
     const initialBoard = emptyBoard();
     rngRef.current =
       mode === 'daily' ? mulberry32(seedFromDateKey(dateKey)) : Math.random;
-    const pieces = drawPieces(initialBoard, rngRef.current);
+    const pieces = drawPieces(initialBoard, rngRef.current, true);
     setBoard(initialBoard);
-    setTray(pieces.map((shape) => ({ shape, color: randomColor() })));
+    setTray(pieces.map(makeSlot));
     setScore(0);
+    setStreak(0);
     setGameOver(false);
     setScoreSaved(false);
+    setClearingLines(null);
+    setBanner(null);
   };
 
   const ghost = drag ? anchorFor(drag.shape, drag.clientX, drag.clientY) : null;
   const ghostValid =
     drag && ghost ? canPlace(board, drag.shape, ghost.anchorRow, ghost.anchorCol) : false;
 
+  // Landing-spot preview directly on the grid (not just the floating ghost),
+  // plus a distinct highlight on any row/col this placement would complete —
+  // the single most "does this feel like the real game" detail.
+  const previewCells = new Set<string>();
+  const previewClearCells = new Set<string>();
+  if (drag && ghost) {
+    for (const [dr, dc] of drag.shape.cells) {
+      previewCells.add(`${ghost.anchorRow + dr}-${ghost.anchorCol + dc}`);
+    }
+    if (ghostValid) {
+      const hypothetical = placePiece(
+        board,
+        drag.shape,
+        ghost.anchorRow,
+        ghost.anchorCol,
+        drag.color
+      );
+      const { rows, cols } = findFullLines(hypothetical);
+      if (rows.length || cols.length) {
+        for (let r = 0; r < BOARD_SIZE; r++) {
+          for (let c = 0; c < BOARD_SIZE; c++) {
+            if (rows.includes(r) || cols.includes(c)) {
+              previewClearCells.add(`${r}-${c}`);
+            }
+          }
+        }
+      }
+    }
+  }
+
   return (
     <Screen
       title={mode === 'daily' ? 'Blocks · Daily' : 'Blocks'}
-      subtitle={`Score ${score.toLocaleString()}`}
       onBack={onBack}
     >
+      <div className="blocks-scorebar">
+        <div className="blocks-score-main">
+          <span key={scoreBump} className="blocks-score-value">
+            {score.toLocaleString()}
+          </span>
+          <span className="blocks-score-label">score</span>
+        </div>
+        <div className="blocks-score-side">
+          <span className="blocks-best-value">{best.toLocaleString()}</span>
+          <span className="blocks-score-label">this session</span>
+        </div>
+      </div>
+
       <div className="blocks-board-wrap">
         <div className="blocks-board" ref={boardRef}>
           {board.map((row, r) =>
-            row.map((cell, c) => (
-              <div
-                key={`${r}-${c}`}
-                className={`blocks-cell ${cell ? `piece-color-${cell}` : ''}`}
-              />
-            ))
+            row.map((cell, c) => {
+              const key = `${r}-${c}`;
+              const isClearing =
+                !!clearingLines &&
+                (clearingLines.rows.has(r) || clearingLines.cols.has(c));
+              const isPreview = previewCells.has(key);
+              const willClear = previewClearCells.has(key);
+              const classes = [
+                'blocks-cell',
+                cell ? `piece-color-${cell}` : '',
+                isClearing ? 'clearing' : '',
+                isPreview ? (ghostValid ? 'preview-valid' : 'preview-invalid') : '',
+                willClear ? 'preview-clear' : '',
+              ]
+                .filter(Boolean)
+                .join(' ');
+              return <div key={key} className={classes} />;
+            })
           )}
         </div>
+
+        {banner && (
+          <div key={banner.id} className="blocks-banner">
+            {banner.text}
+          </div>
+        )}
 
         {drag && ghost && (
           <div
@@ -240,7 +398,7 @@ export function BlocksGame({ mode, uid, displayName, onBack }: BlocksGameProps) 
             style={{ touchAction: 'none' }}
           >
             {slot && drag?.slotIndex !== i && (
-              <PiecePreview shape={slot.shape} color={slot.color} />
+              <PiecePreview key={slot.id} shape={slot.shape} color={slot.color} />
             )}
           </button>
         ))}
@@ -250,6 +408,20 @@ export function BlocksGame({ mode, uid, displayName, onBack }: BlocksGameProps) 
         <div className="blocks-gameover card">
           <h3>Game over</h3>
           <p className="blocks-gameover-score">{score.toLocaleString()} points</p>
+          {score > personalBestAtStart.current && (
+            <p className="blocks-gameover-flag new-best">
+              New session best!
+            </p>
+          )}
+          {familyBestAtEnd.current !== null && (
+            <p className="blocks-gameover-flag family">
+              {score > familyBestAtEnd.current
+                ? 'New family record!'
+                : familyBestAtEnd.current > 0
+                ? `${(familyBestAtEnd.current - score).toLocaleString()} points from the family record`
+                : 'First score on the board!'}
+            </p>
+          )}
           <button className="btn btn-primary" onClick={handleRestart}>
             Play again
           </button>

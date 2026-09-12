@@ -9,6 +9,7 @@ import {
   watchUserRole,
 } from './lib/firebase';
 import type { Role, Route } from './lib/router';
+import { parentChainFor, pathToRoute, routeToPath } from './lib/router';
 import {
   watchCountdowns,
   type FirestoreCountdown,
@@ -32,8 +33,23 @@ export function App() {
   const [unauthorized, setUnauthorized] = useState(false);
   const [countdowns, setCountdowns] = useState<FirestoreCountdown[]>([]);
   const [loading, setLoading] = useState(true);
-  const [stack, setStack] = useState<Route[]>([HOME]);
+  const [stack, setStack] = useState<Route[]>(() =>
+    parentChainFor(pathToRoute(window.location.pathname) ?? HOME)
+  );
   const [updateAvailable, setUpdateAvailable] = useState(false);
+
+  // A deep link (or a reload) lands on one route with no browser history
+  // behind it — rebuild a synthetic chain so the hardware/browser back
+  // button walks up through the parent screens instead of exiting the app.
+  useEffect(() => {
+    if (stack.length <= 1) return;
+    window.history.replaceState(null, '', routeToPath(stack[0]));
+    for (let i = 1; i < stack.length; i++) {
+      window.history.pushState(null, '', routeToPath(stack[i]));
+    }
+    // Runs once on mount only — later navigation is handled by navigate()/back().
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     if (!isFirebaseConfigured) {
@@ -86,19 +102,29 @@ export function App() {
     return watchCountdowns(setCountdowns, () => setCountdowns([]));
   }, [user, userRole]);
 
-  // Every push adds a history entry so the Android/browser back button pops the
-  // stack instead of exiting the PWA. Back always routes through history.back()
-  // so popstate stays the single source of truth.
+  // Every push adds a history entry so the Android/browser back button pops
+  // the stack instead of exiting the PWA. Resyncing the whole stack from the
+  // URL on every popstate (rather than just slicing off one entry) keeps
+  // things correct even after the browser's forward button or multiple
+  // rapid back presses.
   useEffect(() => {
-    const onPop = () =>
-      setStack((s) => (s.length > 1 ? s.slice(0, -1) : s));
+    const onPop = () => {
+      const route = pathToRoute(window.location.pathname) ?? HOME;
+      setStack(parentChainFor(route));
+    };
     window.addEventListener('popstate', onPop);
     return () => window.removeEventListener('popstate', onPop);
   }, []);
 
+  // Reset scroll on every navigation — otherwise a new screen can render
+  // already scrolled partway down if the previous screen was scrolled.
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [stack]);
+
   const navigate = useCallback((next: Route) => {
     setStack((s) => [...s, next]);
-    window.history.pushState(null, '');
+    window.history.pushState(null, '', routeToPath(next));
   }, []);
 
   const back = useCallback(() => window.history.back(), []);

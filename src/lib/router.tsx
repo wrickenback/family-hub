@@ -198,3 +198,68 @@ export function getVisibleGames(role: Role | null): GameApp[] {
 export function getGame(id: string): GameApp | undefined {
   return games.find((game) => game.id === id);
 }
+
+export function routeToPath(route: Route): string {
+  switch (route.screen) {
+    case 'home':
+      return '/';
+    case 'games':
+      return '/games';
+    case 'scores':
+      return '/scores';
+    case 'calendar':
+      return '/calendar';
+    case 'countdowns':
+      return '/countdowns';
+    case 'game':
+      return `/games/${route.gameId}`;
+    case 'play-blocks':
+      return `/play/blocks/${route.mode}`;
+  }
+}
+
+export function pathToRoute(pathname: string): Route | null {
+  const segments = pathname.split('/').filter(Boolean);
+  if (segments.length === 0) return { screen: 'home' };
+
+  const [first, second, third] = segments;
+  switch (first) {
+    case 'games':
+      return second ? { screen: 'game', gameId: second } : { screen: 'games' };
+    case 'scores':
+      return { screen: 'scores' };
+    case 'calendar':
+      return { screen: 'calendar' };
+    case 'countdowns':
+      return { screen: 'countdowns' };
+    case 'play':
+      if (second === 'blocks' && (third === 'free' || third === 'daily')) {
+        return { screen: 'play-blocks', mode: third };
+      }
+      return null;
+    default:
+      return null;
+  }
+}
+
+/** Synthesizes the logical parent chain for a route so a deep link (or a
+ * page reload) lands with a sensible back-navigation history instead of
+ * one bare screen the hardware back button can only exit from. */
+export function parentChainFor(route: Route): Route[] {
+  const HOME: Route = { screen: 'home' };
+  switch (route.screen) {
+    case 'home':
+      return [HOME];
+    case 'game':
+      return [HOME, { screen: 'games' }, route];
+    case 'play-blocks':
+      return [
+        HOME,
+        { screen: 'games' },
+        { screen: 'game', gameId: 'blocks' },
+        route,
+      ];
+    default:
+      return [HOME, route];
+  }
+}
