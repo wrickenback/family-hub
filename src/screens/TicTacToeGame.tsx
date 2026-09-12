@@ -112,13 +112,20 @@ export function TicTacToeGame({ onBack }: { onBack: () => void }) {
           <div className={`ttt-chip ttt-chip-x ${!result && turn === 'X' ? 'turn' : ''}`}>
             <MarkGlyph mark="X" />
           </div>
-          <p className={`ttt-status ${result ? 'settled' : ''}`}>
-            {result?.type === 'win'
-              ? `${result.mark} wins!`
-              : result?.type === 'draw'
-              ? "Draw — nobody's giving an inch"
-              : phrase}
-          </p>
+          <div className="ttt-status-row">
+            <p className={`ttt-status ${result ? 'settled' : ''}`}>
+              {result?.type === 'win'
+                ? `${result.mark} wins!`
+                : result?.type === 'draw'
+                ? "Draw — nobody's giving an inch"
+                : phrase}
+            </p>
+            {result && (
+              <button className="btn btn-primary ttt-next-btn" onClick={handleNextRound}>
+                Next round
+              </button>
+            )}
+          </div>
           <div className={`ttt-chip ttt-chip-o ${!result && turn === 'O' ? 'turn' : ''}`}>
             <MarkGlyph mark="O" />
           </div>
@@ -138,6 +145,8 @@ export function TicTacToeGame({ onBack }: { onBack: () => void }) {
                   key={index}
                   className={`ttt-cell ${cell ? `mark-${cell.toLowerCase()}` : ''} ${
                     winningCells.includes(index) ? 'winning' : ''
+                  } ${
+                    result?.type === 'win' && !winningCells.includes(index) ? 'dimmed' : ''
                   }`}
                   style={{ '--i': index } as React.CSSProperties}
                   onClick={() => playAt(index, turn)}
@@ -151,23 +160,6 @@ export function TicTacToeGame({ onBack }: { onBack: () => void }) {
               ))}
             </div>
           </div>
-
-          {result && (
-            <div className="ttt-result card">
-              <h3
-                className={
-                  result.type === 'win' ? `result-${result.mark.toLowerCase()}` : ''
-                }
-              >
-                {result.type === 'draw' ? 'Draw' : `${result.mark} wins!`}
-              </h3>
-              <div className="ttt-result-actions">
-                <button className="btn btn-primary" onClick={handleNextRound}>
-                  Next round
-                </button>
-              </div>
-            </div>
-          )}
         </div>
 
         <p className="ttt-note">

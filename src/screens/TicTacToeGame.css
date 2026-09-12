@@ -146,9 +146,17 @@
   filter: none;
 }
 
+.ttt-status-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  min-width: 0;
+  gap: 0.5rem;
+}
+
 .ttt-status {
   display: flex;
-  flex: 1;
   min-width: 0;
   align-items: center;
   justify-content: center;
@@ -158,6 +166,24 @@
   font-weight: 600;
   color: var(--text-secondary);
   text-align: center;
+}
+
+.ttt-next-btn {
+  flex-shrink: 0;
+  padding: 0.4rem 0.85rem;
+  font-size: 0.8rem;
+  animation: ttt-fade-in 0.25s ease-out 0.4s both;
+}
+
+@keyframes ttt-fade-in {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 
 .ttt-status-spinner {
@@ -258,6 +284,13 @@
   background: var(--gold);
   color: #fff;
   animation: ttt-pop 0.35s ease-out;
+}
+
+/* Fades out everything but the winning row so it's the clear focal point. */
+.ttt-cell.dimmed {
+  opacity: 0.35;
+  filter: grayscale(35%);
+  transition: opacity 0.3s ease 0.35s, filter 0.3s ease 0.35s;
 }
 
 @keyframes ttt-pop {
@@ -376,54 +409,6 @@
     /* Falls well past the largest possible board frame (22rem) so it always
        clears the bottom, however small the frame shrinks on short screens. */
     transform: translate(var(--drift), 26rem) rotate(280deg);
-  }
-}
-
-/* ---------- result overlay (no layout height added — no scroll) ---------- */
-
-.ttt-result {
-  position: absolute;
-  left: 50%;
-  bottom: 6%;
-  transform: translateX(-50%);
-  z-index: 4;
-  padding: 0.75rem 1.25rem;
-  text-align: center;
-  animation: ttt-pop-in 0.3s ease-out 0.5s both;
-}
-
-@keyframes ttt-pop-in {
-  from {
-    opacity: 0;
-    transform: translateX(-50%) scale(0.85);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(-50%) scale(1);
-  }
-}
-
-.ttt-result h3 {
-  font-size: 1.1rem;
-  margin-bottom: 0.5rem;
-}
-
-.ttt-result h3.result-x {
-  color: var(--rust);
-}
-
-.ttt-result h3.result-o {
-  color: var(--teal);
-}
-
-.ttt-result-actions {
-  opacity: 0;
-  animation: ttt-fade-in 0.3s ease-out 0.9s forwards;
-}
-
-@keyframes ttt-fade-in {
-  to {
-    opacity: 1;
   }
 }
 

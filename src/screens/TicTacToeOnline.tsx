@@ -263,13 +263,23 @@ export function TicTacToeOnline({ uid, displayName, onBack }: Props) {
           </div>
         </div>
 
-        <p
-          className={`ttt-status ${game.status === 'done' ? 'settled' : ''}`}
-          aria-live="polite"
-        >
-          {waiting && <IconSpinner className="ttt-status-spinner" aria-hidden="true" />}
-          {statusText()}
-        </p>
+        <div className="ttt-status-row">
+          <p
+            className={`ttt-status ${game.status === 'done' ? 'settled' : ''}`}
+            aria-live="polite"
+          >
+            {waiting && <IconSpinner className="ttt-status-spinner" aria-hidden="true" />}
+            {statusText()}
+          </p>
+          {game.status === 'done' && (
+            <button
+              className="btn btn-primary ttt-next-btn"
+              onClick={() => rematchOnlineGame(game.id).catch(() => {})}
+            >
+              Rematch
+            </button>
+          )}
+        </div>
 
         <div className="ttt-board-wrap">
           <div className="ttt-board-frame">
@@ -285,7 +295,13 @@ export function TicTacToeOnline({ uid, displayName, onBack }: Props) {
                   key={index}
                   className={`ttt-cell ${
                     cell !== '-' ? `mark-${cell.toLowerCase()}` : ''
-                  } ${game.line?.includes(index) ? 'winning' : ''}`}
+                  } ${game.line?.includes(index) ? 'winning' : ''} ${
+                    game.status === 'done' &&
+                    game.outcome === 'win' &&
+                    !game.line?.includes(index)
+                      ? 'dimmed'
+                      : ''
+                  }`}
                   onClick={() => playOnlineMove(game.id, uid, index).catch(() => {})}
                   disabled={!myTurn || cell !== '-'}
                   aria-label={
@@ -299,26 +315,6 @@ export function TicTacToeOnline({ uid, displayName, onBack }: Props) {
               ))}
             </div>
           </div>
-
-          {game.status === 'done' && (
-            <div className="ttt-result card">
-              <h3>
-                {game.outcome === 'draw'
-                  ? 'Draw'
-                  : game.winnerUid === uid
-                  ? 'You win!'
-                  : `${opponentName} wins`}
-              </h3>
-              <div className="ttt-result-actions">
-                <button
-                  className="btn btn-primary"
-                  onClick={() => rematchOnlineGame(game.id).catch(() => {})}
-                >
-                  Rematch
-                </button>
-              </div>
-            </div>
-          )}
         </div>
 
         <button className="btn btn-text ttt-leave" onClick={handleLeave}>
