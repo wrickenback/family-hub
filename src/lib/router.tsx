@@ -8,6 +8,7 @@ import BattleshipIcon from '../assets/game-icons/battleship.svg?react';
 import DotsAndBoxesIcon from '../assets/game-icons/dots-boxes.svg?react';
 import WarIcon from '../assets/game-icons/war.svg?react';
 import UnoIcon from '../assets/game-icons/uno.svg?react';
+import { IconGrid, IconStopwatch, IconWordTiles } from '../components/icons';
 
 export type Route =
   | { screen: 'home' }
@@ -20,7 +21,14 @@ export type Route =
 export type Role = 'guest' | 'kid' | 'parent';
 export type Visibility = 'all' | 'familyOnly' | 'parentOnly';
 export type PlayerMode = 'solo' | 'multi' | 'both';
-export type Scoring = 'highScore' | 'wins';
+/** bestMs and bestDuration rank ascending — lower is better. */
+export type Scoring = 'highScore' | 'wins' | 'bestMs' | 'bestDuration';
+
+export interface GameMode {
+  id: string;
+  name: string;
+  blurb: string;
+}
 
 export interface GameApp {
   id: string;
@@ -31,6 +39,7 @@ export interface GameApp {
   scoring: Scoring;
   icon: ComponentType<SVGProps<SVGSVGElement>>;
   blurb: string;
+  modes?: GameMode[];
 }
 
 export const games: GameApp[] = [
@@ -43,6 +52,60 @@ export const games: GameApp[] = [
     scoring: 'highScore',
     icon: BlocksIcon,
     blurb: 'Fit the pieces, clear the lines, chase the family high score.',
+    modes: [
+      {
+        id: 'free',
+        name: 'Free play',
+        blurb: 'Endless. Play until you run out of room.',
+      },
+      {
+        id: 'daily',
+        name: 'Daily challenge',
+        blurb: 'Everyone gets the same pieces in the same order today.',
+      },
+    ],
+  },
+  {
+    id: 'wordsearch',
+    name: 'Word Search',
+    path: '/wordsearch',
+    visibility: 'familyOnly',
+    players: 'solo',
+    scoring: 'bestDuration',
+    icon: IconGrid,
+    blurb: 'Pick any topic and hunt down the hidden words.',
+    modes: [
+      {
+        id: 'create',
+        name: 'Create',
+        blurb: 'Name a topic and get a fresh grid built for it.',
+      },
+      {
+        id: 'library',
+        name: 'Library',
+        blurb: 'Play the puzzles the rest of the family has made.',
+      },
+    ],
+  },
+  {
+    id: 'wordle',
+    name: 'Daily Word',
+    path: '/wordle',
+    visibility: 'familyOnly',
+    players: 'solo',
+    scoring: 'wins',
+    icon: IconWordTiles,
+    blurb: 'Six guesses, five letters. Same word for the whole family.',
+  },
+  {
+    id: 'reaction',
+    name: 'Reaction Time',
+    path: '/reaction',
+    visibility: 'familyOnly',
+    players: 'solo',
+    scoring: 'bestMs',
+    icon: IconStopwatch,
+    blurb: 'Tap the moment it changes. Fastest thumb in the family wins.',
   },
   {
     id: 'hangman',

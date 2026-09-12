@@ -72,6 +72,36 @@ export function IconChevronRight(props: SVGProps<SVGSVGElement>) {
   );
 }
 
+export function IconWordTiles(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...base} {...props}>
+      <rect x="2.5" y="8" width="6" height="8" rx="1.4" />
+      <rect x="9" y="8" width="6" height="8" rx="1.4" />
+      <rect x="15.5" y="8" width="6" height="8" rx="1.4" />
+      <path d="M5 13.5h1.5M11.5 11.5v3M18 11.5h1" />
+    </svg>
+  );
+}
+
+export function IconGrid(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...base} {...props}>
+      <rect x="3" y="3" width="18" height="18" rx="2.5" />
+      <path d="M9 3v18M15 3v18M3 9h18M3 15h18" />
+      <path d="M5.5 5.5l13 13" strokeWidth="2.4" />
+    </svg>
+  );
+}
+
+export function IconStopwatch(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...base} {...props}>
+      <circle cx="12" cy="13.5" r="7.5" />
+      <path d="M12 10v3.5l2.5 1.5M9.5 2.5h5M12 2.5V6M18.5 7.5l1.5-1.5" />
+    </svg>
+  );
+}
+
 export function IconSolo(props: SVGProps<SVGSVGElement>) {
   return (
     <svg {...base} {...props}>

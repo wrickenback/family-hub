@@ -1,0 +1,74 @@
+.topic-picker {
+  padding: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.topic-picker-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.875rem;
+}
+
+.topic-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  list-style: none;
+  margin-bottom: 1.25rem;
+}
+
+.topic-chip {
+  padding: 0.5rem 0.8rem;
+  min-height: 40px;
+  border-radius: var(--radius-pill);
+  background: var(--sand-100);
+  color: var(--text-primary);
+  font-size: 0.85rem;
+  font-weight: 500;
+  text-align: left;
+}
+
+.topic-chip:hover {
+  background: var(--rust-soft);
+  color: var(--rust);
+}
+
+.topic-custom {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+
+.topic-custom span {
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.topic-custom input {
+  font-family: inherit;
+  font-size: 1rem;
+  padding: 0.7rem 0.875rem;
+  min-height: 44px;
+  border: 1px solid var(--sand-200);
+  border-radius: var(--radius-sm);
+  background: var(--bg-ground);
+  color: var(--text-primary);
+}
+
+.topic-custom input:focus-visible {
+  border-color: var(--rust);
+  outline: none;
+  box-shadow: 0 0 0 3px var(--rust-soft);
+}
+
+.topic-note {
+  font-size: 0.75rem;
+  line-height: 1.4;
+  color: var(--text-muted);
+  margin-top: 0.625rem;
+}

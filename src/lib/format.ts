@@ -31,6 +31,12 @@ export function shortDate(date: Date): string {
   });
 }
 
+export function durationLabel(seconds: number): string {
+  const mins = Math.floor(seconds / 60);
+  const secs = Math.round(seconds % 60);
+  return `${mins}:${String(secs).padStart(2, '0')}`;
+}
+
 export function groupByDay<T>(items: T[], getDate: (item: T) => Date) {
   const groups = new Map<number, T[]>();
   for (const item of items) {
