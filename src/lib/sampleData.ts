@@ -95,13 +95,8 @@ export const sampleScores: Record<string, ScoreEntry[]> = {
     { name: 'Will', value: 268, date: at(-6, 21, 12) },
     { name: 'Theo', value: 295, date: at(-8, 16, 55) },
   ],
-  wordsearch: [
-    { name: 'Sam', value: 74, date: at(-1, 16, 20) },
-    { name: 'Nora', value: 91, date: at(-1, 16, 45) },
-    { name: 'Iris', value: 118, date: at(-4, 15, 30) },
-    { name: 'Will', value: 143, date: at(-5, 19, 55) },
-    { name: 'Theo', value: 186, date: at(-7, 14, 10) },
-  ],
+  // 'wordsearch' isn't seeded here — it's real now, backed by Firestore
+  // (see WordSearchLeaderboard).
   wordle: [
     { name: 'Will', value: 18, date: at(0, 7, 15) },
     { name: 'Nora', value: 16, date: at(0, 7, 50) },

@@ -242,3 +242,9 @@
   width: 100%;
   margin-bottom: 1.5rem;
 }
+
+.game-detail-error {
+  font-size: 0.85rem;
+  color: var(--rust);
+  margin: -0.75rem 0 1.5rem;
+}

@@ -3,6 +3,8 @@ import { Screen } from '../components/Screen';
 import { Scoreboard } from '../components/Scoreboard';
 import { TopicPicker } from '../components/TopicPicker';
 import { BlocksLeaderboard } from '../components/BlocksLeaderboard';
+import { WordSearchLeaderboard } from '../components/WordSearchLeaderboard';
+import { WordSearchLibrary } from '../components/WordSearchLibrary';
 import {
   IconClock,
   IconMulti,
@@ -11,6 +13,7 @@ import {
 } from '../components/icons';
 import { getGame } from '../lib/router';
 import { sampleScores } from '../lib/sampleData';
+import { generatePuzzle } from '../lib/firestoreWordSearch';
 import './Games.css';
 
 const scoringLabel: Record<string, string> = {
@@ -31,13 +34,17 @@ export function GameDetail({
   gameId,
   onBack,
   onPlayBlocks,
+  onPlayWordSearch,
 }: {
   gameId: string;
   onBack: () => void;
   onPlayBlocks: (mode: 'free' | 'daily') => void;
+  onPlayWordSearch: (puzzleId: string) => void;
 }) {
   const game = getGame(gameId);
   const [modeId, setModeId] = useState(game?.modes?.[0]?.id ?? '');
+  const [generating, setGenerating] = useState(false);
+  const [genError, setGenError] = useState<string | null>(null);
 
   if (!game) {
     return (
@@ -56,10 +63,26 @@ export function GameDetail({
 
   const mode = game.modes?.find((m) => m.id === modeId) ?? game.modes?.[0];
   const isBlocks = game.id === 'blocks';
+  const isWordSearch = game.id === 'wordsearch';
   // Scores for a daily-seeded mode aren't comparable to free play, so they get
   // their own scoreboard entry (see sampleData: 'blocks:daily' vs 'blocks').
   const scoreKey =
     game.id === 'blocks' && mode?.id === 'daily' ? 'blocks:daily' : game.id;
+
+  const handleGenerateTopic = async (topic: string) => {
+    setGenerating(true);
+    setGenError(null);
+    try {
+      const puzzle = await generatePuzzle(topic);
+      onPlayWordSearch(puzzle.id);
+    } catch (err) {
+      setGenError(
+        err instanceof Error ? err.message : 'Something went wrong.'
+      );
+    } finally {
+      setGenerating(false);
+    }
+  };
 
   return (
     <Screen title={game.name} onBack={onBack}>
@@ -106,16 +129,27 @@ export function GameDetail({
       )}
       {mode && <p className="mode-blurb">{mode.blurb}</p>}
 
-      {game.id === 'wordsearch' && mode?.id === 'create' && <TopicPicker />}
-
-      {isBlocks ? (
+      {isBlocks && (
         <button
           className="btn btn-primary blocks-play-btn"
           onClick={() => onPlayBlocks(mode?.id === 'daily' ? 'daily' : 'free')}
         >
           Play {mode?.id === 'daily' ? "today's challenge" : 'now'}
         </button>
-      ) : (
+      )}
+
+      {isWordSearch && mode?.id === 'create' && (
+        <>
+          <TopicPicker onSelect={handleGenerateTopic} busy={generating} />
+          {genError && <p className="game-detail-error">{genError}</p>}
+        </>
+      )}
+
+      {isWordSearch && mode?.id === 'library' && (
+        <WordSearchLibrary onOpen={onPlayWordSearch} />
+      )}
+
+      {!game.built && (
         <div className="game-detail-status">
           <IconClock aria-hidden="true" />
           Not built yet — this is the shell. Gameplay is coming.
@@ -130,6 +164,8 @@ export function GameDetail({
       </div>
       {isBlocks ? (
         <BlocksLeaderboard mode={mode?.id ?? 'free'} limit={5} />
+      ) : isWordSearch ? (
+        <WordSearchLeaderboard limit={5} />
       ) : (
         <Scoreboard
           entries={sampleScores[scoreKey] ?? []}

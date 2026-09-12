@@ -15,6 +15,7 @@ import {
   serverTimestamp,
   setDoc,
 } from 'firebase/firestore';
+import { getFunctions } from 'firebase/functions';
 import type { Role } from './router';
 import { PARENT_EMAILS } from './roles';
 
@@ -35,6 +36,9 @@ const app = initializeApp(firebaseConfig);
 // anything — including a helpful "not configured yet" message.
 export const auth = isFirebaseConfigured ? getAuth(app) : null;
 export const db = isFirebaseConfigured ? getFirestore(app) : null;
+export const functions = isFirebaseConfigured
+  ? getFunctions(app, 'us-central1')
+  : null;
 
 const googleProvider = new GoogleAuthProvider();
 

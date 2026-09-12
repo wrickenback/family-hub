@@ -28,6 +28,7 @@ import { ScoresScreen } from './screens/ScoresScreen';
 import { CalendarScreen } from './screens/CalendarScreen';
 import { CountdownsScreen } from './screens/CountdownsScreen';
 import { BlocksGame } from './screens/BlocksGame';
+import { WordSearchGame } from './screens/WordSearchGame';
 import './App.css';
 
 const HOME: Route = { screen: 'home' };
@@ -261,11 +262,22 @@ export function App() {
             gameId={route.gameId}
             onBack={back}
             onPlayBlocks={(mode) => navigate({ screen: 'play-blocks', mode })}
+            onPlayWordSearch={(puzzleId) =>
+              navigate({ screen: 'play-wordsearch', puzzleId })
+            }
           />
         )}
         {route.screen === 'play-blocks' && (
           <BlocksGame
             mode={route.mode}
+            uid={user.uid}
+            displayName={user.displayName || user.email || 'Someone'}
+            onBack={back}
+          />
+        )}
+        {route.screen === 'play-wordsearch' && (
+          <WordSearchGame
+            puzzleId={route.puzzleId}
             uid={user.uid}
             displayName={user.displayName || user.email || 'Someone'}
             onBack={back}

@@ -35,6 +35,11 @@
   color: var(--rust);
 }
 
+.topic-chip:disabled,
+.topic-custom input:disabled {
+  opacity: 0.5;
+}
+
 .topic-custom {
   display: flex;
   flex-direction: column;
@@ -64,6 +69,14 @@
   border-color: var(--rust);
   outline: none;
   box-shadow: 0 0 0 3px var(--rust-soft);
+}
+
+.topic-custom-submit {
+  width: 100%;
+}
+
+.topic-custom-submit:disabled {
+  opacity: 0.5;
 }
 
 .topic-note {

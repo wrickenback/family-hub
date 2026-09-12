@@ -107,6 +107,15 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    // Word Search puzzles — generated server-side only (Cloud Function
+    // calls Gemini for the word list, then a local algorithm builds the
+    // grid). Never client-writable: a forged doc could hand a player a
+    // pre-"solved" puzzle for score purposes.
+    match /wordSearchPuzzles/{puzzleId} {
+      allow read: if isSignedIn() && isAllowed();
+      allow write: if false;
+    }
+
     // Schedule (merged from calendar + ICS)
     match /schedule/{eventId} {
       allow read: if isSignedIn() && isAllowed();

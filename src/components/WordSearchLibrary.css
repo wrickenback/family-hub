@@ -1,0 +1,27 @@
+.ws-library {
+  display: grid;
+  gap: 0.625rem;
+  list-style: none;
+  margin-bottom: 1.5rem;
+}
+
+.ws-library-item {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  width: 100%;
+  padding: 0.875rem 1rem;
+  text-align: left;
+}
+
+.ws-library-topic {
+  font-family: Poppins, system-ui, sans-serif;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.ws-library-meta {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-top: 0.15rem;
+}

@@ -19,7 +19,8 @@ export type Route =
   | { screen: 'calendar' }
   | { screen: 'countdowns' }
   | { screen: 'game'; gameId: string }
-  | { screen: 'play-blocks'; mode: 'free' | 'daily' };
+  | { screen: 'play-blocks'; mode: 'free' | 'daily' }
+  | { screen: 'play-wordsearch'; puzzleId: string };
 
 export type Role = 'guest' | 'kid' | 'parent';
 export type Visibility = 'all' | 'familyOnly' | 'parentOnly';
@@ -81,6 +82,7 @@ export const games: GameApp[] = [
     scoring: 'bestDuration',
     icon: WordSearchIcon,
     blurb: 'Pick any topic and hunt down the hidden words.',
+    built: true,
     modes: [
       {
         id: 'create',
@@ -221,6 +223,8 @@ export function routeToPath(route: Route): string {
       return `/games/${route.gameId}`;
     case 'play-blocks':
       return `/play/blocks/${route.mode}`;
+    case 'play-wordsearch':
+      return `/play/wordsearch/${route.puzzleId}`;
   }
 }
 
@@ -238,11 +242,15 @@ export function pathToRoute(pathname: string): Route | null {
       return { screen: 'calendar' };
     case 'countdowns':
       return { screen: 'countdowns' };
-    case 'play':
+    case 'play': {
       if (second === 'blocks' && (third === 'free' || third === 'daily')) {
         return { screen: 'play-blocks', mode: third };
       }
+      if (second === 'wordsearch' && third) {
+        return { screen: 'play-wordsearch', puzzleId: third };
+      }
       return null;
+    }
     default:
       return null;
   }
@@ -263,6 +271,13 @@ export function parentChainFor(route: Route): Route[] {
         HOME,
         { screen: 'games' },
         { screen: 'game', gameId: 'blocks' },
+        route,
+      ];
+    case 'play-wordsearch':
+      return [
+        HOME,
+        { screen: 'games' },
+        { screen: 'game', gameId: 'wordsearch' },
         route,
       ];
     default:

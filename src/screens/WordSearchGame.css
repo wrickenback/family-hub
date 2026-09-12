@@ -1,0 +1,118 @@
+.ws-scorebar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.75rem 1.25rem;
+  margin-bottom: 0.875rem;
+  background: linear-gradient(135deg, var(--teal) 0%, #24564c 100%);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-raised);
+  color: #fff;
+}
+
+.ws-stat {
+  display: flex;
+  flex-direction: column;
+}
+
+.ws-stat-right {
+  align-items: flex-end;
+}
+
+.ws-stat-value {
+  font-family: Poppins, system-ui, sans-serif;
+  font-size: 1.5rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.ws-stat-label {
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  opacity: 0.8;
+  margin-top: 0.15rem;
+}
+
+.ws-board {
+  display: grid;
+  gap: 1px;
+  width: 100%;
+  max-width: 26rem;
+  aspect-ratio: 1;
+  margin: 0 auto 1.25rem;
+  padding: 4px;
+  background: var(--sand-200);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-card);
+  touch-action: none;
+  user-select: none;
+}
+
+.ws-cell {
+  display: grid;
+  place-items: center;
+  background: var(--bg-surface);
+  border-radius: 2px;
+  font-family: Poppins, system-ui, sans-serif;
+  font-weight: 600;
+  font-size: clamp(0.55rem, 2.4vw, 0.85rem);
+  color: var(--text-secondary);
+}
+
+.ws-cell.dragging {
+  background: var(--teal);
+  color: #fff;
+}
+
+.ws-cell.found {
+  background: var(--rust-soft);
+  color: var(--rust);
+}
+
+.ws-word-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  list-style: none;
+  margin-bottom: 1.5rem;
+}
+
+.ws-word {
+  padding: 0.4rem 0.75rem;
+  border-radius: var(--radius-pill);
+  background: var(--bg-surface);
+  box-shadow: var(--shadow-card);
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  letter-spacing: 0.02em;
+}
+
+.ws-word.found {
+  background: var(--teal-soft);
+  color: var(--teal);
+  text-decoration: line-through;
+  text-decoration-thickness: 2px;
+  opacity: 0.75;
+}
+
+.ws-complete {
+  padding: 1.5rem;
+  text-align: center;
+}
+
+.ws-complete h3 {
+  font-size: 1.25rem;
+  margin-bottom: 0.5rem;
+}
+
+.ws-complete-time {
+  font-family: Poppins, system-ui, sans-serif;
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: var(--teal);
+  margin-bottom: 1.25rem;
+}
