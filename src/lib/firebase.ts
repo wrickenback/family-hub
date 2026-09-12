@@ -28,7 +28,6 @@ export const auth = isFirebaseConfigured ? getAuth(app) : null;
 export const db = isFirebaseConfigured ? getFirestore(app) : null;
 
 const googleProvider = new GoogleAuthProvider();
-googleProvider.addScope('https://www.googleapis.com/auth/calendar.readonly');
 
 export function signInWithGoogle() {
   if (!auth) throw new Error('Firebase is not configured');
