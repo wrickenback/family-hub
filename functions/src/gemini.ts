@@ -1,6 +1,9 @@
 import { GoogleGenAI, HarmCategory, HarmBlockThreshold } from '@google/genai';
 
-const MODEL = 'gemini-2.5-flash';
+// A stable alias (not a pinned version) so this doesn't silently 404 again
+// the next time Google retires a dated model — it always resolves to
+// whatever flash model is currently recommended.
+const MODEL = 'gemini-flash-latest';
 
 // Belt-and-suspenders for a kids' feature: an explicit instruction to refuse
 // the TOPIC itself when it's unsuitable (not just filter individual words),
