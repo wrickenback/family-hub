@@ -1,3 +1,69 @@
+.countdown-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.875rem;
+  padding: 1.125rem 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.countdown-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+
+.countdown-field span {
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.countdown-field input {
+  font-family: inherit;
+  font-size: 1rem;
+  padding: 0.7rem 0.875rem;
+  min-height: 44px;
+  border: 1px solid var(--sand-200);
+  border-radius: var(--radius-sm);
+  background: var(--bg-ground);
+  color: var(--text-primary);
+}
+
+.countdown-field input:focus-visible {
+  border-color: var(--rust);
+  outline: none;
+  box-shadow: 0 0 0 3px var(--rust-soft);
+}
+
+.countdown-error {
+  font-size: 0.8rem;
+  color: var(--rust);
+}
+
+.countdown-submit {
+  width: 100%;
+}
+
+.countdown-submit:disabled {
+  opacity: 0.5;
+}
+
+.countdown-row-bottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.countdown-remove {
+  flex-shrink: 0;
+  font-size: 0.75rem;
+  padding: 0.35rem 0.6rem;
+  min-height: 32px;
+}
+
 .countdown-list {
   display: grid;
   gap: 0.75rem;

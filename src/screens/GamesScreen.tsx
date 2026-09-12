@@ -1,19 +1,28 @@
 import type { ReactNode } from 'react';
 import { Screen } from '../components/Screen';
-import { IconMulti, IconSolo } from '../components/icons';
+import { formatValue } from '../components/Scoreboard';
+import {
+  IconChevronRight,
+  IconMulti,
+  IconSolo,
+  IconTrophy,
+} from '../components/icons';
 import { getVisibleGames, type GameApp, type Role } from '../lib/router';
+import { getTopScore } from '../lib/sampleData';
 import './Games.css';
 
 interface GamesScreenProps {
   userRole: Role | null;
   onBack: () => void;
   onOpenGame: (gameId: string) => void;
+  onOpenScores: () => void;
 }
 
 export function GamesScreen({
   userRole,
   onBack,
   onOpenGame,
+  onOpenScores,
 }: GamesScreenProps) {
   const visible = getVisibleGames(userRole);
   const solo = visible.filter(
@@ -29,6 +38,17 @@ export function GamesScreen({
       subtitle={`${visible.length} games`}
       onBack={onBack}
     >
+      <button className="scores-link card" onClick={onOpenScores}>
+        <span className="scores-link-icon">
+          <IconTrophy aria-hidden="true" />
+        </span>
+        <span className="scores-link-text">
+          <span className="scores-link-title">Family Scores</span>
+          <span className="scores-link-meta">See every top 10</span>
+        </span>
+        <IconChevronRight className="chevron-affordance" aria-hidden="true" />
+      </button>
+
       <GameSection
         title="Solo play"
         icon={<IconSolo aria-hidden="true" />}
@@ -65,35 +85,50 @@ function GameSection({ title, icon, games, onOpenGame }: GameSectionProps) {
         <span className="section-count">{games.length}</span>
       </div>
       <ul className="game-grid">
-        {games.map((game) => (
-          <li key={game.id}>
-            <button
-              className="game-card"
-              onClick={() => onOpenGame(game.id)}
-            >
-              <span className="game-icon">
-                <game.icon aria-hidden="true" />
-              </span>
-              <span className="game-text">
-                <span className="game-name">{game.name}</span>
-                <span className="game-blurb">{game.blurb}</span>
-              </span>
-              <span
-                className={`pill ${
-                  game.players === 'multi' ? 'pill-multi' : 'pill-solo'
-                }`}
+        {games.map((game) => {
+          const top = getTopScore(game.id, game.scoring);
+          return (
+            <li key={game.id}>
+              <button
+                className="game-card"
+                onClick={() => onOpenGame(game.id)}
               >
-                {game.players === 'solo' && <IconSolo aria-hidden="true" />}
-                {game.players === 'multi' && <IconMulti aria-hidden="true" />}
-                {game.players === 'solo'
-                  ? '1 player'
-                  : game.players === 'multi'
-                  ? '2 players'
-                  : '1–2'}
-              </span>
-            </button>
-          </li>
-        ))}
+                <span className="game-icon">
+                  <game.icon aria-hidden="true" />
+                </span>
+                <span className="game-text">
+                  <span className="game-name">{game.name}</span>
+                  <span className="game-blurb">{game.blurb}</span>
+                </span>
+                <span className="game-meta">
+                  <span
+                    className={`pill ${
+                      game.players === 'multi' ? 'pill-multi' : 'pill-solo'
+                    }`}
+                  >
+                    {game.players === 'solo' && (
+                      <IconSolo aria-hidden="true" />
+                    )}
+                    {game.players === 'multi' && (
+                      <IconMulti aria-hidden="true" />
+                    )}
+                    {game.players === 'solo'
+                      ? '1 player'
+                      : game.players === 'multi'
+                      ? '2 players'
+                      : '1–2'}
+                  </span>
+                  {top && (
+                    <span className="game-top-score">
+                      <IconTrophy aria-hidden="true" />
+                      {top.name} · {formatValue(top.value, game.scoring)}
+                    </span>
+                  )}
+                </span>
+              </button>
+            </li>
+          );
+        })}
       </ul>
     </section>
   );

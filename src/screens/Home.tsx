@@ -8,13 +8,9 @@ import {
   IconHourglass,
   IconTrophy,
 } from '../components/icons';
-import { dayLabel, timeLabel } from '../lib/format';
-import {
-  daysUntil,
-  sampleCountdowns,
-  sampleEvents,
-  IS_SAMPLE_DATA,
-} from '../lib/sampleData';
+import { dayLabel, daysUntil, timeLabel } from '../lib/format';
+import { sampleEvents } from '../lib/sampleData';
+import type { FirestoreCountdown } from '../lib/firestoreCountdowns';
 import type { Role, Route } from '../lib/router';
 import { getVisibleGames } from '../lib/router';
 import './Home.css';
@@ -22,13 +18,20 @@ import './Home.css';
 interface HomeProps {
   user: User;
   userRole: Role | null;
+  countdowns: FirestoreCountdown[];
   onNavigate: (route: Route) => void;
   onSignOut: () => void;
 }
 
-export function Home({ user, userRole, onNavigate, onSignOut }: HomeProps) {
+export function Home({
+  user,
+  userRole,
+  countdowns: rawCountdowns,
+  onNavigate,
+  onSignOut,
+}: HomeProps) {
   const firstName = (user.displayName || user.email || 'there').split(/[ @]/)[0];
-  const countdowns = sampleCountdowns
+  const countdowns = rawCountdowns
     .map((c) => ({ ...c, days: daysUntil(c.target) }))
     .filter((c) => c.days >= 0)
     .sort((a, b) => a.days - b.days);
@@ -58,7 +61,6 @@ export function Home({ user, userRole, onNavigate, onSignOut }: HomeProps) {
                 <IconHourglass aria-hidden="true" />
                 Counting down
               </span>
-              {IS_SAMPLE_DATA && <span className="pill pill-sample">Sample</span>}
             </div>
             <ul
               className="countdown-strip"
@@ -173,7 +175,7 @@ function HubCard({ icon, title, meta, tone, onClick }: HubCardProps) {
         <span className="hub-title">{title}</span>
         <span className="hub-meta">{meta}</span>
       </span>
-      <IconChevronRight className="hub-chevron" aria-hidden="true" />
+      <IconChevronRight className="chevron-affordance" aria-hidden="true" />
     </button>
   );
 }

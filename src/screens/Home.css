@@ -232,13 +232,6 @@
   color: var(--text-muted);
 }
 
-.hub-chevron {
-  flex-shrink: 0;
-  width: 20px;
-  height: 20px;
-  color: var(--sand-300);
-}
-
 @media (min-width: 520px) {
   .hub-grid {
     grid-template-columns: 1fr 1fr;

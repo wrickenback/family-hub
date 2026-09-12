@@ -9,7 +9,7 @@ interface ScoreboardProps {
   limit?: number;
 }
 
-function formatValue(value: number, scoring: Scoring): string {
+export function formatValue(value: number, scoring: Scoring): string {
   if (scoring === 'wins') return `${value} ${value === 1 ? 'win' : 'wins'}`;
   if (scoring === 'bestMs') return `${value} ms`;
   if (scoring === 'bestDuration') return durationLabel(value);

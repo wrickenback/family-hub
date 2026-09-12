@@ -24,6 +24,15 @@ service cloud.firestore {
       return userRole() == 'kid' || userRole() == 'parent';
     }
 
+    // Guarded with exists() so a missing config/parentEmails doc denies the
+    // 'parent' role (safe default) instead of erroring out profile creation
+    // for everyone.
+    function isDesignatedParent() {
+      return exists(/databases/$(database)/documents/config/parentEmails) &&
+        request.auth.token.email in
+          get(/databases/$(database)/documents/config/parentEmails).data.emails;
+    }
+
     // Config (allowlist) - parent-only read
     match /config/{document=**} {
       allow read: if isSignedIn() && isParent();
@@ -33,8 +42,16 @@ service cloud.firestore {
     // User profiles
     match /users/{uid} {
       allow read: if isSignedIn() && isAllowed();
-      allow create: if request.auth.uid == uid && isAllowed();
-      allow update: if request.auth.uid == uid;
+      // Role is validated, not trusted from the client: it must match
+      // whichever role isDesignatedParent() computes from the signed-in
+      // user's real auth token email.
+      allow create: if request.auth.uid == uid && isAllowed() &&
+        request.resource.data.role ==
+          (isDesignatedParent() ? 'parent' : 'kid');
+      // Role can't be changed by the user themselves after creation —
+      // otherwise a kid could edit their own doc to grant themselves parent.
+      allow update: if request.auth.uid == uid &&
+        request.resource.data.role == resource.data.role;
 
       match /profile {
         allow read: if isSignedIn() && isAllowed();

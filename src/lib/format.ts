@@ -1,3 +1,11 @@
+export function daysUntil(target: string): number {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const [y, m, d] = target.split('-').map(Number);
+  const then = new Date(y, m - 1, d);
+  return Math.round((then.getTime() - today.getTime()) / 86400000);
+}
+
 function startOfDay(date: Date): number {
   const d = new Date(date);
   d.setHours(0, 0, 0, 0);

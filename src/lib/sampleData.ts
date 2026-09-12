@@ -1,12 +1,8 @@
-// Placeholder content for the visual pass. Countdowns and scores will move to
-// Firestore; events will be upserted into `schedule/` by the ICS Cloud Function.
-// Shapes here intentionally match those planned collections.
+// Placeholder content for calendar and scores, which still await the ICS
+// Cloud Function and real gameplay respectively. Countdowns now come from
+// Firestore (see firestoreCountdowns.ts) — this file no longer seeds them.
 
-export interface Countdown {
-  id: string;
-  label: string;
-  target: string;
-}
+import type { Scoring } from './router';
 
 export interface ScheduleEvent {
   id: string;
@@ -24,21 +20,6 @@ export interface ScoreEntry {
 }
 
 export const IS_SAMPLE_DATA = true;
-
-export const sampleCountdowns: Countdown[] = [
-  { id: 'grandma', label: 'Grandma visits', target: '2026-09-26' },
-  { id: 'disney', label: 'Disney trip', target: '2026-10-17' },
-  { id: 'christmas', label: 'Christmas', target: '2026-12-25' },
-  { id: 'lastday', label: 'Last day of school', target: '2027-06-11' },
-];
-
-export function daysUntil(target: string): number {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const [y, m, d] = target.split('-').map(Number);
-  const then = new Date(y, m - 1, d);
-  return Math.round((then.getTime() - today.getTime()) / 86400000);
-}
 
 // Day-then-time avoids the DST drift you get from adding raw milliseconds.
 function at(dayOffset: number, hours: number, minutes = 0): Date {
@@ -158,3 +139,15 @@ export const sampleScores: Record<string, ScoreEntry[]> = {
     { name: 'Will', value: 15, date: at(-11, 20, 15) },
   ],
 };
+
+export function getTopScore(
+  gameId: string,
+  scoring: Scoring
+): ScoreEntry | undefined {
+  const entries = sampleScores[gameId];
+  if (!entries || entries.length === 0) return undefined;
+  const lowerIsBetter = scoring === 'bestMs' || scoring === 'bestDuration';
+  return [...entries].sort((a, b) =>
+    lowerIsBetter ? a.value - b.value : b.value - a.value
+  )[0];
+}

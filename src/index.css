@@ -218,6 +218,13 @@ button:active {
   color: var(--text-muted);
 }
 
+.chevron-affordance {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  color: var(--sand-300);
+}
+
 .empty-state {
   padding: 2rem 1.25rem;
   text-align: center;

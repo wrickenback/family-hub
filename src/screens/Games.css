@@ -15,7 +15,7 @@
   grid-template-columns: auto 1fr;
   grid-template-areas:
     'icon text'
-    'icon pill';
+    'icon meta';
   align-items: start;
   column-gap: 0.875rem;
   row-gap: 0.5rem;
@@ -67,9 +67,72 @@
   margin-top: 0.1rem;
 }
 
-.game-card .pill {
-  grid-area: pill;
-  justify-self: start;
+.game-meta {
+  grid-area: meta;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.game-top-score {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--gold);
+}
+
+.game-top-score svg {
+  width: 13px;
+  height: 13px;
+}
+
+/* ---------- scores link ---------- */
+
+.scores-link {
+  display: flex;
+  align-items: center;
+  gap: 0.875rem;
+  width: 100%;
+  padding: 1rem;
+  margin-bottom: 1.5rem;
+  text-align: left;
+}
+
+.scores-link-icon {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 46px;
+  height: 46px;
+  border-radius: var(--radius-md);
+  background: #fdf4e2;
+  color: var(--gold);
+}
+
+.scores-link-icon svg {
+  width: 24px;
+  height: 24px;
+}
+
+.scores-link-text {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+
+.scores-link-title {
+  font-family: Poppins, system-ui, sans-serif;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.scores-link-meta {
+  font-size: 0.8rem;
+  color: var(--text-muted);
 }
 
 /* ---------- game detail ---------- */

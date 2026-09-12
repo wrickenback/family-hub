@@ -1,12 +1,18 @@
 import { useCallback, useEffect, useState } from 'react';
 import { User } from 'firebase/auth';
 import {
+  ensureUserProfile,
   isFirebaseConfigured,
   onAuthReady,
   signInWithGoogle,
   signOutUser,
+  watchUserRole,
 } from './lib/firebase';
 import type { Role, Route } from './lib/router';
+import {
+  watchCountdowns,
+  type FirestoreCountdown,
+} from './lib/firestoreCountdowns';
 import { AuthScreen } from './components/AuthScreen';
 import { UpdatePrompt } from './components/UpdatePrompt';
 import { Home } from './screens/Home';
@@ -22,6 +28,8 @@ const HOME: Route = { screen: 'home' };
 export function App() {
   const [user, setUser] = useState<User | null>(null);
   const [userRole, setUserRole] = useState<Role | null>(null);
+  const [unauthorized, setUnauthorized] = useState(false);
+  const [countdowns, setCountdowns] = useState<FirestoreCountdown[]>([]);
   const [loading, setLoading] = useState(true);
   const [stack, setStack] = useState<Route[]>([HOME]);
   const [updateAvailable, setUpdateAvailable] = useState(false);
@@ -31,15 +39,51 @@ export function App() {
       setLoading(false);
       return;
     }
-    const unsubscribe = onAuthReady((user) => {
-      setUser(user);
-      // TODO: Fetch user role from Firestore
-      setUserRole(user ? 'kid' : null);
-      setLoading(false);
+    const unsubscribe = onAuthReady((nextUser) => {
+      setUser(nextUser);
+      setUnauthorized(false);
+      if (!nextUser) {
+        setUserRole(null);
+        setLoading(false);
+      }
     });
 
     return unsubscribe;
   }, []);
+
+  useEffect(() => {
+    if (!user) return;
+
+    let unsubscribeRole: (() => void) | undefined;
+    let cancelled = false;
+
+    ensureUserProfile(user)
+      .then(() => {
+        if (cancelled) return;
+        unsubscribeRole = watchUserRole(user.uid, (role) => {
+          setUserRole(role);
+          setLoading(false);
+        });
+      })
+      .catch(() => {
+        // Not in config/allowedEmails, or some other rules rejection —
+        // treat as "not a family member" rather than crashing.
+        if (!cancelled) {
+          setUnauthorized(true);
+          setLoading(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+      unsubscribeRole?.();
+    };
+  }, [user]);
+
+  useEffect(() => {
+    if (!user || !userRole) return;
+    return watchCountdowns(setCountdowns, () => setCountdowns([]));
+  }, [user, userRole]);
 
   // Every push adds a history entry so the Android/browser back button pops the
   // stack instead of exiting the PWA. Back always routes through history.back()
@@ -125,6 +169,23 @@ export function App() {
     return <AuthScreen onSignIn={signInWithGoogle} />;
   }
 
+  if (unauthorized) {
+    return (
+      <div className="auth-screen">
+        <div className="auth-container">
+          <h1>Not on the list</h1>
+          <p>
+            {user.email} isn&rsquo;t in the family allowlist yet. Ask a parent
+            to add it in Firebase, then sign in again.
+          </p>
+          <button className="btn btn-text" onClick={() => signOutUser()}>
+            Sign out
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   const route = stack[stack.length - 1];
 
   return (
@@ -134,6 +195,7 @@ export function App() {
           <Home
             user={user}
             userRole={userRole}
+            countdowns={countdowns}
             onNavigate={navigate}
             onSignOut={() => signOutUser()}
           />
@@ -143,6 +205,7 @@ export function App() {
             userRole={userRole}
             onBack={back}
             onOpenGame={(gameId) => navigate({ screen: 'game', gameId })}
+            onOpenScores={() => navigate({ screen: 'scores' })}
           />
         )}
         {route.screen === 'game' && (
@@ -152,7 +215,13 @@ export function App() {
           <ScoresScreen userRole={userRole} onBack={back} />
         )}
         {route.screen === 'calendar' && <CalendarScreen onBack={back} />}
-        {route.screen === 'countdowns' && <CountdownsScreen onBack={back} />}
+        {route.screen === 'countdowns' && (
+          <CountdownsScreen
+            countdowns={countdowns}
+            uid={user.uid}
+            onBack={back}
+          />
+        )}
       </main>
       {updateAvailable && <UpdatePrompt onUpdate={handleUpdateNow} />}
     </div>

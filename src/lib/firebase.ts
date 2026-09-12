@@ -7,7 +7,16 @@ import {
   signOut,
   User,
 } from 'firebase/auth';
-import { getFirestore } from 'firebase/firestore';
+import {
+  doc,
+  getDoc,
+  getFirestore,
+  onSnapshot,
+  serverTimestamp,
+  setDoc,
+} from 'firebase/firestore';
+import type { Role } from './router';
+import { PARENT_EMAILS } from './roles';
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -42,4 +51,37 @@ export function signOutUser() {
 export function onAuthReady(callback: (user: User | null) => void) {
   if (!auth) return () => {};
   return onAuthStateChanged(auth, callback);
+}
+
+// Creates the user's Firestore profile on first sign-in. The attempted role
+// is only a guess for the client to send — firestore.rules independently
+// checks the signed-in email against config/parentEmails and rejects the
+// write if it doesn't match, so this can't be used to self-promote.
+export async function ensureUserProfile(user: User): Promise<void> {
+  if (!db) return;
+  const ref = doc(db, 'users', user.uid);
+  const existing = await getDoc(ref);
+  if (existing.exists()) return;
+
+  const role: Role =
+    user.email && PARENT_EMAILS.includes(user.email) ? 'parent' : 'kid';
+
+  await setDoc(ref, {
+    role,
+    displayName: user.displayName ?? null,
+    email: user.email ?? null,
+    createdAt: serverTimestamp(),
+  });
+}
+
+export function watchUserRole(
+  uid: string,
+  callback: (role: Role | null) => void
+) {
+  if (!db) return () => {};
+  return onSnapshot(
+    doc(db, 'users', uid),
+    (snap) => callback((snap.data()?.role as Role | undefined) ?? null),
+    () => callback(null)
+  );
 }
