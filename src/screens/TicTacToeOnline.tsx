@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Screen } from '../components/Screen';
+import { Confetti, MarkGlyph, StrikeLine } from '../components/TttMarks';
 import { IconSpinner } from '../components/icons';
 import {
   EMPTY_BOARD,
@@ -237,79 +238,93 @@ export function TicTacToeOnline({ uid, displayName, onBack }: Props) {
       subtitle={opponentName ? `vs ${opponentName}` : 'Waiting…'}
       onBack={onBack}
     >
-      {error && <div className="ttt-error card">{error}</div>}
+      <div className="ttt-fit">
+        {error && <div className="ttt-error card">{error}</div>}
 
-      <div className="ttt-scorebar">
-        <div className="ttt-tally">
-          <span className="ttt-tally-mark">You ({myMark ?? '—'})</span>
-          <span className="ttt-tally-value">{game.wins[uid] ?? 0}</span>
+        <div className="ttt-scorebar">
+          <div className="ttt-tally">
+            <span className="ttt-tally-mark">You ({myMark ?? '—'})</span>
+            <span className="ttt-tally-value">{game.wins[uid] ?? 0}</span>
+          </div>
+          <div className="ttt-tally ttt-tally-draw">
+            <span className="ttt-tally-mark">Draws</span>
+            <span className="ttt-tally-value">{game.draws}</span>
+          </div>
+          <div className="ttt-tally">
+            <span className="ttt-tally-mark">
+              {opponentName ?? 'Opponent'}
+              {opponentUid && game.marks[opponentUid]
+                ? ` (${game.marks[opponentUid]})`
+                : ''}
+            </span>
+            <span className="ttt-tally-value">
+              {opponentUid ? game.wins[opponentUid] ?? 0 : 0}
+            </span>
+          </div>
         </div>
-        <div className="ttt-tally ttt-tally-draw">
-          <span className="ttt-tally-mark">Draws</span>
-          <span className="ttt-tally-value">{game.draws}</span>
+
+        <p
+          className={`ttt-status ${game.status === 'done' ? 'settled' : ''}`}
+          aria-live="polite"
+        >
+          {waiting && <IconSpinner className="ttt-status-spinner" aria-hidden="true" />}
+          {statusText()}
+        </p>
+
+        <div className="ttt-board-wrap">
+          <div className="ttt-board-frame">
+            {game.status === 'done' && game.outcome === 'win' && game.line && (
+              <>
+                <StrikeLine line={game.line} />
+                <Confetti />
+              </>
+            )}
+            <div className="ttt-board" role="grid" aria-label="Tic Tac Toe board">
+              {cells.map((cell, index) => (
+                <button
+                  key={index}
+                  className={`ttt-cell ${
+                    cell !== '-' ? `mark-${cell.toLowerCase()}` : ''
+                  } ${game.line?.includes(index) ? 'winning' : ''}`}
+                  onClick={() => playOnlineMove(game.id, uid, index).catch(() => {})}
+                  disabled={!myTurn || cell !== '-'}
+                  aria-label={
+                    cell !== '-'
+                      ? `${cell} at square ${index + 1}`
+                      : `Empty square ${index + 1}`
+                  }
+                >
+                  {cell !== '-' && <MarkGlyph mark={cell as 'X' | 'O'} />}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {game.status === 'done' && (
+            <div className="ttt-result card">
+              <h3>
+                {game.outcome === 'draw'
+                  ? 'Draw'
+                  : game.winnerUid === uid
+                  ? 'You win!'
+                  : `${opponentName} wins`}
+              </h3>
+              <div className="ttt-result-actions">
+                <button
+                  className="btn btn-primary"
+                  onClick={() => rematchOnlineGame(game.id).catch(() => {})}
+                >
+                  Rematch
+                </button>
+              </div>
+            </div>
+          )}
         </div>
-        <div className="ttt-tally">
-          <span className="ttt-tally-mark">
-            {opponentName ?? 'Opponent'}
-            {opponentUid && game.marks[opponentUid]
-              ? ` (${game.marks[opponentUid]})`
-              : ''}
-          </span>
-          <span className="ttt-tally-value">
-            {opponentUid ? game.wins[opponentUid] ?? 0 : 0}
-          </span>
-        </div>
+
+        <button className="btn btn-text ttt-leave" onClick={handleLeave}>
+          {waiting ? 'Cancel this game' : 'Leave game'}
+        </button>
       </div>
-
-      <p
-        className={`ttt-status ${game.status === 'done' ? 'settled' : ''}`}
-        aria-live="polite"
-      >
-        {waiting && <IconSpinner className="ttt-status-spinner" aria-hidden="true" />}
-        {statusText()}
-      </p>
-
-      <div className="ttt-board" role="grid" aria-label="Tic Tac Toe board">
-        {cells.map((cell, index) => (
-          <button
-            key={index}
-            className={`ttt-cell ${
-              cell !== '-' ? `mark-${cell.toLowerCase()}` : ''
-            } ${game.line?.includes(index) ? 'winning' : ''}`}
-            onClick={() => playOnlineMove(game.id, uid, index).catch(() => {})}
-            disabled={!myTurn || cell !== '-'}
-            aria-label={
-              cell !== '-'
-                ? `${cell} at square ${index + 1}`
-                : `Empty square ${index + 1}`
-            }
-          >
-            {cell === '-' ? '' : cell}
-          </button>
-        ))}
-      </div>
-
-      {game.status === 'done' && (
-        <div className="ttt-result card">
-          <h3>
-            {game.outcome === 'draw'
-              ? 'Draw'
-              : game.winnerUid === uid
-              ? 'You win!'
-              : `${opponentName} wins`}
-          </h3>
-          <button
-            className="btn btn-primary"
-            onClick={() => rematchOnlineGame(game.id).catch(() => {})}
-          >
-            Rematch
-          </button>
-        </div>
-      )}
-
-      <button className="btn btn-text ttt-leave" onClick={handleLeave}>
-        {waiting ? 'Cancel this game' : 'Leave game'}
-      </button>
     </Screen>
   );
 }

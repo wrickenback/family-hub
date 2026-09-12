@@ -1,9 +1,24 @@
+/* Fit-without-scroll: the pass-and-play (and online table) layout is a fixed
+   column exactly one viewport tall. Header + body chrome is roughly 7.5rem
+   (header ~4rem + body padding 3.5rem incl. safe areas), so the column is
+   calc(100dvh - safe areas - 7.5rem). dvh tracks mobile browser chrome so no
+   phantom scrollbar appears. overflow:hidden clips any rounding overrun. */
+.ttt-fit {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  height: calc(100dvh - var(--safe-top) - var(--safe-bottom) - 7.5rem);
+  padding-top: 0.5rem;
+  overflow: hidden;
+}
+
 .ttt-scorebar {
+  position: relative;
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 0.5rem;
   padding: 0.6rem 0.75rem;
-  margin-bottom: 0.875rem;
+  flex-shrink: 0;
   background: linear-gradient(135deg, var(--teal) 0%, #24564c 100%);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-card);
@@ -11,11 +26,44 @@
   text-align: center;
 }
 
+.ttt-round-badge {
+  position: absolute;
+  top: -0.5rem;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 0.1rem 0.6rem;
+  background: var(--gold);
+  border-radius: var(--radius-pill);
+  font-size: 0.6rem;
+  font-weight: 700;
+  color: #fff;
+  box-shadow: var(--shadow-card);
+}
+
 .ttt-tally {
   display: flex;
   flex-direction: column;
+  align-items: center;
   gap: 0.1rem;
   min-width: 0;
+  padding: 0.15rem 0;
+  border-radius: var(--radius-md);
+  transition: background 0.2s ease, box-shadow 0.2s ease;
+}
+
+.ttt-tally.turn {
+  background: rgba(255, 255, 255, 0.16);
+  box-shadow: inset 0 0 0 1.5px rgba(255, 255, 255, 0.55);
+}
+
+.ttt-tally-draw {
+  opacity: 0.85;
+}
+
+.ttt-streak {
+  font-size: 0.6rem;
+  font-weight: 700;
+  line-height: 1;
 }
 
 .ttt-tally-mark {
@@ -27,6 +75,7 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  max-width: 100%;
 }
 
 .ttt-tally-value {
@@ -34,19 +83,76 @@
   font-size: 1.4rem;
   font-weight: 700;
   line-height: 1;
+  animation: ttt-bump 0.4s ease-out;
 }
 
-.ttt-tally-draw {
-  opacity: 0.85;
+@keyframes ttt-bump {
+  0% {
+    transform: scale(1.4);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* ---------- turn chips + status ---------- */
+
+.ttt-players {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+.ttt-chip {
+  display: grid;
+  place-items: center;
+  width: 2.4rem;
+  height: 2.4rem;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--sand-200);
+  opacity: 0.45;
+  transition: opacity 0.25s ease, transform 0.25s ease, background 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.ttt-chip-x {
+  color: var(--rust);
+}
+
+.ttt-chip-o {
+  color: var(--teal);
+}
+
+.ttt-chip.turn {
+  opacity: 1;
+  transform: scale(1.12);
+}
+
+.ttt-chip-x.turn {
+  background: var(--rust-soft);
+  box-shadow: 0 0 0 1.5px var(--rust);
+}
+
+.ttt-chip-o.turn {
+  background: var(--teal-soft);
+  box-shadow: 0 0 0 1.5px var(--teal);
+}
+
+.ttt-chip .ttt-glyph-stroke {
+  filter: none;
 }
 
 .ttt-status {
   display: flex;
+  flex: 1;
+  min-width: 0;
   align-items: center;
   justify-content: center;
   gap: 0.4rem;
   min-height: 1.5rem;
-  margin-bottom: 0.625rem;
   font-size: 0.95rem;
   font-weight: 600;
   color: var(--text-secondary);
@@ -68,21 +174,40 @@
 
 .ttt-status.settled {
   color: var(--rust);
+  font-weight: 700;
+}
+
+/* ---------- board ---------- */
+
+.ttt-board-wrap {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  place-items: center;
+  container-type: size;
+}
+
+.ttt-board-frame {
+  position: relative;
+  width: min(22rem, 100cqw, 100cqh);
+  aspect-ratio: 1;
+  container-type: size;
+  padding: 6px;
+  background: var(--sand-200);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
 }
 
 .ttt-board {
+  position: relative;
+  z-index: 1;
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   grid-template-rows: repeat(3, 1fr);
   gap: 6px;
   width: 100%;
-  max-width: 22rem;
-  aspect-ratio: 1;
-  margin: 0 auto 1.25rem;
-  padding: 6px;
-  background: var(--sand-200);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-card);
+  height: 100%;
 }
 
 .ttt-cell {
@@ -93,11 +218,26 @@
   min-height: 0;
   border-radius: var(--radius-md);
   background: var(--bg-surface);
-  font-family: Poppins, system-ui, sans-serif;
-  font-size: clamp(2.25rem, 14vw, 3.5rem);
-  font-weight: 700;
-  line-height: 1;
   color: var(--text-primary);
+  animation: ttt-settle 0.28s ease-out backwards;
+  animation-delay: calc(var(--i, 0) * 25ms);
+  transition: transform 0.1s ease, box-shadow 0.1s ease;
+}
+
+@keyframes ttt-settle {
+  from {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.ttt-cell:not(:disabled):active {
+  transform: scale(0.93);
+  box-shadow: var(--shadow-raised);
 }
 
 .ttt-cell:disabled {
@@ -105,20 +245,12 @@
 }
 
 /* Each player keeps one colour everywhere — board, tally, result. */
-.ttt-cell.mark-x,
-.ttt-tally-mark.mark-x {
+.ttt-cell.mark-x {
   color: var(--rust);
 }
 
-.ttt-cell.mark-o,
-.ttt-tally-mark.mark-o {
+.ttt-cell.mark-o {
   color: var(--teal);
-}
-
-.ttt-tally-mark.mark-x,
-.ttt-tally-mark.mark-o {
-  color: #fff;
-  opacity: 0.9;
 }
 
 .ttt-cell.winning {
@@ -139,22 +271,190 @@
   }
 }
 
+/* ---------- hand-drawn marks ---------- */
+
+.ttt-glyph {
+  width: 64%;
+  height: 64%;
+  overflow: visible;
+}
+
+.ttt-glyph-stroke {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 11;
+  stroke-linecap: round;
+  stroke-dasharray: 100;
+  stroke-dashoffset: 100;
+  animation: ttt-draw 0.25s ease-out forwards;
+  filter: drop-shadow(0 2px 3px rgba(26, 20, 16, 0.25));
+}
+
+.ttt-glyph-x2 {
+  animation-delay: 0.16s;
+}
+
+.ttt-glyph-o {
+  transform: rotate(-90deg);
+  transform-origin: 50% 50%;
+}
+
+@keyframes ttt-draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+/* ---------- winning strike + confetti ---------- */
+
+.ttt-strike {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.ttt-strike line {
+  stroke: var(--gold);
+  stroke-width: 8;
+  stroke-linecap: round;
+  stroke-dasharray: 100;
+  stroke-dashoffset: 100;
+  filter: drop-shadow(0 2px 4px rgba(26, 20, 16, 0.3));
+  animation: ttt-draw 0.35s ease-out 0.15s forwards;
+}
+
+.ttt-confetti {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 3;
+}
+
+.ttt-confetti span {
+  position: absolute;
+  top: -8%;
+  left: 50%;
+  width: 0.4rem;
+  height: 0.7rem;
+  border-radius: 1px;
+  background: var(--gold);
+  opacity: 0;
+  animation: ttt-fall 1.1s ease-in forwards;
+}
+
+.ttt-confetti span:nth-child(4n + 1) {
+  background: var(--rust);
+}
+
+.ttt-confetti span:nth-child(4n + 2) {
+  background: var(--teal);
+}
+
+.ttt-confetti span:nth-child(1) { left: 6%; --drift: 18px; animation-delay: 0.05s; }
+.ttt-confetti span:nth-child(2) { left: 13%; --drift: -22px; animation-delay: 0.18s; }
+.ttt-confetti span:nth-child(3) { left: 20%; --drift: 10px; animation-delay: 0.02s; }
+.ttt-confetti span:nth-child(4) { left: 27%; --drift: -14px; animation-delay: 0.24s; }
+.ttt-confetti span:nth-child(5) { left: 34%; --drift: 24px; animation-delay: 0.1s; }
+.ttt-confetti span:nth-child(6) { left: 41%; --drift: -8px; animation-delay: 0.3s; }
+.ttt-confetti span:nth-child(7) { left: 48%; --drift: 16px; animation-delay: 0.06s; }
+.ttt-confetti span:nth-child(8) { left: 55%; --drift: -20px; animation-delay: 0.22s; }
+.ttt-confetti span:nth-child(9) { left: 62%; --drift: 12px; animation-delay: 0.14s; }
+.ttt-confetti span:nth-child(10) { left: 69%; --drift: -16px; animation-delay: 0.28s; }
+.ttt-confetti span:nth-child(11) { left: 76%; --drift: 20px; animation-delay: 0.08s; }
+.ttt-confetti span:nth-child(12) { left: 83%; --drift: -10px; animation-delay: 0.32s; }
+.ttt-confetti span:nth-child(13) { left: 90%; --drift: 14px; animation-delay: 0.16s; }
+.ttt-confetti span:nth-child(14) { left: 10%; --drift: -18px; animation-delay: 0.36s; }
+.ttt-confetti span:nth-child(15) { left: 58%; --drift: 8px; animation-delay: 0.4s; }
+.ttt-confetti span:nth-child(16) { left: 44%; --drift: -12px; animation-delay: 0.2s; }
+
+@keyframes ttt-fall {
+  0% {
+    opacity: 1;
+    transform: translate(0, 0) rotate(0deg);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(var(--drift), 105cqh) rotate(280deg);
+  }
+}
+
+/* ---------- result overlay (no layout height added — no scroll) ---------- */
+
 .ttt-result {
-  padding: 1.25rem;
-  margin-bottom: 1rem;
+  position: absolute;
+  left: 50%;
+  bottom: 6%;
+  transform: translateX(-50%);
+  z-index: 4;
+  padding: 0.75rem 1.25rem;
   text-align: center;
+  animation: ttt-pop-in 0.3s ease-out 0.5s both;
+}
+
+@keyframes ttt-pop-in {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) scale(0.85);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) scale(1);
+  }
 }
 
 .ttt-result h3 {
-  font-size: 1.25rem;
-  margin-bottom: 0.875rem;
+  font-size: 1.1rem;
+  margin-bottom: 0.5rem;
+}
+
+.ttt-result h3.result-x {
+  color: var(--rust);
+}
+
+.ttt-result h3.result-o {
+  color: var(--teal);
+}
+
+.ttt-result-actions {
+  opacity: 0;
+  animation: ttt-fade-in 0.3s ease-out 0.9s forwards;
+}
+
+@keyframes ttt-fade-in {
+  to {
+    opacity: 1;
+  }
 }
 
 .ttt-note {
+  flex-shrink: 0;
   font-size: 0.75rem;
   line-height: 1.4;
   color: var(--text-muted);
   text-align: center;
+}
+
+/* ---------- short / landscape viewports ---------- */
+
+@media (max-height: 600px) {
+  .ttt-fit {
+    gap: 0.35rem;
+  }
+
+  .ttt-scorebar {
+    padding: 0.4rem 0.6rem;
+  }
+
+  .ttt-chip {
+    width: 2rem;
+    height: 2rem;
+  }
+
+  .ttt-note {
+    display: none;
+  }
 }
 
 /* ---------- online lobby ---------- */
@@ -208,4 +508,5 @@
   display: block;
   width: 100%;
   margin-top: 0.5rem;
+  flex-shrink: 0;
 }
