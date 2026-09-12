@@ -2,7 +2,13 @@ import { useState } from 'react';
 import { Screen } from '../components/Screen';
 import { Scoreboard } from '../components/Scoreboard';
 import { TopicPicker } from '../components/TopicPicker';
-import { IconClock, IconMulti, IconSolo, IconTrophy } from '../components/icons';
+import { BlocksLeaderboard } from '../components/BlocksLeaderboard';
+import {
+  IconClock,
+  IconMulti,
+  IconSolo,
+  IconTrophy,
+} from '../components/icons';
 import { getGame } from '../lib/router';
 import { sampleScores } from '../lib/sampleData';
 import './Games.css';
@@ -24,9 +30,11 @@ const scoreboardHeading: Record<string, string> = {
 export function GameDetail({
   gameId,
   onBack,
+  onPlayBlocks,
 }: {
   gameId: string;
   onBack: () => void;
+  onPlayBlocks: (mode: 'free' | 'daily') => void;
 }) {
   const game = getGame(gameId);
   const [modeId, setModeId] = useState(game?.modes?.[0]?.id ?? '');
@@ -47,6 +55,7 @@ export function GameDetail({
       : '1–2 players';
 
   const mode = game.modes?.find((m) => m.id === modeId) ?? game.modes?.[0];
+  const isBlocks = game.id === 'blocks';
   // Scores for a daily-seeded mode aren't comparable to free play, so they get
   // their own scoreboard entry (see sampleData: 'blocks:daily' vs 'blocks').
   const scoreKey =
@@ -99,10 +108,19 @@ export function GameDetail({
 
       {game.id === 'wordsearch' && mode?.id === 'create' && <TopicPicker />}
 
-      <div className="game-detail-status">
-        <IconClock aria-hidden="true" />
-        Not built yet — this is the shell. Gameplay is coming.
-      </div>
+      {isBlocks ? (
+        <button
+          className="btn btn-primary blocks-play-btn"
+          onClick={() => onPlayBlocks(mode?.id === 'daily' ? 'daily' : 'free')}
+        >
+          Play {mode?.id === 'daily' ? "today's challenge" : 'now'}
+        </button>
+      ) : (
+        <div className="game-detail-status">
+          <IconClock aria-hidden="true" />
+          Not built yet — this is the shell. Gameplay is coming.
+        </div>
+      )}
 
       <div className="section-head">
         <span className="section-title">
@@ -110,11 +128,15 @@ export function GameDetail({
           {scoreboardHeading[game.scoring]}
         </span>
       </div>
-      <Scoreboard
-        entries={sampleScores[scoreKey] ?? []}
-        scoring={game.scoring}
-        limit={5}
-      />
+      {isBlocks ? (
+        <BlocksLeaderboard mode={mode?.id ?? 'free'} limit={5} />
+      ) : (
+        <Scoreboard
+          entries={sampleScores[scoreKey] ?? []}
+          scoring={game.scoring}
+          limit={5}
+        />
+      )}
     </Screen>
   );
 }

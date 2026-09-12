@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Screen } from '../components/Screen';
 import { Scoreboard } from '../components/Scoreboard';
+import { BlocksLeaderboard } from '../components/BlocksLeaderboard';
 import { getVisibleGames, type Role } from '../lib/router';
 import { IS_SAMPLE_DATA, sampleScores } from '../lib/sampleData';
 import './Scores.css';
@@ -48,15 +49,19 @@ export function ScoresScreen({
 
       <div className="section-head">
         <span className="section-title">{selected.name}</span>
-        {IS_SAMPLE_DATA && sampleScores[selected.id] && (
+        {selected.id !== 'blocks' && IS_SAMPLE_DATA && sampleScores[selected.id] && (
           <span className="pill pill-sample">Sample</span>
         )}
       </div>
 
-      <Scoreboard
-        entries={sampleScores[selected.id] ?? []}
-        scoring={selected.scoring}
-      />
+      {selected.id === 'blocks' ? (
+        <BlocksLeaderboard mode="free" />
+      ) : (
+        <Scoreboard
+          entries={sampleScores[selected.id] ?? []}
+          scoring={selected.scoring}
+        />
+      )}
     </Screen>
   );
 }

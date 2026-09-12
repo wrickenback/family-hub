@@ -88,6 +88,17 @@ service cloud.firestore {
       allow delete: if isSignedIn() && isAllowed();
     }
 
+    // Leaderboard entries. Immutable once written — no update/delete — so a
+    // family top-10 can't be tampered with after the fact; the client can
+    // only submit their own uid as the scorer.
+    match /scores/{scoreId} {
+      allow read: if isSignedIn() && isAllowed();
+      allow create: if isSignedIn() && isAllowed() && isKid() &&
+        request.resource.data.uid == request.auth.uid;
+      allow update: if false;
+      allow delete: if false;
+    }
+
     // Schedule (merged from calendar + ICS)
     match /schedule/{eventId} {
       allow read: if isSignedIn() && isAllowed();

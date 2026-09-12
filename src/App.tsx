@@ -21,6 +21,7 @@ import { GameDetail } from './screens/GameDetail';
 import { ScoresScreen } from './screens/ScoresScreen';
 import { CalendarScreen } from './screens/CalendarScreen';
 import { CountdownsScreen } from './screens/CountdownsScreen';
+import { BlocksGame } from './screens/BlocksGame';
 import './App.css';
 
 const HOME: Route = { screen: 'home' };
@@ -209,7 +210,19 @@ export function App() {
           />
         )}
         {route.screen === 'game' && (
-          <GameDetail gameId={route.gameId} onBack={back} />
+          <GameDetail
+            gameId={route.gameId}
+            onBack={back}
+            onPlayBlocks={(mode) => navigate({ screen: 'play-blocks', mode })}
+          />
+        )}
+        {route.screen === 'play-blocks' && (
+          <BlocksGame
+            mode={route.mode}
+            uid={user.uid}
+            displayName={user.displayName || user.email || 'Someone'}
+            onBack={back}
+          />
         )}
         {route.screen === 'scores' && (
           <ScoresScreen userRole={userRole} onBack={back} />

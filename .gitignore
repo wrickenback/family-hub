@@ -6,6 +6,8 @@ dist/
 .env.local
 .env.*.local
 *firebase-adminsdk*.json
+*service-account*.json
+secrets/
 *.log
 .vscode/
 .idea/

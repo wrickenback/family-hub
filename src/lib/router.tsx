@@ -16,7 +16,8 @@ export type Route =
   | { screen: 'scores' }
   | { screen: 'calendar' }
   | { screen: 'countdowns' }
-  | { screen: 'game'; gameId: string };
+  | { screen: 'game'; gameId: string }
+  | { screen: 'play-blocks'; mode: 'free' | 'daily' };
 
 export type Role = 'guest' | 'kid' | 'parent';
 export type Visibility = 'all' | 'familyOnly' | 'parentOnly';

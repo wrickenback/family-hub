@@ -84,26 +84,9 @@ export const sampleEvents: ScheduleEvent[] = [
   },
 ];
 
+// 'blocks' and 'blocks:daily' aren't seeded here — Blocks gameplay is real
+// now, and its leaderboards come from Firestore (see BlocksLeaderboard).
 export const sampleScores: Record<string, ScoreEntry[]> = {
-  blocks: [
-    { name: 'Sam', value: 48250, date: at(-2, 19, 12) },
-    { name: 'Will', value: 44180, date: at(-5, 20, 3) },
-    { name: 'Nora', value: 41090, date: at(-1, 17, 45) },
-    { name: 'Max', value: 38720, date: at(-9, 16, 20) },
-    { name: 'Sam', value: 36540, date: at(-12, 18, 55) },
-    { name: 'Iris', value: 33110, date: at(-3, 15, 8) },
-    { name: 'Will', value: 30870, date: at(-17, 21, 30) },
-    { name: 'Theo', value: 28440, date: at(-6, 14, 2) },
-    { name: 'Nora', value: 25960, date: at(-21, 19, 48) },
-    { name: 'Max', value: 22300, date: at(-24, 16, 37) },
-  ],
-  'blocks:daily': [
-    { name: 'Nora', value: 31420, date: at(0, 8, 5) },
-    { name: 'Will', value: 29880, date: at(0, 7, 40) },
-    { name: 'Sam', value: 27650, date: at(0, 9, 22) },
-    { name: 'Iris', value: 24310, date: at(0, 11, 2) },
-    { name: 'Max', value: 19770, date: at(0, 10, 48) },
-  ],
   reaction: [
     { name: 'Iris', value: 187, date: at(-1, 18, 30) },
     { name: 'Max', value: 201, date: at(-3, 17, 15) },
