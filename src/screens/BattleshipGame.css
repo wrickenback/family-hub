@@ -383,3 +383,21 @@
   display: block;
   margin: 0.5rem auto 0.25rem;
 }
+
+/* Turn + sinking info ride the scroll. Both grids can't fit on a phone at
+   once, so this stays put while you move between them. It sits below the
+   screen header, which is itself sticky at top:0 — the offset is that
+   header's height (safe area + 8px padding + a 44px tap target + 12px
+   padding + its 1px border). */
+.bs-sticky {
+  position: sticky;
+  top: calc(var(--safe-top) + 65px);
+  z-index: 5;
+  padding-top: 0.4rem;
+  /* Opaque, or the grids scroll through behind the banner. */
+  background: var(--bg-ground);
+}
+
+.bs-sticky:empty {
+  display: none;
+}

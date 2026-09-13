@@ -140,31 +140,30 @@ export interface ShotOutcome {
 /** Applies a shot to a fleet layout. The cell may already have been shot
  * (a double-tap racing the snapshot) — that reads as a miss and is a no-op
  * for the hit count, so it can't be used to farm extra information. */
-export function applyShot(
+/** Resolves a shot against an untouched layout plus everything already
+ * fired at it.
+ *
+ * The stored fleet is written once during placement and never modified —
+ * that immutability is what makes it safe to read outside a transaction.
+ * So damage cannot be accumulated *in* the layout; it has to be computed
+ * from the shot history each time. Resolving against the layout alone
+ * would mean a ship only ever has a single hit on it, so nothing could
+ * ever sink and nobody could ever win. */
+export function resolveShot(
   fleet: string,
+  priorShots: number[],
   index: number
-): { fleet: string; outcome: ShotOutcome } {
-  const occupant = fleet[index];
-  if (occupant === '-') {
-    return {
-      fleet,
-      outcome: { result: 'miss', shipId: null, won: false },
-    };
-  }
-  const shipId = occupant as ShipId;
-  const next = fleet.slice(0, index) + 'X' + fleet.slice(index + 1);
-  // A ship is sunk when none of its cells remain unhit ('X' replaces the
-  // ship id at every hit cell, so any surviving id char means still afloat).
-  const sunk = ![...next].some((c) => c === shipId);
-  const won = ![...next].some((c) => c !== '-' && c !== 'X');
-  return {
-    fleet: next,
-    outcome: {
-      result: sunk ? 'sunk' : 'hit',
-      shipId,
-      won,
-    },
-  };
+): ShotOutcome {
+  const shipId = shipAt(fleet, index);
+  if (!shipId) return { result: 'miss', shipId: null, won: false };
+
+  const fired = new Set(priorShots);
+  fired.add(index);
+  const sunk = shipCellIndexes(fleet, shipId).every((i) => fired.has(i));
+  const won = FLEET.every((ship) =>
+    shipCellIndexes(fleet, ship.id).every((i) => fired.has(i))
+  );
+  return { result: sunk ? 'sunk' : 'hit', shipId, won };
 }
 
 export function allShipsSunk(fleet: string): boolean {

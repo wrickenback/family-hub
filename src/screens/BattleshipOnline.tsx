@@ -431,25 +431,31 @@ function BattlePhase({
         {statusText()}
       </p>
 
-      {/* Whose turn it is was buried in a line of grey text, and testers
-          genuinely could not tell. It gets its own coloured banner now. */}
-      {game.status === 'active' && (
-        <div className={`bs-turn ${myTurn ? 'mine' : 'theirs'}`} aria-live="polite">
-          {myTurn
-            ? 'Your turn — fire at enemy waters'
-            : `Waiting for ${opponentName ?? 'your opponent'} to fire`}
-        </div>
-      )}
+      {/* Two 10x10 grids don't fit on a phone at once, so this rides along
+          at the top of the scroll: whose turn it is and what just sank are
+          exactly the things you need while looking at either board. */}
+      <div className="bs-sticky">
+        {game.status === 'active' && (
+          <div
+            className={`bs-turn ${myTurn ? 'mine' : 'theirs'}`}
+            aria-live="polite"
+          >
+            {myTurn
+              ? 'Your turn — fire at enemy waters'
+              : `Waiting for ${opponentName ?? 'your opponent'} to fire`}
+          </div>
+        )}
 
-      {/* Across a table you'd just say "you sank my battleship". */}
-      {sinkNotice && (
-        <div
-          className={`bs-sink-notice ${sinkNotice.mine ? 'mine' : 'theirs'}`}
-          aria-live="polite"
-        >
-          {sinkNotice.text}
-        </div>
-      )}
+        {/* Across a table you'd just say "you sank my battleship". */}
+        {sinkNotice && (
+          <div
+            className={`bs-sink-notice ${sinkNotice.mine ? 'mine' : 'theirs'}`}
+            aria-live="polite"
+          >
+            {sinkNotice.text}
+          </div>
+        )}
+      </div>
 
       <div className="bs-grids">
         <div className="bs-grid-section">

@@ -1,8 +1,8 @@
 import { get, onValue, ref, remove, set } from 'firebase/database';
 import { rtdb } from './firebase';
 import {
-  applyShot,
   isFleetComplete,
+  resolveShot,
   type ShotResult,
 } from './battleshipEngine';
 import {
@@ -173,7 +173,10 @@ export async function fireShot(
   const fleet = await readFleetShips(gameId, opponentUid);
   if (!fleet || !isFleetComplete(fleet)) return; // hasn't placed yet
 
-  const { outcome } = applyShot(fleet, index);
+  // Damage lives in the shot history, not in the stored layout, so the
+  // whole history has to go in for a sink or a win to be detectable.
+  const priorShots = game.state?.shots?.[uid] ?? [];
+  const outcome = resolveShot(fleet, priorShots, index);
   await makeMove(battleshipRules, gameId, uid, {
     index,
     result: outcome.result,
