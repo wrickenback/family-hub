@@ -10,6 +10,7 @@ import {
   IconTrophy,
 } from '../components/icons';
 import { Avatar } from '../components/Avatar';
+import { OpenTables } from '../components/OpenTables';
 import { dayLabel, daysUntil, timeLabel } from '../lib/format';
 import { sampleEvents } from '../lib/sampleData';
 import type { FirestoreCountdown } from '../lib/firestoreCountdowns';
@@ -71,6 +72,8 @@ export function Home({
       </header>
 
       <div className="home-body">
+        <OpenTables uid={user.uid} onNavigate={onNavigate} />
+
         {othersActive.length > 0 && (
           <section className="section">
             <div className="section-head">

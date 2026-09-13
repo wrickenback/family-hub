@@ -22,6 +22,11 @@ import {
   type Shape,
 } from '../lib/blocksEngine';
 import { submitScore, watchTopScores } from '../lib/firestoreScores';
+import {
+  deleteBlocksProgress,
+  loadBlocksProgress,
+  saveBlocksProgress,
+} from '../lib/localStorageBlocks';
 import { playClear, playGameOver, playPlace } from '../lib/sound';
 import './BlocksGame.css';
 
@@ -111,11 +116,29 @@ export function BlocksGame({ mode, uid, displayName, onBack }: BlocksGameProps) 
   // points from the record" a moment after it's shown.
   const familyBestAtEnd = useRef<number | null>(null);
 
+  // Load saved progress and initialize board/tray/score/streak
   useEffect(() => {
-    const initialBoard = emptyBoard();
-    const pieces = drawPieces(initialBoard, rngRef.current, true);
-    setBoard(initialBoard);
-    setTray(pieces.map(makeSlot));
+    const progress = loadBlocksProgress();
+    if (progress) {
+      // Restore from saved progress
+      setBoard(progress.board);
+      setScore(progress.score);
+      setStreak(progress.streak);
+      // Reconstruct TraySlots with fresh ids but restored shapes/colors
+      const restoredTray = progress.tray.map((slot) => {
+        if (!slot) return null;
+        pieceIdCounter += 1;
+        return { id: pieceIdCounter, shape: slot.shape, color: slot.color };
+      });
+      setTray(restoredTray);
+      setBest(progress.score); // Start "this session" best at the resumed score
+    } else {
+      // Initialize a new game
+      const initialBoard = emptyBoard();
+      const pieces = drawPieces(initialBoard, rngRef.current, true);
+      setBoard(initialBoard);
+      setTray(pieces.map(makeSlot));
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -189,6 +212,20 @@ export function BlocksGame({ mode, uid, displayName, onBack }: BlocksGameProps) 
     }
   };
 
+  // Save game progress whenever state changes, but not after game ends
+  useEffect(() => {
+    if (gameOver || board.length === 0 || tray.length === 0) return;
+    // Only save if at least one piece has been placed (board or tray has changed)
+    saveBlocksProgress({
+      board,
+      tray: tray.map((slot) =>
+        slot ? { shape: slot.shape, color: slot.color } : null
+      ),
+      score,
+      streak,
+    });
+  }, [board, tray, score, streak, gameOver]);
+
   const handlePointerUp = (e: ReactPointerEvent<HTMLButtonElement>) => {
     if (!drag) return;
     const target = anchorFor(drag.shape, e.clientX, e.clientY);
@@ -253,6 +290,13 @@ export function BlocksGame({ mode, uid, displayName, onBack }: BlocksGameProps) 
     if (score > best) setBest(score);
   }, [score, best]);
 
+  // Delete saved progress when game ends
+  useEffect(() => {
+    if (gameOver) {
+      deleteBlocksProgress();
+    }
+  }, [gameOver]);
+
   useEffect(() => {
     if (!gameOver || scoreSaved || score === 0) return;
     setScoreSaved(true);
@@ -271,6 +315,7 @@ export function BlocksGame({ mode, uid, displayName, onBack }: BlocksGameProps) 
   const handleRestart = () => {
     personalBestAtStart.current = best;
     familyBestAtEnd.current = null;
+    deleteBlocksProgress(); // Clear saved progress for this game
     const initialBoard = emptyBoard();
     rngRef.current =
       mode === 'daily' ? mulberry32(seedFromDateKey(dateKey)) : Math.random;

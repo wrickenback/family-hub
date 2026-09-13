@@ -1,0 +1,66 @@
+/* Shared by every online game's lobby — replaces the three near-identical
+   ttt-/c4-/bs- lobby rules that used to drift apart from each other. */
+
+.lobby-list {
+  display: grid;
+  gap: 0.5rem;
+  list-style: none;
+  margin-bottom: 1.5rem;
+}
+
+.lobby-item {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.15rem;
+  width: 100%;
+  padding: 0.875rem 1rem;
+  text-align: left;
+}
+
+.lobby-item:hover {
+  box-shadow: var(--shadow-raised);
+}
+
+.lobby-item:disabled {
+  opacity: 0.6;
+}
+
+/* A game already in progress outranks everything else on this screen.
+   Doubled class so this beats .card, which sets the surface background at
+   the same specificity and would otherwise win on import order. */
+.lobby-item.lobby-item-resume {
+  background: var(--teal-soft);
+  box-shadow: inset 0 0 0 1.5px var(--teal);
+}
+
+.lobby-name {
+  font-family: Poppins, system-ui, sans-serif;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.lobby-meta {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.lobby-item-resume .lobby-meta {
+  color: var(--teal);
+  font-weight: 600;
+}
+
+.lobby-host-btn {
+  display: block;
+  width: 100%;
+  margin-bottom: 1.5rem;
+}
+
+.lobby-error {
+  padding: 0.875rem 1rem;
+  margin-bottom: 1rem;
+  background: var(--rust-soft);
+  border-radius: var(--radius-md);
+  font-size: 0.85rem;
+  color: var(--rust);
+}

@@ -1,18 +1,10 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import { Screen } from '../components/Screen';
+import { OnlineLobby } from '../components/OnlineLobby';
 import { Confetti, MarkGlyph, StrikeLine } from '../components/TttMarks';
 import { IconSpinner } from '../components/icons';
-import {
-  EMPTY_BOARD,
-  cancelOnlineGame,
-  createOnlineGame,
-  joinOnlineGame,
-  playOnlineMove,
-  rematchOnlineGame,
-  watchGame,
-  watchOpenGames,
-  type OnlineGame,
-} from '../lib/firestoreTicTacToe';
+import { ticTacToeRules, type TttState } from '../lib/onlineTicTacToe';
+import { useBoardChange, useOnlineGame } from '../lib/useOnlineGame';
 import { submitScore } from '../lib/firestoreScores';
 import { playClear, playGameOver, playPlace } from '../lib/sound';
 import './TicTacToeGame.css';
@@ -23,56 +15,32 @@ interface Props {
   onBack: () => void;
 }
 
-/** Two family members on two devices, synced through Firestore. The board
- * lives entirely in the game document — this component renders whatever the
- * snapshot says and writes moves through a transaction, so there's no local
- * copy of the board that could drift from the other player's. */
+/** Two family members on two devices. The board lives in the Realtime
+ * Database and this component renders whatever the snapshot says, so there's
+ * no local copy that could drift from the other player's. */
 export function TicTacToeOnline({ uid, displayName, onBack }: Props) {
-  const [gameId, setGameId] = useState<string | null>(null);
-  const [game, setGame] = useState<OnlineGame | null>(null);
-  const [openGames, setOpenGames] = useState<OnlineGame[]>([]);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const {
+    game,
+    games,
+    busy,
+    error,
+    host,
+    join,
+    resume,
+    move,
+    rematch,
+    leave,
+  } = useOnlineGame<TttState>(ticTacToeRules, uid, displayName);
 
   const scoredRounds = useRef<Set<string>>(new Set());
-  const prevBoard = useRef<string | null>(null);
 
-  // Lobby listing, only while we aren't sitting at a table.
-  useEffect(() => {
-    if (gameId) return;
-    return watchOpenGames(setOpenGames, () => setOpenGames([]));
-  }, [gameId]);
-
-  useEffect(() => {
-    if (!gameId) {
-      setGame(null);
-      return;
-    }
-    return watchGame(
-      gameId,
-      (g) => {
-        if (!g) {
-          // The host cancelled the table out from under us.
-          setGameId(null);
-          setGame(null);
-          return;
-        }
-        setGame(g);
-      },
-      () => setError('Lost connection to that game.')
-    );
-  }, [gameId]);
-
-  // Sound on any board change we didn't make ourselves, plus the end-of-round
-  // flourish. Driven off the synced board rather than off our own tap, so
-  // the opponent's move is audible too.
-  useEffect(() => {
+  // Sound is driven off the synced board rather than off our own tap, so the
+  // opponent's move is audible here too.
+  useBoardChange(game?.state?.board, (next) => {
     if (!game) return;
-    const previous = prevBoard.current;
-    prevBoard.current = game.board;
-    if (previous === null || previous === game.board) return;
-    // A rematch clears the board — that's a reset, not a move.
-    if (game.status === 'active' && game.board === EMPTY_BOARD) return;
+    if (game.status === 'active' && !next.includes('X') && !next.includes('O')) {
+      return; // a rematch clearing the board is a reset, not a move
+    }
     if (game.status === 'done') {
       if (game.outcome === 'win') {
         game.winnerUid === uid ? playClear(3) : playGameOver();
@@ -82,11 +50,10 @@ export function TicTacToeOnline({ uid, displayName, onBack }: Props) {
     } else {
       playPlace();
     }
-  }, [game, uid]);
+  });
 
   // Each player reports only their own win — the scores rules require the
-  // submitted uid to match the caller, and that's the right constraint: a
-  // win is attributed by the person who earned it, on their own device.
+  // submitted uid to match the caller, and that's the right constraint.
   useEffect(() => {
     if (!game || game.status !== 'done' || game.outcome !== 'win') return;
     if (game.winnerUid !== uid) return;
@@ -104,124 +71,37 @@ export function TicTacToeOnline({ uid, displayName, onBack }: Props) {
     }).catch(() => scoredRounds.current.delete(key));
   }, [game, uid, displayName]);
 
-  const guard = async (fn: () => Promise<void>) => {
-    setBusy(true);
-    setError(null);
-    try {
-      await fn();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Something went wrong.');
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const handleHost = () =>
-    guard(async () => {
-      const id = await createOnlineGame(uid, displayName);
-      setGameId(id);
-    });
-
-  const handleJoin = (id: string) =>
-    guard(async () => {
-      await joinOnlineGame(id, uid, displayName);
-      setGameId(id);
-    });
-
-  const handleLeave = () =>
-    guard(async () => {
-      // A table nobody ever joined, or one that's already finished, is just
-      // clutter — clean it up so games/{id} docs don't accumulate forever.
-      // A game still in progress is left alone so the opponent can come back.
-      if (
-        game &&
-        (game.status === 'waiting' || game.status === 'done') &&
-        (game.status !== 'waiting' || game.createdBy === uid)
-      ) {
-        await cancelOnlineGame(game.id);
-      }
-      setGameId(null);
-      setGame(null);
-      prevBoard.current = null;
-    });
-
   // ---------- lobby ----------
 
-  if (!gameId || !game) {
-    const joinable = openGames.filter((g) => g.createdBy !== uid);
-    const mine = openGames.filter((g) => g.createdBy === uid);
-
+  if (!game) {
     return (
       <Screen title="Tic Tac Toe" subtitle="Play a family member" onBack={onBack}>
-        {error && <div className="ttt-error card">{error}</div>}
-
-        <button
-          className="btn btn-primary blocks-play-btn"
-          onClick={handleHost}
-          disabled={busy}
-        >
-          {busy ? 'Opening…' : 'Start a game'}
-        </button>
-
-        {mine.length > 0 && (
-          <>
-            <div className="section-head">
-              <span className="section-title">Your open game</span>
-            </div>
-            <ul className="ttt-lobby">
-              {mine.map((g) => (
-                <li key={g.id}>
-                  <button
-                    className="ttt-lobby-item card"
-                    onClick={() => setGameId(g.id)}
-                  >
-                    <span className="ttt-lobby-name">Waiting for an opponent</span>
-                    <span className="ttt-lobby-meta">Tap to reopen</span>
-                  </button>
-                </li>
-              ))}
-            </ul>
-          </>
-        )}
-
-        <div className="section-head">
-          <span className="section-title">Open games</span>
-        </div>
-        {joinable.length === 0 ? (
-          <div className="card empty-state">
-            Nobody&rsquo;s waiting right now. Start a game and it&rsquo;ll show
-            up here for whoever opens the app next.
-          </div>
-        ) : (
-          <ul className="ttt-lobby">
-            {joinable.map((g) => (
-              <li key={g.id}>
-                <button
-                  className="ttt-lobby-item card"
-                  onClick={() => handleJoin(g.id)}
-                  disabled={busy}
-                >
-                  <span className="ttt-lobby-name">
-                    {g.names[g.createdBy] ?? 'Someone'}
-                  </span>
-                  <span className="ttt-lobby-meta">Tap to join as O</span>
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
+        <OnlineLobby
+          kind="tictactoe"
+          uid={uid}
+          games={games}
+          busy={busy}
+          error={error}
+          joinAs="as O"
+          onHost={host}
+          onResume={resume}
+          onJoin={join}
+        />
       </Screen>
     );
   }
 
   // ---------- at a table ----------
 
-  const myMark = game.marks[uid];
+  const board = game.state?.board ?? '---------';
+  const cells = board.split('');
+  const myMark = game.state?.marks?.[uid] ?? null;
+  const line = game.state?.line ?? null;
   const opponentUid = game.players.find((p) => p !== uid);
   const opponentName = opponentUid ? game.names[opponentUid] : null;
   const waiting = game.status === 'waiting';
   const myTurn = game.status === 'active' && game.turn === uid;
-  const cells = game.board.split('');
+  const won = game.status === 'done' && game.outcome === 'win' && !!line;
 
   const statusText = () => {
     if (waiting) return 'Waiting for someone to join…';
@@ -253,8 +133,8 @@ export function TicTacToeOnline({ uid, displayName, onBack }: Props) {
           <div className="ttt-tally">
             <span className="ttt-tally-mark">
               {opponentName ?? 'Opponent'}
-              {opponentUid && game.marks[opponentUid]
-                ? ` (${game.marks[opponentUid]})`
+              {opponentUid && game.state?.marks?.[opponentUid]
+                ? ` (${game.state.marks[opponentUid]})`
                 : ''}
             </span>
             <span className="ttt-tally-value">
@@ -268,14 +148,13 @@ export function TicTacToeOnline({ uid, displayName, onBack }: Props) {
             className={`ttt-status ${game.status === 'done' ? 'settled' : ''}`}
             aria-live="polite"
           >
-            {waiting && <IconSpinner className="ttt-status-spinner" aria-hidden="true" />}
+            {waiting && (
+              <IconSpinner className="ttt-status-spinner" aria-hidden="true" />
+            )}
             {statusText()}
           </p>
           {game.status === 'done' && (
-            <button
-              className="btn btn-primary ttt-next-btn"
-              onClick={() => rematchOnlineGame(game.id).catch(() => {})}
-            >
+            <button className="btn btn-primary ttt-next-btn" onClick={rematch}>
               Rematch
             </button>
           )}
@@ -283,9 +162,9 @@ export function TicTacToeOnline({ uid, displayName, onBack }: Props) {
 
         <div className="ttt-board-wrap">
           <div className="ttt-board-frame">
-            {game.status === 'done' && game.outcome === 'win' && game.line && (
+            {won && line && (
               <>
-                <StrikeLine line={game.line} />
+                <StrikeLine line={line} />
                 <Confetti />
               </>
             )}
@@ -295,14 +174,11 @@ export function TicTacToeOnline({ uid, displayName, onBack }: Props) {
                   key={index}
                   className={`ttt-cell ${
                     cell !== '-' ? `mark-${cell.toLowerCase()}` : ''
-                  } ${game.line?.includes(index) ? 'winning' : ''} ${
-                    game.status === 'done' &&
-                    game.outcome === 'win' &&
-                    !game.line?.includes(index)
-                      ? 'dimmed'
-                      : ''
+                  } ${line?.includes(index) ? 'winning' : ''} ${
+                    won && !line?.includes(index) ? 'dimmed' : ''
                   }`}
-                  onClick={() => playOnlineMove(game.id, uid, index).catch(() => {})}
+                  style={{ '--i': index } as React.CSSProperties}
+                  onClick={() => move(index)}
                   disabled={!myTurn || cell !== '-'}
                   aria-label={
                     cell !== '-'
@@ -317,7 +193,7 @@ export function TicTacToeOnline({ uid, displayName, onBack }: Props) {
           </div>
         </div>
 
-        <button className="btn btn-text ttt-leave" onClick={handleLeave}>
+        <button className="btn btn-text ttt-leave" onClick={leave}>
           {waiting ? 'Cancel this game' : 'Leave game'}
         </button>
       </div>

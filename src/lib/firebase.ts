@@ -16,16 +16,26 @@ import {
   setDoc,
 } from 'firebase/firestore';
 import { getFunctions } from 'firebase/functions';
+import { getDatabase } from 'firebase/database';
 import type { Role } from './router';
 import { PARENT_EMAILS } from './roles';
+
+const projectId = import.meta.env.VITE_FIREBASE_PROJECT_ID;
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
   authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  projectId,
   storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
   messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
   appId: import.meta.env.VITE_FIREBASE_APP_ID,
+  // Live game state lives in the Realtime Database rather than Firestore:
+  // a move has to land on the other person's phone in milliseconds, and
+  // RTDB's lighter socket reconnects faster after a phone sleeps. Scores,
+  // calendars and everything durable stay in Firestore.
+  databaseURL:
+    import.meta.env.VITE_FIREBASE_DATABASE_URL ??
+    (projectId ? `https://${projectId}-default-rtdb.firebaseio.com` : undefined),
 };
 
 export const isFirebaseConfigured = Boolean(firebaseConfig.apiKey);
@@ -36,6 +46,7 @@ const app = initializeApp(firebaseConfig);
 // anything — including a helpful "not configured yet" message.
 export const auth = isFirebaseConfigured ? getAuth(app) : null;
 export const db = isFirebaseConfigured ? getFirestore(app) : null;
+export const rtdb = isFirebaseConfigured ? getDatabase(app) : null;
 export const functions = isFirebaseConfigured
   ? getFunctions(app, 'us-central1')
   : null;

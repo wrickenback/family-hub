@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Screen } from '../components/Screen';
+import { OnlineLobby } from '../components/OnlineLobby';
 import { IconSpinner } from '../components/icons';
 import {
   EMPTY_FLEET,
@@ -16,27 +17,25 @@ import {
   type ShipDef,
 } from '../lib/battleshipEngine';
 import {
-  cancelBsGame,
-  createBsGame,
-  fetchOpponentFleet,
-  fireBsShot,
-  forfeitBsGame,
-  joinBsGame,
-  rematchBsGame,
-  saveBsFleet,
-  watchBsGame,
-  watchMyFleet,
-  watchOpenBsGames,
+  battleshipRules,
+  bsView,
+  clearFleets,
+  fetchFleet,
+  fireShot,
+  saveFleet,
+  watchFleet,
   type BsFleetDoc,
-  type OnlineBsGame,
-} from '../lib/firestoreBattleship';
+  type BsGameView,
+  type BsState,
+} from '../lib/onlineBattleship';
+import { useOnlineGame } from '../lib/useOnlineGame';
 import { submitScore } from '../lib/firestoreScores';
 import { playClear, playGameOver, playPlace } from '../lib/sound';
 import './BattleshipGame.css';
 
-/** Two family members, two devices, synced through Firestore. Each player's
- * fleet lives in a private subdoc; the shared game doc carries only public
- * state (turn, shots, outcome). Mirrors the Connect 4 online screen. */
+/** Two family members, two devices. Public state (turn, shots, outcome)
+ * lives in the shared Realtime Database node; each player's fleet sits in a
+ * separate node so a glance at /games can't spill ship positions. */
 export function BattleshipOnline({
   uid,
   displayName,
@@ -46,147 +45,52 @@ export function BattleshipOnline({
   displayName: string;
   onBack: () => void;
 }) {
-  const [gameId, setGameId] = useState<string | null>(null);
-  const [game, setGame] = useState<OnlineBsGame | null>(null);
-  const [openGames, setOpenGames] = useState<OnlineBsGame[]>([]);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const { game, games, busy, error, host, join, resume, leave, forfeit, rematch } =
+    useOnlineGame<BsState>(battleshipRules, uid, displayName);
 
   const scoredRounds = useRef<Set<string>>(new Set());
   const prevShotCount = useRef(0);
 
-  useEffect(() => {
-    if (gameId) return;
-    return watchOpenBsGames(setOpenGames, () => setOpenGames([]));
-  }, [gameId]);
-
-  useEffect(() => {
-    if (!gameId) {
-      setGame(null);
-      return;
-    }
-    return watchBsGame(
-      gameId,
-      (g) => {
-        if (!g) {
-          setGameId(null);
-          setGame(null);
-          return;
-        }
-        setGame(g);
-      },
-      () => setError('Lost connection to that game.')
-    );
-  }, [gameId]);
-
-  const guard = async (fn: () => Promise<void>) => {
-    setBusy(true);
-    setError(null);
-    try {
-      await fn();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Something went wrong.');
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const handleHost = () =>
-    guard(async () => setGameId(await createBsGame(uid, displayName)));
-
-  const handleJoin = (id: string) =>
-    guard(async () => {
-      await joinBsGame(id, uid, displayName);
-      setGameId(id);
-    });
-
-  const handleLeave = () =>
-    guard(async () => {
-      if (game && game.createdBy === uid && game.status === 'waiting') {
-        await cancelBsGame(game.id);
-      } else if (game && (game.status === 'active' || game.status === 'placing')) {
-        // Leaving a live battle is a forfeit — the opponent shouldn't be
-        // stranded waiting on someone who's gone.
-        await forfeitBsGame(game.id, uid);
-      }
-      setGameId(null);
-      setGame(null);
-      prevShotCount.current = 0;
-    });
-
   // ---------- lobby ----------
 
-  if (!gameId || !game) {
-    const joinable = openGames.filter((g) => g.createdBy !== uid);
-    const mine = openGames.filter((g) => g.createdBy === uid);
-
+  if (!game) {
     return (
       <Screen title="Battleship" subtitle="Play a family member" onBack={onBack}>
-        {error && <div className="bs-error card">{error}</div>}
-
-        <button
-          className="btn btn-primary blocks-play-btn"
-          onClick={handleHost}
-          disabled={busy}
-        >
-          {busy ? 'Opening…' : 'Start a game'}
-        </button>
-
-        {mine.length > 0 && (
-          <>
-            <div className="section-head">
-              <span className="section-title">Your open game</span>
-            </div>
-            <ul className="bs-lobby">
-              {mine.map((g) => (
-                <li key={g.id}>
-                  <button
-                    className="bs-lobby-item card"
-                    onClick={() => setGameId(g.id)}
-                  >
-                    <span className="bs-lobby-name">Waiting for an opponent</span>
-                    <span className="bs-lobby-meta">Tap to reopen</span>
-                  </button>
-                </li>
-              ))}
-            </ul>
-          </>
-        )}
-
-        <div className="section-head">
-          <span className="section-title">Open games</span>
-        </div>
-        {joinable.length === 0 ? (
-          <div className="card empty-state">
-            Nobody&rsquo;s waiting right now. Start a game and it&rsquo;ll show
-            up here for whoever opens the app next.
-          </div>
-        ) : (
-          <ul className="bs-lobby">
-            {joinable.map((g) => (
-              <li key={g.id}>
-                <button
-                  className="bs-lobby-item card"
-                  onClick={() => handleJoin(g.id)}
-                  disabled={busy}
-                >
-                  <span className="bs-lobby-name">
-                    {g.names[g.createdBy] ?? 'Someone'}
-                  </span>
-                  <span className="bs-lobby-meta">Tap to join</span>
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
+        <OnlineLobby
+          kind="battleship"
+          uid={uid}
+          games={games}
+          busy={busy}
+          error={error}
+          onHost={host}
+          onResume={resume}
+          onJoin={join}
+        />
       </Screen>
     );
   }
 
   // ---------- at a table ----------
 
+  const view = bsView(game);
   const opponentUid = game.players.find((p) => p !== uid);
   const opponentName = opponentUid ? game.names[opponentUid] : null;
+
+  // Walking out of a live battle is a forfeit — otherwise the opponent is
+  // stranded waiting on someone who has gone.
+  const handleLeave = () => {
+    prevShotCount.current = 0;
+    if (game.status === 'active' || game.status === 'placing') forfeit();
+    else leave();
+  };
+
+  const handleRematch = async () => {
+    // Fleets are cleared first so both players land back in placement with
+    // an empty grid rather than last round's ships.
+    await clearFleets(game);
+    prevShotCount.current = 0;
+    rematch();
+  };
 
   if (game.status === 'waiting') {
     return (
@@ -210,12 +114,14 @@ export function BattleshipOnline({
   if (game.status === 'placing') {
     return (
       <PlacementPhase
-        game={game}
+        game={view}
         uid={uid}
         opponentName={opponentName}
         busy={busy}
         error={error}
-        onPlace={(ships) => guard(() => saveBsFleet(game.id, uid, ships))}
+        onPlace={(ships) => {
+          saveFleet(game.id, uid, ships).catch(() => {});
+        }}
         onLeave={handleLeave}
         onBack={onBack}
       />
@@ -224,7 +130,7 @@ export function BattleshipOnline({
 
   return (
     <BattlePhase
-      game={game}
+      game={view}
       uid={uid}
       opponentUid={opponentUid ?? ''}
       opponentName={opponentName}
@@ -232,8 +138,10 @@ export function BattleshipOnline({
       error={error}
       scoredRounds={scoredRounds}
       prevShotCount={prevShotCount}
-      onFire={(index) => fireBsShot(game.id, uid, index).catch(() => {})}
-      onRematch={() => rematchBsGame(game.id).catch(() => {})}
+      onFire={(index) => {
+        fireShot(game.id, uid, index).catch(() => {});
+      }}
+      onRematch={handleRematch}
       onLeave={handleLeave}
       onBack={onBack}
     />
@@ -252,7 +160,7 @@ function PlacementPhase({
   onLeave,
   onBack,
 }: {
-  game: OnlineBsGame;
+  game: BsGameView;
   uid: string;
   opponentName: string | null;
   busy: boolean;
@@ -363,7 +271,7 @@ function PlacementPhase({
   );
 }
 
-function opponentUidReady(game: OnlineBsGame, uid: string): boolean {
+function opponentUidReady(game: BsGameView, uid: string): boolean {
   const opponent = game.players.find((p) => p !== uid);
   return opponent ? game.ready[opponent] === true : false;
 }
@@ -384,7 +292,7 @@ function BattlePhase({
   onLeave,
   onBack,
 }: {
-  game: OnlineBsGame;
+  game: BsGameView;
   uid: string;
   opponentUid: string;
   opponentName: string | null;
@@ -406,8 +314,7 @@ function BattlePhase({
 
   // Own fleet, live (it's ours to read).
   useEffect(() => {
-    // Imported lazily to avoid a circular import at module load.
-    return watchMyFleet(game.id, uid, setMyFleet, () => {});
+    return watchFleet(game.id, uid, setMyFleet);
   }, [game.id, uid]);
 
   // The opponent's layout, fetched when the battle starts (and again after
@@ -416,7 +323,7 @@ function BattlePhase({
   useEffect(() => {
     if (game.status !== 'active' && game.status !== 'done') return;
     let cancelled = false;
-    fetchOpponentFleet(game.id, opponentUid).then((fleet) => {
+    fetchFleet(game.id, opponentUid).then((fleet) => {
       if (!cancelled) setEnemyFleet(fleet);
     });
     return () => {

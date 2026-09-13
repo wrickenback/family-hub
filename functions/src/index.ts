@@ -147,3 +147,97 @@ export const cleanupOldInvites = functions
     functions.logger.info(`Deleted ${snapshot.size} old invites`);
     return null;
   });
+
+/**
+ * Sync Firestore users collection to RTDB allowedUsers node
+ * Writes all uid as keys with boolean value true; removes any uid no longer in Firestore
+ */
+export const syncAllowedUsers = functions
+  .region('us-central1')
+  .pubsub.schedule('every 1 hours')
+  .onRun(async () => {
+    const rtdb = admin.database();
+    const usersSnapshot = await db.collection('users').listDocuments();
+
+    const allowedUsers: { [uid: string]: boolean } = {};
+    usersSnapshot.forEach((doc) => {
+      allowedUsers[doc.id] = true;
+    });
+
+    // Writing {} would clear the node, and the database rules treat a
+    // missing allowlist as "not populated yet" and fall back to allowing any
+    // signed-in user. A transient empty read must not quietly widen access.
+    if (Object.keys(allowedUsers).length === 0) {
+      functions.logger.warn('No users found — leaving allowedUsers untouched');
+      return null;
+    }
+
+    await rtdb.ref('allowedUsers').set(allowedUsers);
+    functions.logger.info(`Synced ${Object.keys(allowedUsers).length} allowed users to RTDB`);
+    return null;
+  });
+
+/**
+ * Sweep stale games from RTDB
+ * Delete games based on status and age:
+ * - 'waiting' status > 1 hour old
+ * - 'done' status > 6 hours old
+ * - any status > 24 hours old
+ */
+export const sweepStaleGames = functions
+  .region('us-central1')
+  .pubsub.schedule('every 30 minutes')
+  .onRun(async () => {
+    const rtdb = admin.database();
+    const now = Date.now();
+    const oneHourAgo = now - 60 * 60 * 1000;
+    const sixHoursAgo = now - 6 * 60 * 60 * 1000;
+    const twentyFourHoursAgo = now - 24 * 60 * 60 * 1000;
+
+    const gamesSnapshot = await rtdb.ref('games').get();
+    const games = gamesSnapshot.val() || {};
+
+    const toDelete: string[] = [];
+
+    Object.entries(games).forEach(([gameId, gameData]: [string, any]) => {
+      if (!gameData || typeof gameData !== 'object') {
+        return;
+      }
+
+      const updatedAt = gameData.updatedAt || 0;
+      const createdAt = gameData.createdAt || 0;
+      const status = gameData.status;
+
+      // If updatedAt is missing/zero, only mark as stale if createdAt is old
+      if (updatedAt === 0) {
+        if (createdAt !== 0 && createdAt < twentyFourHoursAgo) {
+          toDelete.push(gameId);
+        }
+        return;
+      }
+
+      // Apply deletion rules based on status and age
+      if (status === 'waiting' && updatedAt < oneHourAgo) {
+        toDelete.push(gameId);
+      } else if (status === 'done' && updatedAt < sixHoursAgo) {
+        toDelete.push(gameId);
+      } else if (updatedAt < twentyFourHoursAgo) {
+        toDelete.push(gameId);
+      }
+    });
+
+    // Apply deletions as a single multi-path update. Battleship parks each
+    // player's fleet outside the game node, so those have to go with it or
+    // they accumulate forever with nothing left pointing at them.
+    if (toDelete.length > 0) {
+      const updates: { [path: string]: null } = {};
+      toDelete.forEach((gameId) => {
+        updates[`games/${gameId}`] = null;
+        updates[`gameFleets/${gameId}`] = null;
+      });
+      await rtdb.ref().update(updates);
+    }
+
+    functions.logger.info(`Swept ${toDelete.length} stale games from RTDB`);
+    return null;
+  });

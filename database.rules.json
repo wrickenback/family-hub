@@ -1,0 +1,61 @@
+{
+  "rules": {
+    // Mirror of the Firestore users collection, written only by the
+    // syncAllowedUsers function. Firestore already refuses to create a
+    // profile for an email outside config/allowedEmails, so membership here
+    // transitively enforces that same family allowlist inside RTDB — which
+    // cannot read Firestore to check it directly.
+    "allowedUsers": {
+      ".read": "auth != null",
+      ".write": false,
+      "$uid": {
+        ".validate": "newData.isBoolean()"
+      }
+    },
+
+    // Live game state only. Scores, history and anything durable stay in
+    // Firestore. The "or the mirror is empty" clause keeps the family
+    // playing during the window between these rules going live and the
+    // first sync run populating allowedUsers.
+    "games": {
+      ".read": "auth != null && (root.child('allowedUsers').child(auth.uid).exists() || !root.child('allowedUsers').exists())",
+      ".indexOn": ["updatedAt"],
+
+      "$gameId": {
+        // Create: only as yourself. Update/delete: only the two people sat
+        // at the table, plus whoever is taking the empty second seat.
+        ".write": "auth != null && (root.child('allowedUsers').child(auth.uid).exists() || !root.child('allowedUsers').exists()) && (!data.exists() ? newData.child('createdBy').val() === auth.uid : (data.child('players/0').val() === auth.uid || data.child('players/1').val() === auth.uid || (!data.child('players/1').exists() && newData.child('players/1').val() === auth.uid)))",
+        ".validate": "newData.hasChildren(['kind', 'status', 'players', 'createdBy'])",
+
+        "kind": {
+          ".validate": "newData.isString() && (newData.val() === 'tictactoe' || newData.val() === 'connect4' || newData.val() === 'battleship')"
+        },
+        "status": {
+          ".validate": "newData.isString() && (newData.val() === 'waiting' || newData.val() === 'placing' || newData.val() === 'active' || newData.val() === 'done')"
+        },
+        // Nobody gets to rewrite history about who opened the table.
+        "createdBy": {
+          ".validate": "newData.isString() && (!data.exists() || newData.val() === data.val())"
+        },
+        "$other": {
+          ".validate": true
+        }
+      }
+    },
+
+    // Battleship fleets are kept out of the shared game node so a stray
+    // console poke at /games doesn't spill ship positions. Both players at
+    // the table can read them, because the firing client resolves its own
+    // hit/miss against the opponent's fleet — same trust model the Firestore
+    // version ran on. Fleets are immutable once the battle starts: the
+    // 'placing' check below is what stops ships being shuffled mid-game.
+    "gameFleets": {
+      "$gameId": {
+        "$uid": {
+          ".read": "auth != null && (root.child('games/' + $gameId + '/players/0').val() === auth.uid || root.child('games/' + $gameId + '/players/1').val() === auth.uid)",
+          ".write": "auth != null && auth.uid === $uid && (!root.child('games/' + $gameId).exists() || root.child('games/' + $gameId + '/status').val() === 'placing')"
+        }
+      }
+    }
+  }
+}
