@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   cancelGame,
+  claimIdleWin,
   createGame,
   forfeitGame,
   joinGame,
@@ -178,6 +179,12 @@ export function useOnlineGame<S>(
     [guard, game, uid, seat]
   );
 
+  /** Take the win when the opponent has wandered off mid-turn. */
+  const claimWin = useCallback(() => {
+    if (!gameId) return;
+    claimIdleWin(gameId, uid).catch(() => {});
+  }, [gameId, uid]);
+
   const forfeit = useCallback(
     () =>
       guard(async () => {
@@ -201,6 +208,7 @@ export function useOnlineGame<S>(
     rematch,
     leave,
     forfeit,
+    claimWin,
   };
 }
 

@@ -276,6 +276,47 @@ export async function cancelGame(gameId: string): Promise<void> {
   await remove(ref(rtdb, `${GAMES}/${gameId}`));
 }
 
+/** How long an opponent can sit on their turn before the person waiting is
+ * offered the win. Long enough to survive a school run or a phone in a
+ * pocket; short enough that a table doesn't hang around all evening. */
+export const IDLE_CLAIM_MS = 15 * 60 * 1000;
+
+/** True when it's the opponent's move and they've gone quiet long enough to
+ * claim against. `updatedAt` is stamped by whichever client moved last, so
+ * a clock running ahead is treated as "just moved" rather than letting the
+ * waiting player claim early off someone else's bad clock. */
+export function opponentIsIdle(
+  game: Pick<OnlineGame, 'status' | 'turn' | 'updatedAt'>,
+  uid: string,
+  now = Date.now()
+): boolean {
+  if (game.status !== 'active') return false;
+  if (game.turn === uid) return false; // the hold-up is us
+  if (!game.updatedAt || game.updatedAt > now) return false;
+  return now - game.updatedAt > IDLE_CLAIM_MS;
+}
+
+/** Takes the win when the opponent has abandoned their turn. Re-checks the
+ * idle window inside the transaction, so a move that lands while the button
+ * is on screen quietly wins the race and the claim does nothing. */
+export async function claimIdleWin(gameId: string, uid: string): Promise<void> {
+  const db = requireDb();
+  await runTransaction(ref(db, `${GAMES}/${gameId}`), (raw) => {
+    if (!raw) return raw;
+    const game = toGame(gameId, raw);
+    if (!game.players.includes(uid)) return undefined;
+    if (!opponentIsIdle(game, uid)) return undefined;
+    return {
+      ...raw,
+      status: 'done',
+      outcome: 'win',
+      winnerUid: uid,
+      wins: { ...game.wins, [uid]: (game.wins[uid] ?? 0) + 1 },
+      updatedAt: Date.now(),
+    };
+  });
+}
+
 /** Concedes a game in progress so the opponent isn't left hanging. */
 export async function forfeitGame(gameId: string, uid: string): Promise<void> {
   const db = requireDb();

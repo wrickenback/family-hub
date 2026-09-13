@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Screen } from '../components/Screen';
 import { OnlineLobby } from '../components/OnlineLobby';
+import { IdleClaim } from '../components/IdleClaim';
 import { IconSpinner } from '../components/icons';
 import { C4Board } from './ConnectFourGame';
 import { EMPTY_BOARD } from '../lib/connectFourEngine';
@@ -25,7 +26,7 @@ export function ConnectFourOnline({
   displayName: string;
   onBack: () => void;
 }) {
-  const { game, games, busy, error, host, join, resume, move, rematch, leave } =
+  const { game, games, busy, error, host, join, resume, move, rematch, leave, claimWin } =
     useOnlineGame<C4State>(connectFourRules, uid, displayName);
 
   const scoredRounds = useRef<Set<string>>(new Set());
@@ -125,6 +126,15 @@ export function ConnectFourOnline({
           </span>
         </div>
       </div>
+
+      <IdleClaim
+        status={game.status}
+        turn={game.turn}
+        updatedAt={game.updatedAt}
+        uid={uid}
+        opponentName={opponentName}
+        onClaim={claimWin}
+      />
 
       <p
         className={`c4-status ${game.status === 'done' ? 'settled' : ''}`}

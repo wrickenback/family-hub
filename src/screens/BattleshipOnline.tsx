@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Screen } from '../components/Screen';
 import { OnlineLobby } from '../components/OnlineLobby';
+import { IdleClaim } from '../components/IdleClaim';
 import { IconSpinner } from '../components/icons';
 import {
   EMPTY_FLEET,
@@ -45,7 +46,7 @@ export function BattleshipOnline({
   displayName: string;
   onBack: () => void;
 }) {
-  const { game, games, busy, error, host, join, resume, leave, forfeit, rematch } =
+  const { game, games, busy, error, host, join, resume, leave, forfeit, rematch, claimWin } =
     useOnlineGame<BsState>(battleshipRules, uid, displayName);
 
   const scoredRounds = useRef<Set<string>>(new Set());
@@ -142,6 +143,7 @@ export function BattleshipOnline({
         fireShot(game.id, uid, index).catch(() => {});
       }}
       onRematch={handleRematch}
+      onClaim={claimWin}
       onLeave={handleLeave}
       onBack={onBack}
     />
@@ -289,6 +291,7 @@ function BattlePhase({
   prevShotCount,
   onFire,
   onRematch,
+  onClaim,
   onLeave,
   onBack,
 }: {
@@ -302,6 +305,7 @@ function BattlePhase({
   prevShotCount: { current: number };
   onFire: (index: number) => void;
   onRematch: () => void;
+  onClaim: () => void;
   onLeave: () => void;
   onBack: () => void;
 }) {
@@ -383,6 +387,15 @@ function BattlePhase({
       onBack={onBack}
     >
       {error && <div className="bs-error card">{error}</div>}
+
+      <IdleClaim
+        status={game.status}
+        turn={game.turn}
+        updatedAt={game.updatedAt}
+        uid={uid}
+        opponentName={opponentName}
+        onClaim={onClaim}
+      />
 
       <div className="bs-scorebar">
         <div className="bs-tally">

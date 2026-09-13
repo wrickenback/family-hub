@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { Screen } from '../components/Screen';
 import { OnlineLobby } from '../components/OnlineLobby';
+import { IdleClaim } from '../components/IdleClaim';
 import { Confetti, MarkGlyph, StrikeLine } from '../components/TttMarks';
 import { IconSpinner } from '../components/icons';
 import { ticTacToeRules, type TttState } from '../lib/onlineTicTacToe';
@@ -30,6 +31,7 @@ export function TicTacToeOnline({ uid, displayName, onBack }: Props) {
     move,
     rematch,
     leave,
+    claimWin,
   } = useOnlineGame<TttState>(ticTacToeRules, uid, displayName);
 
   const scoredRounds = useRef<Set<string>>(new Set());
@@ -142,6 +144,15 @@ export function TicTacToeOnline({ uid, displayName, onBack }: Props) {
             </span>
           </div>
         </div>
+
+        <IdleClaim
+          status={game.status}
+          turn={game.turn}
+          updatedAt={game.updatedAt}
+          uid={uid}
+          opponentName={opponentName}
+          onClaim={claimWin}
+        />
 
         <div className="ttt-status-row">
           <p

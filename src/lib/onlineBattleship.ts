@@ -197,6 +197,7 @@ export interface BsGameView {
   winnerUid: string | null;
   wins: Record<string, number>;
   createdBy: string;
+  updatedAt: number;
 }
 
 export function bsView(game: OnlineGame<BsState>): BsGameView {
@@ -213,6 +214,7 @@ export function bsView(game: OnlineGame<BsState>): BsGameView {
     winnerUid: game.winnerUid,
     wins: game.wins,
     createdBy: game.createdBy,
+    updatedAt: game.updatedAt,
   };
 }
 
