@@ -180,6 +180,38 @@ export function shipCellIndexes(fleet: string, shipId: ShipId): number[] {
   return cells;
 }
 
+export interface ShipPlacement {
+  id: ShipId;
+  name: string;
+  /** Top-left cell of the ship's run. */
+  row: number;
+  col: number;
+  size: number;
+  orientation: Orientation;
+}
+
+/** Where each ship sits on a layout, as a run rather than loose cells — so
+ * a hull can be drawn across the squares it occupies instead of colouring
+ * them in one at a time. Ships that aren't fully placed are skipped. */
+export function shipPlacements(fleet: string): ShipPlacement[] {
+  const out: ShipPlacement[] = [];
+  for (const ship of FLEET) {
+    const cells = shipCellIndexes(fleet, ship.id);
+    if (cells.length !== ship.size) continue;
+    const rows = cells.map(rowOf);
+    const cols = cells.map(colOf);
+    out.push({
+      id: ship.id,
+      name: ship.name,
+      row: Math.min(...rows),
+      col: Math.min(...cols),
+      size: ship.size,
+      orientation: rows.every((r) => r === rows[0]) ? 'h' : 'v',
+    });
+  }
+  return out;
+}
+
 /** Which ship occupies a cell on an untouched layout, if any. */
 export function shipAt(fleet: string, index: number): ShipId | null {
   const c = fleet[index];

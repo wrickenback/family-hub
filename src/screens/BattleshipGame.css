@@ -115,6 +115,8 @@
 }
 
 .bs-board {
+  /* Anchors the hull layer that sits over the cells. */
+  position: relative;
   display: grid;
   grid-template-columns: repeat(10, 1fr);
   gap: 2px;
@@ -400,4 +402,25 @@
 
 .bs-sticky:empty {
   display: none;
+}
+
+/* Shot markers on a ship that's still fighting sit above its hull, so a
+   damaged section reads as a hole punched in the ship. A wreck is left
+   alone — every one of its cells has been hit, so raising them would bury
+   the hull we're finally allowed to show. */
+.bs-cell.shot-hit:not(.sunk),
+.bs-cell.shot-miss {
+  z-index: 2;
+}
+
+/* The hull carries the "destroyed" styling now, so the cell underneath
+   doesn't need to darken as well. */
+.bs-cell.sunk {
+  filter: none;
+  box-shadow: none;
+  background: #dceefb;
+}
+
+.bs-cell.sunk.shot-hit::after {
+  content: none;
 }

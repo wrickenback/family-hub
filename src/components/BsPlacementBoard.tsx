@@ -9,10 +9,12 @@ import {
   rowOf,
   shipCells,
   shipCellIndexes,
+  shipPlacements,
   type Orientation,
   type ShipDef,
   type ShipId,
 } from '../lib/battleshipEngine';
+import { ShipHull } from './ShipHull';
 import './BsPlacementBoard.css';
 
 /** Drag-to-place fleet layout.
@@ -116,6 +118,13 @@ export function BsPlacementBoard({
     setDrag(null);
   };
 
+  // Ships already down are drawn as hulls, same as they'll look in battle.
+  // The one being dragged is hidden here — the ghost under the finger is
+  // standing in for it.
+  const hulls = shipPlacements(fleet).filter((p) => p.id !== drag?.ship.id);
+  const hulled = new Set<number>();
+  hulls.forEach((p) => shipCellIndexes(fleet, p.id).forEach((i) => hulled.add(i)));
+
   const preview = drag ? previewCells(drag) : null;
   const previewSet = new Set(preview ?? []);
   const invalid = drag !== null && drag.anchor !== null && preview === null;
@@ -128,13 +137,20 @@ export function BsPlacementBoard({
         role="grid"
         aria-label="Your fleet layout"
       >
+        {hulls.length > 0 && (
+          <div className="bs-hulls">
+            {hulls.map((p) => (
+              <ShipHull key={p.id} ship={p} />
+            ))}
+          </div>
+        )}
         {Array.from({ length: GRID * GRID }).map((_, index) => {
           const ship = fleet[index];
           const occupied = ship !== '-';
           const isPreview = previewSet.has(index);
           const classes = [
             'bs-cell',
-            occupied ? `ship-${ship.toLowerCase()}` : '',
+            occupied && !hulled.has(index) ? `ship-${ship.toLowerCase()}` : '',
             isPreview ? (invalid ? 'preview-bad' : 'preview-ok') : '',
           ]
             .filter(Boolean)

@@ -3,6 +3,7 @@ import { Screen } from '../components/Screen';
 import { OnlineLobby } from '../components/OnlineLobby';
 import { IdleClaim } from '../components/IdleClaim';
 import { BsPlacementBoard } from '../components/BsPlacementBoard';
+import { ShipHull } from '../components/ShipHull';
 import { IconSpinner } from '../components/icons';
 import {
   EMPTY_FLEET,
@@ -14,6 +15,8 @@ import {
   randomFleet,
   rowOf,
   shipAt,
+  shipCellIndexes,
+  shipPlacements,
   sunkShipIds,
   type Orientation,
   type ShipId,
@@ -207,7 +210,7 @@ function PlacementPhase({
       </p>
 
       {ready ? (
-        <BsGrid fleet={fleet} shots={[]} mode="defend" onCell={() => {}} />
+        <BsGrid fleet={fleet} shots={[]} showShips="all" mode="defend" onCell={() => {}} />
       ) : (
         <>
           <p className="bs-place-hint">
@@ -465,6 +468,7 @@ function BattlePhase({
             fleet={enemyFleet?.ships ?? EMPTY_FLEET}
             shots={myShots}
             sunkCells={enemySunkCells}
+            showShips="sunk"
             mode="fire"
             interactive={myTurn && game.status === 'active'}
             onCell={onFire}
@@ -477,6 +481,7 @@ function BattlePhase({
             fleet={myFleet?.ships ?? EMPTY_FLEET}
             shots={theirShots}
             sunkCells={mySunkCells}
+            showShips="all"
             mode="defend"
             onCell={() => {}}
           />
@@ -528,6 +533,7 @@ export function BsGrid({
   fleet,
   shots,
   sunkCells,
+  showShips = 'none',
   mode,
   interactive = false,
   previewShip = null,
@@ -538,6 +544,8 @@ export function BsGrid({
   shots: number[];
   /** Cells belonging to ships that have been fully destroyed. */
   sunkCells?: Set<number>;
+  /** Draw hulls for every ship, only the wrecks, or none at all. */
+  showShips?: 'all' | 'sunk' | 'none';
   mode: 'place' | 'defend' | 'fire';
   interactive?: boolean;
   previewShip?: ShipDef | null;
@@ -545,6 +553,18 @@ export function BsGrid({
   onCell: (index: number) => void;
 }) {
   const shotSet = new Set(shots);
+
+  // Hulls are drawn across the squares a ship occupies. Your own fleet shows
+  // in full; enemy waters give up a hull only once it's been destroyed.
+  const placements = showShips === 'none' ? [] : shipPlacements(fleet);
+  const wreck = (id: (typeof placements)[number]['id']) =>
+    shipCellIndexes(fleet, id).every((i) => sunkCells?.has(i));
+  const hulls =
+    showShips === 'all' ? placements : placements.filter((p) => wreck(p.id));
+  // A cell under a hull stays water-coloured — the ship above it is the
+  // thing being read, and doubling up just muddies both.
+  const hulled = new Set<number>();
+  hulls.forEach((p) => shipCellIndexes(fleet, p.id).forEach((i) => hulled.add(i)));
   // Placement preview: the next ship's shape is shown in the chip legend
   // below the grid, and each tap validates against the current orientation.
   // No hover-preview — this is a phone-first app.
@@ -553,6 +573,13 @@ export function BsGrid({
 
   return (
     <div className="bs-board" role="grid" aria-label="Battleship grid">
+      {hulls.length > 0 && (
+        <div className="bs-hulls">
+          {hulls.map((p) => (
+            <ShipHull key={p.id} ship={p} sunk={wreck(p.id)} />
+          ))}
+        </div>
+      )}
       {Array.from({ length: GRID * GRID }).map((_, index) => {
         const ship = fleet[index];
         const shot = shotSet.has(index);
@@ -562,10 +589,18 @@ export function BsGrid({
         // A destroyed ship is revealed as a whole hull rather than staying
         // a scatter of anonymous hit marks.
         const isSunk = sunkCells?.has(index) ?? false;
-        const reveal = mode === 'fire' ? shot || isSunk : true;
+        // Enemy waters never colour a cell by ship: a hit on a ship still
+        // afloat must look like any other hit, or the shape and heading of
+        // a half-found ship would be readable straight off the board. What
+        // has actually sunk is the only thing given away, and that arrives
+        // as a hull. (The red hit background happens to paint over a ship
+        // colour today, but leaving the class on was one stylesheet
+        // reordering away from leaking.)
+        const showShipColour =
+          mode !== 'fire' && !hulled.has(index) && ship !== '-' && ship !== 'X';
         const classes = [
           'bs-cell',
-          reveal && ship !== '-' && ship !== 'X' ? `ship-${ship.toLowerCase()}` : '',
+          showShipColour ? `ship-${ship.toLowerCase()}` : '',
           shot ? (hit ? 'shot-hit' : 'shot-miss') : '',
           isSunk ? 'sunk' : '',
           mode === 'fire' && interactive ? 'fireable' : '',

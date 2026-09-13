@@ -1,0 +1,76 @@
+/* Hulls sit in their own grid layered over the board's cells, mirroring the
+   cell grid exactly so a ship spans its squares (and the gaps between them)
+   without any pixel arithmetic. */
+.bs-hulls {
+  position: absolute;
+  /* The board's own padding — this layer covers the cell area only. */
+  inset: 4px;
+  display: grid;
+  grid-template-columns: repeat(10, 1fr);
+  grid-template-rows: repeat(10, 1fr);
+  gap: 2px;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.bs-hull {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+}
+
+.bs-hull-svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  filter: drop-shadow(0 1px 1px rgba(26, 20, 16, 0.35));
+}
+
+/* One hue per class, matching the legend chips. */
+.bs-hull.ship-c .hull-body { fill: #6b4da8; }
+.bs-hull.ship-b .hull-body { fill: #2f5aa6; }
+.bs-hull.ship-r .hull-body { fill: #a8443e; }
+.bs-hull.ship-s .hull-body { fill: #3d7a4b; }
+.bs-hull.ship-d .hull-body { fill: #9a7430; }
+
+.hull-deck {
+  fill: rgba(255, 255, 255, 0.22);
+}
+
+.hull-tower {
+  fill: rgba(255, 255, 255, 0.55);
+}
+
+.hull-turret {
+  fill: rgba(255, 255, 255, 0.7);
+}
+
+.hull-stripe {
+  stroke: rgba(255, 255, 255, 0.55);
+  stroke-width: 1.4;
+  stroke-linecap: round;
+}
+
+.hull-mast {
+  stroke: rgba(255, 255, 255, 0.6);
+  stroke-width: 1.2;
+  stroke-linecap: round;
+}
+
+/* A destroyed ship: scorched, listing slightly, and sitting lower in the
+   water than the ones still fighting. */
+.bs-hull.sunk {
+  filter: grayscale(0.55) brightness(0.6);
+  opacity: 0.92;
+}
+
+.bs-hull.sunk .bs-hull-svg {
+  transform: rotate(-2.5deg);
+}
+
+.bs-hull.sunk .hull-deck,
+.bs-hull.sunk .hull-tower,
+.bs-hull.sunk .hull-turret {
+  fill: rgba(255, 255, 255, 0.3);
+}
