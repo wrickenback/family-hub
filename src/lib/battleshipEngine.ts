@@ -180,3 +180,26 @@ export function shipCellIndexes(fleet: string, shipId: ShipId): number[] {
   });
   return cells;
 }
+
+/** Which ship occupies a cell on an untouched layout, if any. */
+export function shipAt(fleet: string, index: number): ShipId | null {
+  const c = fleet[index];
+  return c && c !== '-' && c !== 'X' ? (c as ShipId) : null;
+}
+
+/** Which of `fleet`'s ships have had every one of their cells fired at.
+ *
+ * Takes the *placement* layout (ship ids intact, no 'X' marks) plus the
+ * shots fired at it, so a player can work out what they've sunk from their
+ * own shot history — no extra state has to be synced for it. */
+export function sunkShipIds(fleet: string, shots: number[]): Set<ShipId> {
+  const fired = new Set(shots);
+  const sunk = new Set<ShipId>();
+  for (const ship of FLEET) {
+    const cells = shipCellIndexes(fleet, ship.id);
+    if (cells.length === ship.size && cells.every((i) => fired.has(i))) {
+      sunk.add(ship.id);
+    }
+  }
+  return sunk;
+}

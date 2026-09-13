@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Screen } from '../components/Screen';
 import { OnlineLobby } from '../components/OnlineLobby';
 import { IdleClaim } from '../components/IdleClaim';
+import { BsPlacementBoard } from '../components/BsPlacementBoard';
 import { IconSpinner } from '../components/icons';
 import {
   EMPTY_FLEET,
@@ -9,12 +10,13 @@ import {
   GRID,
   colOf,
   isFleetComplete,
-  placeShip,
   placedShipIds,
   randomFleet,
   rowOf,
-  shipCells,
+  shipAt,
+  sunkShipIds,
   type Orientation,
+  type ShipId,
   type ShipDef,
 } from '../lib/battleshipEngine';
 import {
@@ -176,23 +178,15 @@ function PlacementPhase({
   const [ready, setReady] = useState(false);
 
   const placed = placedShipIds(fleet);
-  const nextShip = FLEET.find((s) => !placed.has(s.id)) ?? null;
+  const remaining = FLEET.filter((s) => !placed.has(s.id));
   const opponentReady = opponentUidReady(game, uid);
-
-  const handleCell = (index: number) => {
-    if (!nextShip || ready) return;
-    const cells = shipCells(fleet, nextShip, rowOf(index), colOf(index), orientation);
-    if (!cells) return;
-    setFleet(placeShip(fleet, nextShip, rowOf(index), colOf(index), orientation));
-  };
+  const complete = isFleetComplete(fleet);
 
   const handleReady = () => {
-    if (!isFleetComplete(fleet) || ready) return;
+    if (!complete || ready) return;
     setReady(true);
     onPlace(fleet);
   };
-
-  const complete = isFleetComplete(fleet);
 
   return (
     <Screen
@@ -206,66 +200,32 @@ function PlacementPhase({
         {ready
           ? opponentReady
             ? 'Both fleets ready — battle starting…'
-            : 'Fleet locked in. Waiting for your opponent…'
-          : nextShip
-          ? `Tap the grid to place your ${nextShip.name} (${nextShip.size} squares)`
-          : 'All 5 ships placed — hit Ready for battle.'}
+            : `Fleet locked in. Waiting for ${opponentName ?? 'your opponent'}…`
+          : complete
+          ? 'All 5 ships placed — hit Ready for battle.'
+          : `Drag your ships onto the grid — ${remaining.length} to go`}
       </p>
 
-      {!ready && (
-        <p className="bs-place-hint">
-          Ships can touch, but never overlap. Use <strong>Rotate</strong> to
-          turn the next one, or <strong>Random</strong> to place them all for
-          you.
-        </p>
-      )}
-
-      <BsGrid
-        fleet={fleet}
-        shots={[]}
-        mode="place"
-        previewShip={ready ? null : nextShip}
-        previewOrientation={orientation}
-        onCell={handleCell}
-      />
-
-      {!ready && (
+      {ready ? (
+        <BsGrid fleet={fleet} shots={[]} mode="defend" onCell={() => {}} />
+      ) : (
         <>
-          <div className="bs-ship-row">
-            {FLEET.map((ship) => (
-              <span
-                key={ship.id}
-                className={`bs-ship-chip ${
-                  placed.has(ship.id) ? 'placed' : 'pending'
-                }`}
-              >
-                {ship.name} ({ship.size})
-              </span>
-            ))}
-          </div>
-          <div className="bs-place-actions">
-            <button
-              className="btn btn-text"
-              onClick={() =>
-                setOrientation((o) => (o === 'h' ? 'v' : 'h'))
-              }
-            >
-              {orientation === 'h' ? 'Rotate ⟷' : 'Rotate ↕'}
-            </button>
-            <button
-              className="btn btn-text"
-              onClick={() => setFleet(EMPTY_FLEET)}
-              disabled={!complete && fleet === EMPTY_FLEET}
-            >
-              Clear
-            </button>
-            <button
-              className="btn btn-text"
-              onClick={() => setFleet(randomFleet())}
-            >
-              Random
-            </button>
-          </div>
+          <p className="bs-place-hint">
+            Drag a ship from below onto the water. Ships can touch, but never
+            overlap — drag one again to move it.
+          </p>
+          <BsPlacementBoard
+            fleet={fleet}
+            orientation={orientation}
+            onChange={setFleet}
+            onRotate={() => setOrientation((o) => (o === 'h' ? 'v' : 'h'))}
+          />
+          <button
+            className="btn btn-text bs-random-btn"
+            onClick={() => setFleet(randomFleet())}
+          >
+            Or place them for me
+          </button>
           <button
             className="btn btn-primary blocks-play-btn"
             disabled={!complete || busy}
@@ -325,6 +285,46 @@ function BattlePhase({
   const myShots = game.shots[uid] ?? [];
   const theirShots = game.shots[opponentUid] ?? [];
   const myTurn = game.status === 'active' && game.turn === uid;
+
+  // Both sides' sunk ships are worked out from the layouts this screen
+  // already holds plus the shot history, so nothing extra has to be synced
+  // to know what has gone down.
+  const enemySunk = enemyFleet
+    ? sunkShipIds(enemyFleet.ships, myShots)
+    : new Set<ShipId>();
+  const mySunk = myFleet
+    ? sunkShipIds(myFleet.ships, theirShots)
+    : new Set<ShipId>();
+
+  const cellsOfSunk = (fleet: string | undefined, sunk: Set<ShipId>) => {
+    const cells = new Set<number>();
+    if (!fleet) return cells;
+    [...fleet].forEach((c, i) => {
+      if (c !== '-' && sunk.has(c as ShipId)) cells.add(i);
+    });
+    return cells;
+  };
+  const enemySunkCells = cellsOfSunk(enemyFleet?.ships, enemySunk);
+  const mySunkCells = cellsOfSunk(myFleet?.ships, mySunk);
+
+  // The last shot, when it finished a ship off, named so it can be said out
+  // loud rather than left as five anonymous hit markers.
+  const last = game.lastResult;
+  const sinkNotice = (() => {
+    if (!last || last.result !== 'sunk') return null;
+    const mine = last.by === uid;
+    const targetFleet = mine ? enemyFleet?.ships : myFleet?.ships;
+    if (!targetFleet) return null;
+    const id = shipAt(targetFleet, last.index);
+    const name = FLEET.find((f) => f.id === id)?.name;
+    if (!name) return null;
+    return {
+      mine,
+      text: mine
+        ? `You sank ${opponentName ? `${opponentName}'s` : 'their'} ${name}!`
+        : `${opponentName ?? 'They'} sank your ${name}.`,
+    };
+  })();
 
   // Own fleet, live (it's ours to read).
   useEffect(() => {
@@ -413,11 +413,9 @@ function BattlePhase({
           <span className="bs-tally-value">{game.wins[uid] ?? 0}</span>
         </div>
         <div className="bs-tally">
-          <span className="bs-tally-label">Hits to win</span>
+          <span className="bs-tally-label">Sunk</span>
           <span className="bs-tally-value">
-            {myShots.filter((i) => enemyFleet && enemyFleet.ships[i] !== '-')
-              .length}
-            /17
+            {enemySunk.size}&ndash;{mySunk.size}
           </span>
         </div>
         <div className="bs-tally">
@@ -433,24 +431,48 @@ function BattlePhase({
         {statusText()}
       </p>
 
+      {/* Whose turn it is was buried in a line of grey text, and testers
+          genuinely could not tell. It gets its own coloured banner now. */}
+      {game.status === 'active' && (
+        <div className={`bs-turn ${myTurn ? 'mine' : 'theirs'}`} aria-live="polite">
+          {myTurn
+            ? 'Your turn — fire at enemy waters'
+            : `Waiting for ${opponentName ?? 'your opponent'} to fire`}
+        </div>
+      )}
+
+      {/* Across a table you'd just say "you sank my battleship". */}
+      {sinkNotice && (
+        <div
+          className={`bs-sink-notice ${sinkNotice.mine ? 'mine' : 'theirs'}`}
+          aria-live="polite"
+        >
+          {sinkNotice.text}
+        </div>
+      )}
+
       <div className="bs-grids">
         <div className="bs-grid-section">
-          <span className="bs-grid-label">Your fleet</span>
-          <BsGrid
-            fleet={myFleet?.ships ?? EMPTY_FLEET}
-            shots={theirShots}
-            mode="defend"
-            onCell={() => {}}
-          />
-        </div>
-        <div className="bs-grid-section">
           <span className="bs-grid-label">Enemy waters</span>
+          <FleetChips sunk={enemySunk} label={`${opponentName ?? 'Their'} fleet`} />
           <BsGrid
             fleet={enemyFleet?.ships ?? EMPTY_FLEET}
             shots={myShots}
+            sunkCells={enemySunkCells}
             mode="fire"
-            interactive={myTurn}
+            interactive={myTurn && game.status === 'active'}
             onCell={onFire}
+          />
+        </div>
+        <div className="bs-grid-section">
+          <span className="bs-grid-label">Your fleet</span>
+          <FleetChips sunk={mySunk} label="Your fleet" />
+          <BsGrid
+            fleet={myFleet?.ships ?? EMPTY_FLEET}
+            shots={theirShots}
+            sunkCells={mySunkCells}
+            mode="defend"
+            onCell={() => {}}
           />
         </div>
       </div>
@@ -471,6 +493,26 @@ function BattlePhase({
   );
 }
 
+/** Which ships are still afloat, at a glance. Replaces a "hits to win
+ * 7/17" counter that was accurate but told you nothing about what you'd
+ * actually destroyed. */
+function FleetChips({ sunk, label }: { sunk: Set<ShipId>; label: string }) {
+  return (
+    <div className="bs-fleet-chips" aria-label={label}>
+      {FLEET.map((ship) => (
+        <span
+          key={ship.id}
+          className={`bs-fleet-chip ship-${ship.id.toLowerCase()} ${
+            sunk.has(ship.id) ? 'sunk' : ''
+          }`}
+        >
+          {ship.name}
+        </span>
+      ))}
+    </div>
+  );
+}
+
 // ---------- shared grid renderer ----------
 
 /** The one grid component for every phase. `mode` decides what a cell
@@ -479,6 +521,7 @@ function BattlePhase({
 export function BsGrid({
   fleet,
   shots,
+  sunkCells,
   mode,
   interactive = false,
   previewShip = null,
@@ -487,6 +530,8 @@ export function BsGrid({
 }: {
   fleet: string;
   shots: number[];
+  /** Cells belonging to ships that have been fully destroyed. */
+  sunkCells?: Set<number>;
   mode: 'place' | 'defend' | 'fire';
   interactive?: boolean;
   previewShip?: ShipDef | null;
@@ -508,11 +553,15 @@ export function BsGrid({
         const hit = shot && ship !== '-' && ship !== 'X';
         // In fire mode the fleet string is the enemy layout — only reveal
         // cells that have actually been fired at.
-        const reveal = mode === 'fire' ? shot : true;
+        // A destroyed ship is revealed as a whole hull rather than staying
+        // a scatter of anonymous hit marks.
+        const isSunk = sunkCells?.has(index) ?? false;
+        const reveal = mode === 'fire' ? shot || isSunk : true;
         const classes = [
           'bs-cell',
           reveal && ship !== '-' && ship !== 'X' ? `ship-${ship.toLowerCase()}` : '',
           shot ? (hit ? 'shot-hit' : 'shot-miss') : '',
+          isSunk ? 'sunk' : '',
           mode === 'fire' && interactive ? 'fireable' : '',
         ]
           .filter(Boolean)

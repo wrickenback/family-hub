@@ -1,0 +1,138 @@
+/* Drag-to-place layout. Ship hues come from BattleshipGame.css so a ship is
+   the same colour in the tray, under your finger and on the board. */
+
+.bs-place-wrap {
+  position: relative;
+  /* Stops the browser claiming the gesture as a scroll or a text selection
+     mid-drag, which otherwise drops the pointer halfway across the grid. */
+  touch-action: none;
+  user-select: none;
+}
+
+.bs-board-place .bs-cell {
+  transition: background 0.12s ease;
+}
+
+.bs-board-place.dragging {
+  cursor: grabbing;
+}
+
+/* Where the ship would land. */
+.bs-cell.preview-ok {
+  background: #4f8f5e;
+  box-shadow: inset 0 0 0 2px #2f6b3e;
+}
+
+.bs-cell.preview-bad {
+  background: #bf5c56;
+  box-shadow: inset 0 0 0 2px #8f3b36;
+}
+
+/* ---------- tray ---------- */
+
+.bs-tray {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  justify-content: center;
+  margin: 0.75rem auto 0;
+  max-width: 360px;
+}
+
+.bs-tray-ship {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.4rem 0.5rem;
+  border-radius: var(--radius-sm);
+  background: var(--bg-surface);
+  box-shadow: var(--shadow-card);
+  cursor: grab;
+  touch-action: none;
+}
+
+/* Already on the board — dimmed, but still draggable to pull a fresh copy
+   back off the tray if they want to start that ship over. */
+.bs-tray-ship.placed {
+  opacity: 0.4;
+}
+
+.bs-tray-ship.lifting {
+  opacity: 0.25;
+}
+
+.bs-tray-name {
+  font-size: 0.6rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+}
+
+.bs-tray-cells {
+  display: flex;
+  gap: 2px;
+}
+
+.bs-tray-cells.o-v {
+  flex-direction: column;
+}
+
+.bs-tray-cell {
+  width: 12px;
+  height: 12px;
+  border-radius: 2px;
+}
+
+/* ---------- the ghost under (well, above) the finger ---------- */
+
+.bs-ghost {
+  position: fixed;
+  z-index: 50;
+  display: flex;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 5px;
+  background: rgba(255, 255, 255, 0.75);
+  box-shadow: var(--shadow-raised);
+  pointer-events: none;
+  /* Centred on the lifted point rather than the fingertip itself. */
+  transform: translate(-50%, -50%);
+}
+
+.bs-ghost.o-v {
+  flex-direction: column;
+}
+
+.bs-ghost.bad {
+  background: rgba(191, 92, 86, 0.35);
+}
+
+.bs-ghost-cell {
+  width: 26px;
+  height: 26px;
+  border-radius: 3px;
+}
+
+/* Ship hues for tray and ghost cells, mirroring the board's palette. */
+.bs-tray-cell.ship-c,
+.bs-ghost-cell.ship-c {
+  background: #7c5cbf;
+}
+.bs-tray-cell.ship-b,
+.bs-ghost-cell.ship-b {
+  background: #3f6fbf;
+}
+.bs-tray-cell.ship-r,
+.bs-ghost-cell.ship-r {
+  background: #bf5c56;
+}
+.bs-tray-cell.ship-s,
+.bs-ghost-cell.ship-s {
+  background: #4f8f5e;
+}
+.bs-tray-cell.ship-d,
+.bs-ghost-cell.ship-d {
+  background: #b08a3e;
+}
