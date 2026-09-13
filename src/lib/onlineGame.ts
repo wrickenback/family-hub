@@ -89,7 +89,12 @@ function toGame<S>(id: string, raw: Record<string, unknown>): OnlineGame<S> {
     createdBy: (raw.createdBy as string) ?? '',
     createdAt: (raw.createdAt as number) ?? 0,
     updatedAt: (raw.updatedAt as number) ?? 0,
-    state: raw.state as S,
+    // The Realtime Database stores neither empty objects nor nulls, so a
+    // game whose opening state is entirely empty (Battleship starts with no
+    // shots and nobody ready) comes back with no `state` node at all.
+    // Without this default, the first read of game.state.<anything> throws
+    // inside a transaction callback, which aborts the write silently.
+    state: (raw.state ?? {}) as S,
   };
 }
 

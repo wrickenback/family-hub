@@ -207,8 +207,18 @@ function PlacementPhase({
           ? opponentReady
             ? 'Both fleets ready — battle starting…'
             : 'Fleet locked in. Waiting for your opponent…'
-          : 'Place your 5 ships. They can touch, but never overlap.'}
+          : nextShip
+          ? `Tap the grid to place your ${nextShip.name} (${nextShip.size} squares)`
+          : 'All 5 ships placed — hit Ready for battle.'}
       </p>
+
+      {!ready && (
+        <p className="bs-place-hint">
+          Ships can touch, but never overlap. Use <strong>Rotate</strong> to
+          turn the next one, or <strong>Random</strong> to place them all for
+          you.
+        </p>
+      )}
 
       <BsGrid
         fleet={fleet}
@@ -240,7 +250,7 @@ function PlacementPhase({
                 setOrientation((o) => (o === 'h' ? 'v' : 'h'))
               }
             >
-              {orientation === 'h' ? 'Horizontal ⟷' : 'Vertical ↕'}
+              {orientation === 'h' ? 'Rotate ⟷' : 'Rotate ↕'}
             </button>
             <button
               className="btn btn-text"

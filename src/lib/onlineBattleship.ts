@@ -54,10 +54,10 @@ export const battleshipRules: GameRules<BsState> = {
     const opponentUid = game.players.find((p) => p !== uid);
     if (!opponentUid) return null;
 
-    const mine = game.state.shots?.[uid] ?? [];
+    const mine = game.state?.shots?.[uid] ?? [];
     if (mine.includes(shot.index)) return null; // double tap, or a stale client
 
-    const shots = { ...game.state.shots, [uid]: [...mine, shot.index] };
+    const shots = { ...game.state?.shots, [uid]: [...mine, shot.index] };
     const lastResult = { by: uid, index: shot.index, result: shot.result };
 
     if (shot.won) {
@@ -142,7 +142,7 @@ export async function saveFleet(
 
   await patchState<BsState>(gameId, uid, (game) => {
     if (game.status !== 'placing') return null;
-    const ready = { ...game.state.ready, [uid]: true };
+    const ready = { ...game.state?.ready, [uid]: true };
     const bothReady =
       game.players.length === 2 && game.players.every((p) => ready[p]);
     return {
@@ -168,7 +168,7 @@ export async function fireShot(
 
   const opponentUid = game.players.find((p) => p !== uid);
   if (!opponentUid) return;
-  if ((game.state.shots?.[uid] ?? []).includes(index)) return;
+  if ((game.state?.shots?.[uid] ?? []).includes(index)) return;
 
   const fleet = await readFleetShips(gameId, opponentUid);
   if (!fleet || !isFleetComplete(fleet)) return; // hasn't placed yet
