@@ -153,9 +153,15 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  flex: 1;
   min-width: 0;
   gap: 0.5rem;
+  /* Online lays this row straight into the column, where growing would eat
+     the board's height — it only stretches when sat between the chips. */
+  flex-shrink: 0;
+}
+
+.ttt-players .ttt-status-row {
+  flex: 1;
 }
 
 .ttt-status {
