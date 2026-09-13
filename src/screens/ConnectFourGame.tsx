@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Screen } from '../components/Screen';
 import {
   COLS,
@@ -19,24 +19,66 @@ type Result = { type: 'win'; disc: Disc; line: number[] } | { type: 'draw' } | n
 
 const LABEL: Record<Disc, string> = { R: 'Red', Y: 'Yellow' };
 
-/** Pass-and-play on one device. Local only — as with Tic Tac Toe, there's no
- * second signed-in account here to attribute a win to, so the family board
- * is fed by online games. */
+const CONFETTI_COLORS = ['#E4172A', '#FFC400', '#2472DD', '#ffffff', '#3BB54A'];
+
+function Confetti() {
+  const pieces = Array.from({ length: 36 }).map((_, i) => ({
+    id: i,
+    left: Math.random() * 100,
+    delay: Math.random() * 400,
+    duration: 1.4 + Math.random() * 0.8,
+    color: CONFETTI_COLORS[i % CONFETTI_COLORS.length],
+    spin: Math.random() > 0.5 ? '360deg' : '-360deg',
+    tilt: Math.random() * 360,
+  }));
+
+  return (
+    <div className="c4-confetti-field" aria-hidden="true">
+      {pieces.map((p) => (
+        <span
+          key={p.id}
+          className="c4-confetti-piece"
+          style={{
+            left: `${p.left}%`,
+            backgroundColor: p.color,
+            animationDelay: `${p.delay}ms`,
+            animationDuration: `${p.duration}s`,
+            transform: `rotate(${p.tilt}deg)`,
+            '--spin': p.spin,
+          } as React.CSSProperties}
+        />
+      ))}
+    </div>
+  );
+}
+
 export function ConnectFourGame({ onBack }: { onBack: () => void }) {
   const [board, setBoard] = useState(EMPTY_BOARD);
   const [turn, setTurn] = useState<Disc>('R');
   const [starter, setStarter] = useState<Disc>('R');
   const [result, setResult] = useState<Result>(null);
   const [tally, setTally] = useState({ R: 0, Y: 0, draw: 0 });
+  const [celebrating, setCelebrating] = useState(false);
+  const [lastDroppedIndex, setLastDroppedIndex] = useState<number | null>(null);
+  const [turnFading, setTurnFading] = useState(false);
+
+  useEffect(() => {
+    if (celebrating) {
+      const timer = setTimeout(() => setCelebrating(false), 2200);
+      return () => clearTimeout(timer);
+    }
+  }, [celebrating]);
 
   const handleDrop = (col: number) => {
     if (result) return;
     const dropped = dropDisc(board, col, turn);
-    if (!dropped) return; // column full
+    if (!dropped) return;
+    setLastDroppedIndex(dropped.index);
     setBoard(dropped.board);
 
     const line = winningLine(dropped.board);
     if (line) {
+      setCelebrating(true);
       setResult({ type: 'win', disc: turn, line });
       setTally((t) => ({ ...t, [turn]: t[turn] + 1 }));
       playClear(3);
@@ -46,17 +88,24 @@ export function ConnectFourGame({ onBack }: { onBack: () => void }) {
       playGameOver();
     } else {
       playPlace();
-      setTurn(other(turn));
+      // Clear the waiting chips out before swapping their color, rather than
+      // snapping every column's indicator to the new color instantly.
+      setTurnFading(true);
+      setTimeout(() => {
+        setTurn(other(turn));
+        setTurnFading(false);
+      }, 160);
     }
   };
 
   const handleNextRound = () => {
-    // Alternate who opens — going first is a real advantage in Connect 4.
     const nextStarter = other(starter);
     setStarter(nextStarter);
     setTurn(nextStarter);
     setBoard(EMPTY_BOARD);
     setResult(null);
+    setCelebrating(false);
+    setLastDroppedIndex(null);
   };
 
   const winning = result?.type === 'win' ? result.line : [];
@@ -90,6 +139,10 @@ export function ConnectFourGame({ onBack }: { onBack: () => void }) {
         board={board}
         winning={winning}
         disabled={!!result}
+        celebrating={celebrating}
+        lastDroppedIndex={lastDroppedIndex}
+        turn={turn}
+        turnFading={turnFading}
         onDrop={handleDrop}
       />
 
@@ -112,47 +165,74 @@ export function ConnectFourGame({ onBack }: { onBack: () => void }) {
   );
 }
 
-/** Shared board renderer. A whole column is one button — that's the actual
- * move in Connect 4, and it gives a far bigger tap target on a phone than
- * an individual slot would. */
 export function C4Board({
   board,
   winning,
   disabled,
+  celebrating,
+  lastDroppedIndex,
+  turn,
+  turnFading,
   onDrop,
 }: {
   board: string;
   winning: number[];
   disabled: boolean;
+  celebrating: boolean;
+  lastDroppedIndex: number | null;
+  turn?: Disc;
+  turnFading?: boolean;
   onDrop: (col: number) => void;
 }) {
   return (
-    <div className="c4-board" role="grid" aria-label="Connect 4 board">
-      {Array.from({ length: COLS }).map((_, col) => {
-        const full = landingRow(board, col) < 0;
-        return (
-          <button
-            key={col}
-            className="c4-column"
-            onClick={() => onDrop(col)}
-            disabled={disabled || full}
-            aria-label={`Drop in column ${col + 1}`}
-          >
+    <div className="c4-wrapper">
+      <div className="c4-column-headers">
+        {Array.from({ length: COLS }).map((_, col) => {
+          const full = landingRow(board, col) < 0;
+          return (
+            <div key={col} className="c4-column-header">
+              <button
+                className="c4-column-button"
+                onClick={() => onDrop(col)}
+                disabled={disabled || full}
+                aria-label={`Drop in column ${col + 1}`}
+              >
+                <span
+                  className={`c4-ghost-disc ghost-${turn ?? 'R'} ${turnFading ? 'fading' : ''}`}
+                />
+              </button>
+            </div>
+          );
+        })}
+      </div>
+      <div className={`c4-board ${celebrating ? 'dimmed' : ''}`} role="grid" aria-label="Connect 4 board">
+        {Array.from({ length: COLS }).map((_, col) => (
+          <div key={col} className="c4-column">
             {Array.from({ length: ROWS }).map((__, row) => {
               const i = indexOf(row, col);
               const disc = board[i];
+              const isLastDropped = i === lastDroppedIndex;
               return (
-                <span
-                  key={row}
-                  className={`c4-slot ${disc !== '-' ? `disc-${disc}` : ''} ${
-                    winning.includes(i) ? 'winning' : ''
-                  }`}
-                />
+                <span key={row} className="c4-slot">
+                  {disc !== '-' && (
+                    <span
+                      className={`c4-disc disc-${disc} ${
+                        winning.includes(i) ? 'winning' : ''
+                      } ${isLastDropped ? 'newly-dropped' : ''}`}
+                      style={
+                        isLastDropped
+                          ? ({ '--drop-from': `-${(row + 1) * 100}%` } as React.CSSProperties)
+                          : undefined
+                      }
+                    />
+                  )}
+                </span>
               );
             })}
-          </button>
-        );
-      })}
+          </div>
+        ))}
+      </div>
+      {celebrating && <Confetti />}
     </div>
   );
 }

@@ -262,6 +262,8 @@ export function ConnectFourOnline({
         board={game.board}
         winning={game.line ?? []}
         disabled={!myTurn}
+        celebrating={false}
+        lastDroppedIndex={null}
         onDrop={(col) => playC4Move(game.id, uid, col).catch(() => {})}
       />
 
