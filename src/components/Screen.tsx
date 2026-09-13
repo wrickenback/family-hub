@@ -6,12 +6,21 @@ interface ScreenProps {
   title: string;
   subtitle?: string;
   onBack: () => void;
+  /** Extra class on the screen root, so a game can theme its whole surface
+   * — header included — without every other screen paying for it. */
+  className?: string;
   children: ReactNode;
 }
 
-export function Screen({ title, subtitle, onBack, children }: ScreenProps) {
+export function Screen({
+  title,
+  subtitle,
+  onBack,
+  className = '',
+  children,
+}: ScreenProps) {
   return (
-    <div className="screen">
+    <div className={`screen ${className}`.trim()}>
       <header className="screen-header">
         <button className="back-btn" onClick={onBack} aria-label="Go back">
           <IconChevronLeft aria-hidden="true" />

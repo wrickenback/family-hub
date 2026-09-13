@@ -254,3 +254,144 @@
 .blocks-gameover-flag:last-of-type {
   margin-bottom: 1.25rem;
 }
+
+/* ---------- dark playfield ---------- */
+
+/* Blocks runs its own deep-indigo surface rather than the app's cream one.
+   The saturated piece colours were never the problem — they're exactly
+   right on dark, and washed out and glary on cream. Scoped to this screen
+   on purpose: the rest of the app stays light. */
+.screen-blocks {
+  --blocks-ink: #0d0e34;
+  --blocks-grid: #5f7ad6;
+  --blocks-cell: #171d55;
+  --blocks-panel: rgba(10, 12, 48, 0.55);
+  /* Covers the viewport even when the board doesn't fill it, so the cream
+     app background never shows below the playfield. */
+  min-height: 100dvh;
+  background: radial-gradient(
+    130% 95% at 50% 0%,
+    #2f3190 0%,
+    #1a1c60 42%,
+    var(--blocks-ink) 100%
+  );
+  color: #eef1ff;
+}
+
+/* The header rides the same surface instead of sitting on a cream bar. */
+.screen-blocks .screen-header {
+  background: transparent;
+  backdrop-filter: none;
+  border-bottom: 1px solid rgba(120, 145, 230, 0.22);
+}
+
+.screen-blocks .screen-heading h2,
+.screen-blocks .back-btn {
+  color: #eef1ff;
+}
+
+.screen-blocks .screen-heading p {
+  color: rgba(238, 241, 255, 0.6);
+}
+
+.screen-blocks .back-btn:hover {
+  background: rgba(120, 145, 230, 0.18);
+}
+
+/* Score reads as the glowing headline it is in the reference, rather than
+   a rust bar borrowed from the rest of the app. */
+.screen-blocks .blocks-scorebar {
+  background: none;
+  box-shadow: none;
+  padding: 0.25rem 0.5rem 0.5rem;
+}
+
+.screen-blocks .blocks-score-value,
+.screen-blocks .blocks-best-value {
+  text-shadow: 0 0 18px rgba(150, 175, 255, 0.75);
+}
+
+.screen-blocks .blocks-score-label {
+  color: rgba(238, 241, 255, 0.65);
+}
+
+/* Board: dark wells behind the pieces, with the gap colour doing the work
+   of the grid lines and a light rule around the outside. */
+.screen-blocks .blocks-board {
+  background: rgba(95, 122, 214, 0.4);
+  border: 1.5px solid rgba(140, 165, 245, 0.85);
+  border-radius: 6px;
+  box-shadow: 0 0 26px rgba(70, 100, 210, 0.35),
+    inset 0 0 30px rgba(0, 0, 0, 0.35);
+}
+
+.screen-blocks .blocks-cell {
+  border-radius: 1px;
+}
+
+/* Only the empty wells take the dark fill. Scoping this to cells without a
+   piece colour matters: `.screen-blocks .blocks-cell` out-specifies the
+   single-class `.piece-color-N` swatches, so without the :not() every
+   placed block gets repainted navy and the board goes blank. */
+.screen-blocks .blocks-cell:not([class*='piece-color']) {
+  background: var(--blocks-cell);
+}
+
+/* Placement feedback has to read against navy, not cream. */
+.screen-blocks .blocks-cell.preview-valid {
+  background: rgba(120, 220, 170, 0.4);
+  box-shadow: inset 0 0 0 1px rgba(150, 240, 200, 0.6);
+}
+
+.screen-blocks .blocks-cell.preview-invalid {
+  background: rgba(255, 90, 90, 0.28);
+}
+
+.screen-blocks .blocks-cell.preview-clear {
+  background: rgba(255, 214, 102, 0.45);
+  box-shadow: inset 0 0 0 2px rgba(255, 224, 140, 0.85);
+}
+
+/* Tray sits on its own slightly raised shelf, like the reference. */
+.screen-blocks .blocks-tray-slot {
+  background: var(--blocks-panel);
+  box-shadow: inset 0 1px 0 rgba(150, 175, 255, 0.22),
+    0 1px 6px rgba(0, 0, 0, 0.3);
+}
+
+/* A brighter seam and a soft bloom, so pieces glow off the dark board the
+   way they do in the reference. */
+.screen-blocks .piece-color-1,
+.screen-blocks .piece-color-2,
+.screen-blocks .piece-color-3,
+.screen-blocks .piece-color-4,
+.screen-blocks .piece-color-5,
+.screen-blocks .piece-color-6 {
+  box-shadow: inset 0 0 0 1.5px rgba(255, 255, 255, 0.9),
+    inset 0 -2px 0 rgba(0, 0, 0, 0.18);
+}
+
+.screen-blocks .blocks-banner {
+  background: rgba(13, 14, 52, 0.92);
+  color: #eef1ff;
+}
+
+/* The end-of-game card is the one piece of light UI left; it needs to
+   belong to the dark screen instead of glaring out of it. */
+.screen-blocks .blocks-gameover {
+  background: rgba(23, 29, 85, 0.95);
+  box-shadow: inset 0 0 0 1px rgba(140, 165, 245, 0.35);
+  color: #eef1ff;
+}
+
+.screen-blocks .blocks-gameover-score {
+  color: #ffd166;
+}
+
+.screen-blocks .blocks-gameover-flag.new-best {
+  color: #6ee7b7;
+}
+
+.screen-blocks .blocks-gameover-flag.family {
+  color: #ffd166;
+}

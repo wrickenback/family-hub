@@ -368,6 +368,7 @@ export function BlocksGame({ mode, uid, displayName, onBack }: BlocksGameProps) 
     <Screen
       title={mode === 'daily' ? 'Blocks · Daily' : 'Blocks'}
       onBack={onBack}
+      className="screen-blocks"
     >
       <div className="blocks-scorebar">
         <div className="blocks-score-main">
