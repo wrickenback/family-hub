@@ -352,8 +352,10 @@ export function BlocksGame({ mode, uid, displayName, onBack }: BlocksGameProps) 
   useEffect(() => {
     if (!celebration) return;
     // Bigger tiers hang around a little longer — there's more to read (the
-    // word banner) and more confetti still falling.
-    const lifetime = celebration.tier === 'single' ? 700 : 1000;
+    // word banner) and more confetti still falling. Must stay ahead of the
+    // floating score's own 1400ms animation (CSS) or it gets unmounted —
+    // and visibly cut off — mid-fade.
+    const lifetime = celebration.tier === 'single' ? 1500 : 1800;
     const t = window.setTimeout(() => setCelebration(null), lifetime);
     return () => window.clearTimeout(t);
   }, [celebration]);

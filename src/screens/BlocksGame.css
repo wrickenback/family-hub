@@ -100,16 +100,30 @@
   transform: translate(-50%, -50%);
   font-family: Poppins, system-ui, sans-serif;
   font-weight: 800;
-  font-size: 1.6rem;
+  font-size: 2.6rem;
   color: var(--gold);
-  text-shadow: 0 0 14px rgba(184, 134, 43, 0.5);
-  animation: blocksScoreFloat 700ms ease-out forwards;
+  /* A soft glow plus a dark outline (via a ring of small offset shadows) —
+     the glow alone read as blurry-thin at this size and washed out against
+     the light sand board. */
+  text-shadow: 0 0 18px rgba(184, 134, 43, 0.65), 0 1px 0 rgba(26, 20, 16, 0.5),
+    0 -1px 0 rgba(26, 20, 16, 0.5), 1px 0 0 rgba(26, 20, 16, 0.5),
+    -1px 0 0 rgba(26, 20, 16, 0.5);
+  animation: blocksScoreFloat 1400ms ease-out forwards;
 }
 
+/* Bigger tiers get a bigger number too, matching the banner text below it. */
+.tier-double .blocks-score-float { font-size: 3rem; }
+.tier-triple .blocks-score-float { font-size: 3.3rem; }
+.tier-blast .blocks-score-float { font-size: 3.6rem; }
+
 @keyframes blocksScoreFloat {
-  0% { transform: translate(-50%, -40%) scale(0.7); opacity: 0; }
-  20% { transform: translate(-50%, -55%) scale(1.15); opacity: 1; }
-  100% { transform: translate(-50%, -95%) scale(1); opacity: 0; }
+  0% { transform: translate(-50%, -35%) scale(0.6); opacity: 0; }
+  15% { transform: translate(-50%, -55%) scale(1.2); opacity: 1; }
+  30% { transform: translate(-50%, -58%) scale(1); opacity: 1; }
+  /* Holds fully visible for most of its life — the whole complaint was
+     that a quick fade made it hard to actually read. */
+  70% { opacity: 1; }
+  100% { transform: translate(-50%, -110%) scale(1); opacity: 0; }
 }
 
 .blocks-banner {
