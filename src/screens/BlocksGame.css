@@ -51,11 +51,75 @@
   100% { transform: scale(1); }
 }
 
+/* ---------- clear celebration: confetti, floating score, banner ---------- */
+
+.blocks-celebration {
+  position: absolute;
+  inset: 0;
+  z-index: 38;
+  pointer-events: none;
+}
+
+.blocks-confetti {
+  position: absolute;
+  inset: 0;
+  overflow: visible;
+}
+
+.blocks-confetti-piece {
+  position: absolute;
+  top: 44%;
+  left: 50%;
+  width: 8px;
+  height: 8px;
+  margin: -4px 0 0 -4px;
+  border-radius: 2px;
+  opacity: 0;
+  animation-name: blocksConfettiBurst;
+  animation-timing-function: ease-out;
+  animation-fill-mode: forwards;
+}
+
+@keyframes blocksConfettiBurst {
+  0% {
+    opacity: 1;
+    transform: translate(0, 0) rotate(0deg) scale(0.6);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(var(--dx), var(--dy)) rotate(var(--rot)) scale(1);
+  }
+}
+
+/* The floating "+N" — the single biggest missing piece of feedback: every
+   clear now visibly pays out, not just the scorebar ticking up behind it. */
+.blocks-score-float {
+  position: absolute;
+  top: 38%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-family: Poppins, system-ui, sans-serif;
+  font-weight: 800;
+  font-size: 1.6rem;
+  color: var(--gold);
+  text-shadow: 0 0 14px rgba(184, 134, 43, 0.5);
+  animation: blocksScoreFloat 700ms ease-out forwards;
+}
+
+@keyframes blocksScoreFloat {
+  0% { transform: translate(-50%, -40%) scale(0.7); opacity: 0; }
+  20% { transform: translate(-50%, -55%) scale(1.15); opacity: 1; }
+  100% { transform: translate(-50%, -95%) scale(1); opacity: 0; }
+}
+
 .blocks-banner {
   position: absolute;
-  top: 50%;
+  top: 56%;
   left: 50%;
   z-index: 40;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
   padding: 0.6rem 1.25rem;
   transform: translate(-50%, -50%);
   background: rgba(26, 20, 16, 0.82);
@@ -67,14 +131,42 @@
   white-space: nowrap;
   border-radius: var(--radius-pill);
   pointer-events: none;
-  animation: bannerPop 900ms ease-out forwards;
+  animation: bannerPop 1000ms ease-out forwards;
+}
+
+/* Bigger tiers get louder text and their own colour, layered over the same
+   pop animation — a triple/blast should read as visibly more than a
+   double, not just a different word. */
+.blocks-banner.tier-triple {
+  font-size: 1.25rem;
+  background: rgba(184, 134, 43, 0.92);
+}
+
+.blocks-banner.tier-blast {
+  font-size: 1.4rem;
+  background: linear-gradient(135deg, var(--rust) 0%, var(--gold) 100%);
+}
+
+.blocks-banner-sparkle {
+  font-size: 0.8em;
+  opacity: 0.85;
+  animation: blocksSparkleTwinkle 700ms ease-in-out infinite;
+}
+
+.blocks-banner-sparkle:last-child {
+  animation-delay: 200ms;
+}
+
+@keyframes blocksSparkleTwinkle {
+  0%, 100% { opacity: 0.5; transform: scale(0.85); }
+  50% { opacity: 1; transform: scale(1.15); }
 }
 
 @keyframes bannerPop {
   0% { transform: translate(-50%, -50%) scale(0.6); opacity: 0; }
   15% { transform: translate(-50%, -50%) scale(1.1); opacity: 1; }
   30% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
-  75% { opacity: 1; }
+  80% { opacity: 1; }
   100% { transform: translate(-50%, -60%) scale(1); opacity: 0; }
 }
 
@@ -97,8 +189,24 @@
   padding: 6px;
   background: var(--sand-200);
   border-radius: var(--radius-md);
-  box-shadow: var(--shadow-card);
+  /* Named so combo-active can layer an animated glow on top of whichever
+     shadow this context actually uses (this one, or the dark reskin's)
+     without the keyframe having to know or replicate it. */
+  --board-shadow: var(--shadow-card);
+  box-shadow: var(--board-shadow);
   touch-action: none;
+}
+
+/* A brief coloured glow around the whole board on every clear — the tier's
+   colour comes in via --combo-color, set inline per celebration. */
+.blocks-board.combo-active {
+  animation: blocksComboGlow 420ms ease-out;
+}
+
+@keyframes blocksComboGlow {
+  0% { box-shadow: var(--board-shadow), 0 0 0 0 var(--combo-color, transparent); }
+  35% { box-shadow: var(--board-shadow), 0 0 28px 8px var(--combo-color, transparent); }
+  100% { box-shadow: var(--board-shadow), 0 0 0 0 var(--combo-color, transparent); }
 }
 
 .blocks-cell {
@@ -321,8 +429,13 @@
   background: rgba(95, 122, 214, 0.4);
   border: 1.5px solid rgba(140, 165, 245, 0.85);
   border-radius: 6px;
-  box-shadow: 0 0 26px rgba(70, 100, 210, 0.35),
+  /* Set the shared custom property rather than box-shadow directly, so
+     combo-active's animated glow layers on top of *this* shadow instead of
+     the light board's — otherwise every clear would flash back to the
+     cream board's shadow value mid-animation. */
+  --board-shadow: 0 0 26px rgba(70, 100, 210, 0.35),
     inset 0 0 30px rgba(0, 0, 0, 0.35);
+  box-shadow: var(--board-shadow);
 }
 
 .screen-blocks .blocks-cell {

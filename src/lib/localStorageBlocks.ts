@@ -5,6 +5,10 @@ export interface BlocksProgress {
   tray: Array<{ shape: Shape; color: number } | null>;
   score: number;
   streak: number;
+  /** Tray refills remaining before the next guaranteed mercy piece.
+   * Optional: older saved games predate this field, and a resumed game
+   * without one just gets a fresh countdown rather than failing to load. */
+  mercyCountdown?: number;
 }
 
 const STORAGE_KEY = 'familyhub:blocks:progress';
@@ -74,11 +78,19 @@ export function loadBlocksProgress(): BlocksProgress | null {
       return null;
     }
 
+    // mercyCountdown is additive and optional — a bad or missing value just
+    // means "pick a fresh one", not "discard this whole save".
+    const mercyCountdown =
+      typeof progress.mercyCountdown === 'number' && progress.mercyCountdown >= 0
+        ? progress.mercyCountdown
+        : undefined;
+
     return {
       board: progress.board as Board,
       tray: progress.tray as Array<{ shape: Shape; color: number } | null>,
       score: progress.score as number,
       streak: progress.streak as number,
+      mercyCountdown,
     };
   } catch {
     // JSON parse failed, storage unavailable, or validation error

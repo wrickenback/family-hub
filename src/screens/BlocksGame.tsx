@@ -4,6 +4,7 @@ import { Screen } from '../components/Screen';
 import {
   BOARD_SIZE,
   PIECE_COLORS,
+  bestClearingShape,
   canPlace,
   cellPoints,
   clearLines,
@@ -13,6 +14,7 @@ import {
   isGameOver,
   lineClearScore,
   mulberry32,
+  pickMercyThreshold,
   placePiece,
   seedFromDateKey,
   shapeBounds,
@@ -70,9 +72,19 @@ function randomColor(): number {
   return 1 + Math.floor(Math.random() * PIECE_COLORS);
 }
 
-// A plain single-line clear with no streak yet doesn't get a banner — the
-// flash and score bump already say "you did it"; reserving text for
-// doubles/triples/streaks keeps it meaning something when it shows up.
+type ComboTier = 'single' | 'double' | 'triple' | 'blast';
+
+function comboTier(linesCleared: number): ComboTier {
+  if (linesCleared >= 4) return 'blast';
+  if (linesCleared === 3) return 'triple';
+  if (linesCleared === 2) return 'double';
+  return 'single';
+}
+
+// A plain single-line clear with no streak yet doesn't get word-banner
+// text — the floating score, sparkle and flash already say "you did it";
+// reserving text for doubles/triples/streaks keeps it meaning something
+// when it shows up.
 function comboLabel(linesCleared: number, streak: number): string | null {
   const base =
     linesCleared >= 4
@@ -87,6 +99,29 @@ function comboLabel(linesCleared: number, streak: number): string | null {
   }
   return streak >= 3 ? `×${streak} STREAK` : null;
 }
+
+// Confetti volume and glow colour scale with the tier, so a blast reads as
+// distinctly bigger than a single rather than just louder text.
+const TIER_CONFETTI: Record<ComboTier, number> = {
+  single: 8,
+  double: 16,
+  triple: 24,
+  blast: 32,
+};
+
+const TIER_GLOW: Record<ComboTier, string> = {
+  single: '#ffffff',
+  double: '#4fd1c5',
+  triple: '#ffd166',
+  blast: '#ff8a5c',
+};
+
+const TIER_VIBRATION: Record<ComboTier, number | number[]> = {
+  single: 25,
+  double: [30, 40, 30],
+  triple: [30, 40, 30, 40, 30],
+  blast: [40, 50, 40, 50, 40, 50, 40],
+};
 
 export function BlocksGame({ mode, uid, displayName, onBack }: BlocksGameProps) {
   const dateKey = useMemo(() => todayKey(), []);
@@ -103,8 +138,17 @@ export function BlocksGame({ mode, uid, displayName, onBack }: BlocksGameProps) 
   const [scoreSaved, setScoreSaved] = useState(false);
   const [drag, setDrag] = useState<DragState | null>(null);
   const [clearingLines, setClearingLines] = useState<ClearingLines | null>(null);
-  const [banner, setBanner] = useState<{ id: number; text: string } | null>(null);
+  const [celebration, setCelebration] = useState<{
+    id: number;
+    text: string | null;
+    tier: ComboTier;
+    points: number;
+  } | null>(null);
   const [scoreBump, setScoreBump] = useState(0);
+  // Tray refills remaining before the next guaranteed mercy piece. Ticks
+  // down in finishTurn; reset to a fresh pickMercyThreshold() whenever one
+  // is actually delivered (see finishTurn for why "delivered" matters).
+  const mercyCountdownRef = useRef(10);
 
   const boardRef = useRef<HTMLDivElement>(null);
 
@@ -132,12 +176,15 @@ export function BlocksGame({ mode, uid, displayName, onBack }: BlocksGameProps) 
       });
       setTray(restoredTray);
       setBest(progress.score); // Start "this session" best at the resumed score
+      mercyCountdownRef.current =
+        progress.mercyCountdown ?? pickMercyThreshold(rngRef.current);
     } else {
       // Initialize a new game
       const initialBoard = emptyBoard();
       const pieces = drawPieces(initialBoard, rngRef.current, true);
       setBoard(initialBoard);
       setTray(pieces.map(makeSlot));
+      mercyCountdownRef.current = pickMercyThreshold(rngRef.current);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -199,8 +246,20 @@ export function BlocksGame({ mode, uid, displayName, onBack }: BlocksGameProps) 
   ) => {
     let nextTray = trayAfterUse;
     if (nextTray.every((slot) => slot === null)) {
-      const pieces = drawPieces(newBoard, rngRef.current);
+      // Eligibility has to be resolved here rather than inside drawPieces:
+      // the countdown only resets on a *successful* delivery, and knowing
+      // whether one happened requires the same "is there anything to
+      // clear" check the caller is doing anyway. The piece itself is never
+      // marked or called out anywhere from here on — it's just a normal
+      // draw that happens to contain the right shape. Nothing stops the
+      // player from using it badly and losing anyway.
+      const opportunity = bestClearingShape(newBoard);
+      const eligible = mercyCountdownRef.current <= 0 && !!opportunity?.clears;
+      const pieces = drawPieces(newBoard, rngRef.current, false, eligible);
       nextTray = pieces.map(makeSlot);
+      mercyCountdownRef.current = eligible
+        ? pickMercyThreshold(rngRef.current)
+        : Math.max(0, mercyCountdownRef.current - 1);
     }
     setBoard(newBoard);
     setTray(nextTray);
@@ -223,6 +282,7 @@ export function BlocksGame({ mode, uid, displayName, onBack }: BlocksGameProps) 
       ),
       score,
       streak,
+      mercyCountdown: mercyCountdownRef.current,
     });
   }, [board, tray, score, streak, gameOver]);
 
@@ -268,10 +328,19 @@ export function BlocksGame({ mode, uid, displayName, onBack }: BlocksGameProps) 
     setScoreBump((b) => b + 1);
     setBoard(placed); // show the completed lines briefly before they vanish
     setClearingLines({ rows: new Set(rows), cols: new Set(cols) });
-    const label = comboLabel(linesCleared, nextStreak);
-    if (label) setBanner({ id: Date.now(), text: label });
+    // Every clear celebrates — a floating "+N" and a burst of confetti in
+    // the piece palette. Doubles and up add word-banner text on top; the
+    // confetti volume and glow colour also scale with the tier, so a blast
+    // reads as distinctly bigger than a single rather than just louder.
+    const tier = comboTier(linesCleared);
+    setCelebration({
+      id: Date.now(),
+      text: comboLabel(linesCleared, nextStreak),
+      tier,
+      points: gained,
+    });
     if (typeof navigator.vibrate === 'function') {
-      navigator.vibrate(linesCleared >= 2 ? [30, 40, 30] : 25);
+      navigator.vibrate(TIER_VIBRATION[tier]);
     }
 
     window.setTimeout(() => {
@@ -281,10 +350,13 @@ export function BlocksGame({ mode, uid, displayName, onBack }: BlocksGameProps) 
   };
 
   useEffect(() => {
-    if (!banner) return;
-    const t = window.setTimeout(() => setBanner(null), 900);
+    if (!celebration) return;
+    // Bigger tiers hang around a little longer — there's more to read (the
+    // word banner) and more confetti still falling.
+    const lifetime = celebration.tier === 'single' ? 700 : 1000;
+    const t = window.setTimeout(() => setCelebration(null), lifetime);
     return () => window.clearTimeout(t);
-  }, [banner]);
+  }, [celebration]);
 
   useEffect(() => {
     if (score > best) setBest(score);
@@ -327,7 +399,8 @@ export function BlocksGame({ mode, uid, displayName, onBack }: BlocksGameProps) 
     setGameOver(false);
     setScoreSaved(false);
     setClearingLines(null);
-    setBanner(null);
+    setCelebration(null);
+    mercyCountdownRef.current = pickMercyThreshold(rngRef.current);
   };
 
   const ghost = drag ? anchorFor(drag.shape, drag.clientX, drag.clientY) : null;
@@ -384,7 +457,15 @@ export function BlocksGame({ mode, uid, displayName, onBack }: BlocksGameProps) 
       </div>
 
       <div className="blocks-board-wrap">
-        <div className="blocks-board" ref={boardRef}>
+        <div
+          className={`blocks-board ${clearingLines ? 'combo-active' : ''}`}
+          ref={boardRef}
+          style={
+            celebration
+              ? ({ '--combo-color': TIER_GLOW[celebration.tier] } as React.CSSProperties)
+              : undefined
+          }
+        >
           {board.map((row, r) =>
             row.map((cell, c) => {
               const key = `${r}-${c}`;
@@ -407,10 +488,8 @@ export function BlocksGame({ mode, uid, displayName, onBack }: BlocksGameProps) 
           )}
         </div>
 
-        {banner && (
-          <div key={banner.id} className="blocks-banner">
-            {banner.text}
-          </div>
+        {celebration && (
+          <BlocksCelebration key={celebration.id} celebration={celebration} />
         )}
 
         {drag && ghost && (
@@ -481,6 +560,72 @@ export function BlocksGame({ mode, uid, displayName, onBack }: BlocksGameProps) 
         </div>
       )}
     </Screen>
+  );
+}
+
+/** The full clear celebration: a burst of confetti in the piece palette, a
+ * floating "+N" score readout, and — doubles and up — sparkle-flanked word
+ * banner text. Everything here is purely decorative (aria-hidden), keyed by
+ * the caller so a fresh instance (and a fresh random burst) mounts every
+ * time, even for the same tier back to back. */
+function BlocksCelebration({
+  celebration,
+}: {
+  celebration: { text: string | null; tier: ComboTier; points: number };
+}) {
+  const { tier, text, points } = celebration;
+  const count = TIER_CONFETTI[tier];
+  const spread = tier === 'single' ? 55 : tier === 'double' ? 85 : 115;
+
+  const pieces = useMemo(
+    () =>
+      Array.from({ length: count }, (_, i) => {
+        const angle = Math.random() * Math.PI * 2;
+        const distance = spread * (0.5 + Math.random() * 0.5);
+        return {
+          id: i,
+          dx: Math.round(Math.cos(angle) * distance),
+          // Biased upward — a burst that only falls reads as confetti
+          // raining down; this one pops outward like it's celebrating.
+          dy: Math.round(Math.sin(angle) * distance - 20),
+          rot: Math.round(Math.random() * 360),
+          delay: Math.random() * 0.1,
+          duration: 0.55 + Math.random() * 0.3,
+          color: 1 + Math.floor(Math.random() * PIECE_COLORS),
+        };
+      }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    []
+  );
+
+  return (
+    <div className={`blocks-celebration tier-${tier}`} aria-hidden="true">
+      <div className="blocks-confetti">
+        {pieces.map((p) => (
+          <span
+            key={p.id}
+            className={`blocks-confetti-piece piece-color-${p.color}`}
+            style={
+              {
+                animationDelay: `${p.delay}s`,
+                animationDuration: `${p.duration}s`,
+                '--dx': `${p.dx}px`,
+                '--dy': `${p.dy}px`,
+                '--rot': `${p.rot}deg`,
+              } as React.CSSProperties
+            }
+          />
+        ))}
+      </div>
+      <div className="blocks-score-float">+{points}</div>
+      {text && (
+        <div className={`blocks-banner tier-${tier}`}>
+          <span className="blocks-banner-sparkle">✦</span>
+          {text}
+          <span className="blocks-banner-sparkle">✦</span>
+        </div>
+      )}
+    </div>
   );
 }
 

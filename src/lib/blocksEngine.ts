@@ -284,7 +284,12 @@ function bestClearForShape(board: Board, shape: Shape): number {
   return best;
 }
 
-function bestClearingShape(board: Board): { shape: Shape; clears: number } | null {
+/** The single shape (of everything in SHAPES) that clears the most lines
+ * with one optimal placement on the current board, and how many — the
+ * biggest opportunity the board currently has to offer. Exported so the
+ * screen can check eligibility for a guaranteed "mercy" draw without
+ * duplicating this search. */
+export function bestClearingShape(board: Board): { shape: Shape; clears: number } | null {
   let best: Shape | null = null;
   let bestClears = 0;
   for (const shape of SHAPES) {
@@ -305,6 +310,16 @@ function bestClearingShape(board: Board): { shape: Shape; clears: number } | nul
 // noticeably does this, though how it does isn't publicly documented).
 const MOMENTUM_CHANCE = 0.7;
 
+/** How many tray refills between a *guaranteed* delivery of whichever piece
+ * clears the most lines the board currently has on offer — "mercy" rather
+ * than momentum's 70% chance. A fresh integer in [10, 15] each time one is
+ * delivered, so the cadence doesn't read as a metronome. Seeded from the
+ * caller's rng so daily mode stays reproducible across every family
+ * member's device. */
+export function pickMercyThreshold(rng: () => number): number {
+  return 10 + Math.floor(rng() * 6); // 10..15 inclusive
+}
+
 /** Draws 3 pieces. Retries a few times if the draw is an instant dead end,
  * then falls back to swapping in whichever single shape currently fits in
  * the most board positions — real dead ends only happen when nothing does.
@@ -314,11 +329,18 @@ const MOMENTUM_CHANCE = 0.7;
  * After the fairness pass, also checks whether the board has a line that's
  * ready to complete and, if none of the 3 drawn pieces could cash it in,
  * swaps one in most of the time — "momentum": a run of small early wins
- * that build on each other, rather than lines only clearing by accident. */
+ * that build on each other, rather than lines only clearing by accident.
+ *
+ * `forceMaxClear` escalates that from "usually" to "guaranteed", and from
+ * "a" clear to specifically the biggest one currently available — this is
+ * the mercy draw. The caller decides eligibility (there has to actually be
+ * something to clear) and passes it in already resolved, since it needs
+ * the same check to know whether to reset its own countdown. */
 export function drawPieces(
   board: Board,
   rng: () => number,
-  easyStart = false
+  easyStart = false,
+  forceMaxClear = false
 ): Shape[] {
   let draw: Shape[];
 
@@ -349,10 +371,17 @@ export function drawPieces(
 
   const opportunity = bestClearingShape(board);
   if (opportunity && opportunity.clears > 0) {
-    const alreadyCovered = draw.some(
-      (s) => bestClearForShape(board, s) > 0
-    );
-    if (!alreadyCovered && rng() < MOMENTUM_CHANCE) {
+    // Momentum only asks "can *something* in the draw cash in on *any*
+    // clear" — mercy specifically wants the biggest one on offer, so it
+    // checks whether that exact shape made it in, not just any clearer.
+    const hasTheBestShape = draw.some((s) => s.id === opportunity.shape.id);
+    const alreadyCovered = draw.some((s) => bestClearForShape(board, s) > 0);
+
+    const shouldInject =
+      (forceMaxClear && !hasTheBestShape) ||
+      (!forceMaxClear && !alreadyCovered && rng() < MOMENTUM_CHANCE);
+
+    if (shouldInject) {
       // Replace whichever drawn piece currently fits in the fewest spots —
       // the piece the player would find least useful anyway.
       let worstIndex = 0;
