@@ -55,10 +55,14 @@ function neighbors(r: number, c: number, size: number): [number, number][] {
 }
 
 /** Grows one region per solution cell by random flood-fill until every
- * cell is claimed, giving the irregular blob shapes the game is known for. */
+ * cell is claimed, giving the irregular blob shapes the game is known for.
+ * `freebieRegion`, when given, never grows past its single seed cell — a
+ * one-cell region is its own solved cat with no deduction needed, a common
+ * easy "starter" clue in these puzzles and a good on-ramp for new solvers. */
 function growRegions(
   size: number,
-  solution: { r: number; c: number }[]
+  solution: { r: number; c: number }[],
+  freebieRegion?: number
 ): number[][] {
   const regions: number[][] = Array.from({ length: size }, () =>
     new Array(size).fill(-1)
@@ -73,6 +77,7 @@ function growRegions(
     let progressed = false;
     for (let region = 0; region < size; region++) {
       if (remaining === 0) break;
+      if (region === freebieRegion) continue;
       const options = shuffled(
         frontier[region].flatMap(([r, c]) =>
           neighbors(r, c, size).filter(([nr, nc]) => regions[nr][nc] === -1)
@@ -86,20 +91,30 @@ function growRegions(
       progressed = true;
     }
     if (!progressed) {
-      // Every region is boxed in by claimed cells belonging to others —
-      // hand any leftover cell to whichever neighboring region can reach it.
-      outer: for (let r = 0; r < size; r++) {
-        for (let c = 0; c < size; c++) {
-          if (regions[r][c] !== -1) continue;
-          for (const [nr, nc] of neighbors(r, c, size)) {
-            if (regions[nr][nc] !== -1) {
-              regions[r][c] = regions[nr][nc];
-              frontier[regions[nr][nc]] = [...frontier[regions[nr][nc]], [r, c]];
+      // Every growable region is boxed in — hand one leftover cell to
+      // whichever neighboring region can reach it, preferring anyone but
+      // the freebie region so its one-cell guarantee survives. Only if an
+      // orphan cell's sole claimed neighbor IS the freebie region (it has
+      // nowhere else to go) does it fall back to breaking that guarantee —
+      // rare, and better than looping forever.
+      let assigned = false;
+      for (const allowFreebie of [false, true]) {
+        outer: for (let r = 0; r < size; r++) {
+          for (let c = 0; c < size; c++) {
+            if (regions[r][c] !== -1) continue;
+            for (const [nr, nc] of neighbors(r, c, size)) {
+              const owner = regions[nr][nc];
+              if (owner === -1) continue;
+              if (owner === freebieRegion && !allowFreebie) continue;
+              regions[r][c] = owner;
+              frontier[owner] = [...frontier[owner], [r, c]];
               remaining--;
+              assigned = true;
               break outer;
             }
           }
         }
+        if (assigned) break;
       }
     }
   }
@@ -148,11 +163,12 @@ function countSolutions(
 }
 
 export function generateCatQueensPuzzle(size: number): CatQueensPuzzle {
+  const freebieRegion = Math.floor(Math.random() * size);
   for (let attempt = 0; attempt < 80; attempt++) {
     const cols = generateSolution(size);
     if (!cols) continue;
     const solution = cols.map((c, r) => ({ r, c }));
-    const regions = growRegions(size, solution);
+    const regions = growRegions(size, solution, freebieRegion);
     if (countSolutions(size, regions, 2) === 1) {
       return { size, regions, solution };
     }
@@ -161,7 +177,7 @@ export function generateCatQueensPuzzle(size: number): CatQueensPuzzle {
   // a non-unique puzzle is still playable, just less elegant.
   const cols = generateSolution(size)!;
   const solution = cols.map((c, r) => ({ r, c }));
-  const regions = growRegions(size, solution);
+  const regions = growRegions(size, solution, freebieRegion);
   return { size, regions, solution };
 }
 
