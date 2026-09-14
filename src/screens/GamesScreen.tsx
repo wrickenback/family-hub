@@ -14,7 +14,7 @@ import './Games.css';
 interface GamesScreenProps {
   userRole: Role | null;
   onBack: () => void;
-  onOpenGame: (gameId: string) => void;
+  onOpenGame: (gameId: string, modeId?: string) => void;
   onOpenScores: () => void;
 }
 
@@ -53,12 +53,14 @@ export function GamesScreen({
         title="Solo play"
         icon={<IconSolo aria-hidden="true" />}
         games={solo}
+        section="solo"
         onOpenGame={onOpenGame}
       />
       <GameSection
         title="Two players"
         icon={<IconMulti aria-hidden="true" />}
         games={multi}
+        section="multi"
         onOpenGame={onOpenGame}
       />
     </Screen>
@@ -69,10 +71,11 @@ interface GameSectionProps {
   title: string;
   icon: ReactNode;
   games: GameApp[];
-  onOpenGame: (gameId: string) => void;
+  section: 'solo' | 'multi';
+  onOpenGame: (gameId: string, modeId?: string) => void;
 }
 
-function GameSection({ title, icon, games, onOpenGame }: GameSectionProps) {
+function GameSection({ title, icon, games, section, onOpenGame }: GameSectionProps) {
   if (games.length === 0) return null;
 
   return (
@@ -87,11 +90,17 @@ function GameSection({ title, icon, games, onOpenGame }: GameSectionProps) {
       <ul className="game-grid">
         {games.map((game) => {
           const top = game.built ? getTopScore(game.id, game.scoring) : undefined;
+          // For a game shown under both sections, land on the mode tab
+          // matching whichever section was tapped rather than always the
+          // first mode.
+          const sectionModeId = game.modes?.find(
+            (m) => m.players === section
+          )?.id;
           return (
             <li key={game.id}>
               <button
                 className={`game-card ${!game.built ? 'coming-soon' : ''}`}
-                onClick={() => onOpenGame(game.id)}
+                onClick={() => onOpenGame(game.id, sectionModeId)}
               >
                 <span className="game-icon">
                   <game.icon aria-hidden="true" />

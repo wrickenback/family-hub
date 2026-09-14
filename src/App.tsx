@@ -260,7 +260,9 @@ export function App() {
           <GamesScreen
             userRole={userRole}
             onBack={back}
-            onOpenGame={(gameId) => navigate({ screen: 'game', gameId })}
+            onOpenGame={(gameId, modeId) =>
+              navigate({ screen: 'game', gameId, modeId })
+            }
             onOpenScores={() => navigate({ screen: 'scores' })}
           />
         )}

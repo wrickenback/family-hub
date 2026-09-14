@@ -44,6 +44,10 @@ export interface GameMode {
   id: string;
   name: string;
   blurb: string;
+  /** For a game listed under both Solo and Two players (PlayerMode 'both'),
+   * tags which section this mode belongs to — lets the games list land on
+   * the matching mode tab depending on which section was tapped. */
+  players?: 'solo' | 'multi';
 }
 
 export interface GameApp {
