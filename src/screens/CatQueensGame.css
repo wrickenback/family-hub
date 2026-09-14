@@ -75,6 +75,9 @@
   overflow: hidden;
   cursor: pointer;
   transition: transform 0.08s ease;
+  /* Lets .cq-x below size itself off this cell's own box (cqw), so the
+     mark scales with the cell regardless of board size (6x6 vs 9x9). */
+  container-type: inline-size;
 }
 
 .cq-cell:active {
@@ -85,10 +88,18 @@
   box-shadow: inset 0 0 0 3px #c0392b;
 }
 
+/* The cat face should mostly fill the cell rather than sit small in the
+   middle — override whatever pixel size CatFace was rendered at. */
+.cq-cell svg {
+  width: 86%;
+  height: 86%;
+}
+
 .cq-x {
-  font-size: clamp(0.9rem, 4.5vw, 1.4rem);
+  font-size: 68cqw;
   font-weight: 700;
-  color: rgba(0, 0, 0, 0.35);
+  line-height: 1;
+  color: rgba(0, 0, 0, 0.4);
 }
 
 .cq-actions {
