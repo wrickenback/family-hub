@@ -274,3 +274,8 @@
   font-weight: 600;
   color: var(--text-muted);
 }
+
+.wordle-source-badge {
+  align-self: center;
+  margin-bottom: 0.15rem;
+}

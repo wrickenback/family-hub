@@ -18,7 +18,7 @@ export interface DailyWord {
   word: string;
   /** Whoever opened the game first today and so triggered the pick. */
   pickedByName: string | null;
-  source: 'ai' | 'fallback';
+  source: 'gemini' | 'haiku' | 'fallback';
 }
 
 /** Today's family word. The answer is never readable from Firestore
@@ -40,22 +40,31 @@ export async function fetchDailyWord(dateKey: string): Promise<DailyWord> {
   }
 }
 
-/** A batch of free-play answers from Gemini. Returns [] rather than
- * throwing when the model can't deliver — free play must always be
- * playable, so the caller falls back to the bundled list instead of showing
- * the player an error for something they didn't do. */
-export async function fetchFreePlayWords(): Promise<string[]> {
-  if (!functions) return [];
+export interface FreePlayWords {
+  words: string[];
+  source: 'gemini' | 'haiku' | 'fallback';
+}
+
+/** A batch of free-play answers. Returns an empty list (never throws) when
+ * no provider can deliver — free play must always be playable, so the
+ * caller falls back to the bundled list instead of showing the player an
+ * error for something they didn't do. */
+export async function fetchFreePlayWords(): Promise<FreePlayWords> {
+  if (!functions) return { words: [], source: 'fallback' };
   try {
     const call = httpsCallable(functions, 'getWordleWords');
     const result = await call({});
-    const words = (result.data as { words?: unknown }).words;
-    if (!Array.isArray(words)) return [];
-    return words.filter(
-      (w): w is string => typeof w === 'string' && /^[A-Z]{5}$/.test(w)
-    );
+    const data = result.data as { words?: unknown; source?: unknown };
+    const words = Array.isArray(data.words)
+      ? data.words.filter(
+          (w): w is string => typeof w === 'string' && /^[A-Z]{5}$/.test(w)
+        )
+      : [];
+    const source =
+      data.source === 'gemini' || data.source === 'haiku' ? data.source : 'fallback';
+    return { words, source: words.length > 0 ? source : 'fallback' };
   } catch {
-    return [];
+    return { words: [], source: 'fallback' };
   }
 }
 

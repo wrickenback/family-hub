@@ -1,0 +1,129 @@
+.cq-collection-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  background: rgba(26, 20, 16, 0.45);
+  animation: cq-overlay-in 0.15s ease-out;
+}
+
+@keyframes cq-overlay-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.cq-collection-sheet {
+  width: 100%;
+  max-width: 34rem;
+  max-height: 85vh;
+  overflow-y: auto;
+  background: var(--bg-surface);
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  padding: 1rem 1.25rem calc(1.5rem + var(--safe-bottom));
+  animation: cq-sheet-in 0.2s ease-out;
+}
+
+@media (min-width: 640px) {
+  .cq-collection-overlay {
+    align-items: center;
+  }
+  .cq-collection-sheet {
+    border-radius: var(--radius-lg);
+    max-height: 80vh;
+  }
+}
+
+@keyframes cq-sheet-in {
+  from { transform: translateY(12px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+.cq-collection-head {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-bottom: 0.85rem;
+}
+
+.cq-collection-back {
+  width: 36px;
+  height: 36px;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-pill);
+  background: var(--sand-100);
+  flex-shrink: 0;
+}
+
+.cq-collection-head h3 {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  font-size: 1.1rem;
+}
+
+.cq-collection-count {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.cq-collection-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(4.6rem, 1fr));
+  gap: 0.75rem;
+  list-style: none;
+}
+
+.cq-collection-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3rem;
+  text-align: center;
+}
+
+.cq-collection-face {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 3.4rem;
+  height: 3.4rem;
+  border-radius: 50%;
+  background: var(--sand-100);
+}
+
+.cq-collection-item.locked .cq-collection-face {
+  background: var(--sand-100);
+  opacity: 0.6;
+}
+
+.cq-collection-mystery {
+  font-family: Poppins, system-ui, sans-serif;
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: var(--sand-300);
+}
+
+.cq-collection-name {
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  line-height: 1.2;
+}
+
+.cq-collection-item.locked .cq-collection-name {
+  color: var(--text-muted);
+}
+
+.cq-collection-note {
+  margin-top: 1rem;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  text-align: center;
+  line-height: 1.4;
+}

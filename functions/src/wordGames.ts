@@ -2,6 +2,7 @@ import {
   CONTENT_RATING,
   firstJson,
   generate,
+  type Generated,
   type ModelProvider,
 } from './providers';
 
@@ -153,9 +154,17 @@ export function fallbackDailyWord(dateKey: string): string {
   return pickSeeded(FALLBACK_DAILY, hash);
 }
 
-export function fallbackHangmanWord(category: string): HangmanWord {
+export function fallbackHangmanWord(
+  category: string,
+  avoid: string[] = []
+): HangmanWord {
   const pool = FALLBACK_HANGMAN[category] ?? FALLBACK_HANGMAN.anything;
-  return pickSeeded(pool, Math.floor(Math.random() * 1e6));
+  const avoidSet = new Set(avoid.map((word) => word.toUpperCase()));
+  // Same reasoning as the AI generators: skip anything just played so a
+  // provider outage doesn't turn into its own kind of repetition.
+  // Falls back to the full pool if avoiding would leave nothing to pick.
+  const usable = pool.filter((entry) => !avoidSet.has(entry.word));
+  return pickSeeded(usable.length > 0 ? usable : pool, Math.floor(Math.random() * 1e6));
 }
 
 // ------------------------------------------------------- word search topics
@@ -172,7 +181,7 @@ export const MIN_TOPIC_WORDS = 4;
 export async function generateTopicWords(
   providers: ModelProvider[],
   topic: string
-): Promise<string[]> {
+): Promise<Generated<string[]>> {
   // Ask for more than we need: some fraction always gets filtered out below
   // (too long once joined, duplicates, non-letter tokens), and topics whose
   // natural vocabulary skews toward long compound names (ride/place names,
@@ -205,7 +214,7 @@ export async function generateWordleWords(
   providers: ModelProvider[],
   recentWords: string[],
   count = 10
-): Promise<string[]> {
+): Promise<Generated<string[]>> {
   const avoid = recentWords.length
     ? `\n- Do NOT use any of these recently used words: ${recentWords.join(', ')}.`
     : '';
@@ -240,22 +249,49 @@ ${CONTENT_RATING}${avoid}
 
 // ---------------------------------------------------------------- hangman
 
+// A clue that just restates the word in other words is a dead giveaway —
+// "A frozen treat in a cone" for ICE CREAM barely counts as a puzzle. Both
+// hangman prompts below share this instruction block so the two can't drift
+// to different standards of "vague enough," anchored with worked examples
+// since "be vague" alone is a weak instruction on its own.
+const VAGUE_CLUE_RULES = `- The clue must be genuinely tricky, not a dictionary definition — a player should have to think sideways, not just recognize a paraphrase.
+- Do not describe what the word obviously IS or DOES. Hint at it indirectly instead — a feeling, a scene, a fact, wordplay, or a riddle.
+- Avoid close synonyms of the word or of its own category.
+- Example: for PLATYPUS, "An egg-laying mammal with a duck bill" is too direct — prefer something like "Nature's idea of a practical joke."
+- Example: for ICE CREAM, "A frozen treat you eat in a cone" is too direct — prefer something like "Gone in five minutes on a hot afternoon."`;
+
 /** One hangman word plus a clue. The clue is what makes a solo round
  * winnable — without it a 9-letter word off a category as broad as
- * "anything" is close to unguessable in six wrong letters. */
+ * "anything" is close to unguessable in six wrong letters.
+ *
+ * `avoid` is the last several words this player has already seen in this
+ * category. Without it, both providers reliably converge on the same
+ * "quirky but recognizable" answer for a narrow category — ask for Animals
+ * enough times and PLATYPUS comes back again and again, because it's
+ * sitting on the same high-probability token regardless of provider or
+ * nominal randomness. An avoid list is the only thing that reliably breaks
+ * that — asking the model to just "pick something different" doesn't,
+ * because it has no memory of what it said last time without being told. */
 export async function generateHangmanWord(
   providers: ModelProvider[],
-  categoryLabel: string
-): Promise<HangmanWord | null> {
+  categoryLabel: string,
+  avoid: string[] = []
+): Promise<Generated<HangmanWord | null>> {
+  const avoidLine = avoid.length
+    ? `\n- Do NOT pick any of these — they've all been used recently: ${avoid.join(', ')}.`
+    : '';
+
   const prompt = `Pick one word for a hangman game about "${categoryLabel}", for a family app.
 Rules:
 - If the category itself is clearly inappropriate, respond with exactly: {}
 - The word must be a single word, letters A-Z only, between 5 and 10 letters.
-- Common enough that a 13-year-old would know it, but not the most obvious choice.
+- Common enough that a 13-year-old would know it, but not the single most obvious pick for the category.${avoidLine}
 ${CONTENT_RATING}
 - Also give a short playful clue of at most 8 words that does NOT contain the word itself or any part of it.
+${VAGUE_CLUE_RULES}
 - Respond with ONLY JSON: {"word":"EXAMPLE","hint":"a short clue"}`;
 
+  const avoidSet = new Set(avoid.map((word) => word.toUpperCase()));
   return generate<HangmanWord | null>(
     'generateHangmanWord',
     providers,
@@ -271,6 +307,10 @@ ${CONTENT_RATING}
       }
       const word = String(parsed.word ?? '').trim().toUpperCase();
       if (!/^[A-Z]{5,10}$/.test(word)) return null;
+      // The model doesn't always honor the avoid list — worth enforcing in
+      // code rather than trusting the instruction alone, the same way the
+      // trailing-S check backstops generateWordleWords below.
+      if (avoidSet.has(word)) return null;
       const hint = String(parsed.hint ?? '').trim().slice(0, 80);
       // A clue containing the answer gives the round away; drop the clue
       // rather than the word, which is still perfectly good.
@@ -288,11 +328,12 @@ ${CONTENT_RATING}
 export async function generateHangmanHint(
   providers: ModelProvider[],
   word: string
-): Promise<string | null> {
+): Promise<Generated<string | null>> {
   const prompt = `Write a single short clue for a game of hangman. The answer is "${word}".
 Rules:
 - At most 8 words, playful, the kind of clue you'd give a family member.
 - The clue must NOT contain the answer, any word of the answer, or any part of it spelled out.
+${VAGUE_CLUE_RULES}
 - If the answer is not a real word or phrase you recognize (it may be a name or an in-joke), respond with exactly: {}
 ${CONTENT_RATING}
 - Respond with ONLY JSON: {"hint":"your clue"}`;

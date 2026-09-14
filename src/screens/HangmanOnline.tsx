@@ -5,6 +5,7 @@ import { IdleClaim } from '../components/IdleClaim';
 import { HangmanBoard } from '../components/HangmanBoard';
 import { IconSpinner } from '../components/icons';
 import { fetchHangmanHint } from '../lib/firestoreHangman';
+import { ProviderBadge, type ProviderSource } from '../components/ProviderBadge';
 import {
   hangmanRules,
   setHangmanWord,
@@ -276,6 +277,7 @@ function WordSetter({
   const [saving, setSaving] = useState(false);
   const [hinting, setHinting] = useState(false);
   const [hintNote, setHintNote] = useState<string | null>(null);
+  const [hintSource, setHintSource] = useState<ProviderSource>(null);
 
   /** Lets the setter hand the clue-writing to the AI. It only runs on a
    * word that already passes validation, so it can't be asked to make sense
@@ -288,11 +290,16 @@ function WordSetter({
     }
     setProblem(null);
     setHintNote(null);
+    setHintSource(null);
     setHinting(true);
     const suggested = await fetchHangmanHint(word);
     setHinting(false);
-    if (suggested) setHint(suggested);
-    else setHintNote("Couldn't think of one — write your own.");
+    if (suggested.hint) {
+      setHint(suggested.hint);
+      setHintSource(suggested.source);
+    } else {
+      setHintNote("Couldn't think of one — write your own.");
+    }
   };
 
   const submit = async (e: React.FormEvent) => {
@@ -336,7 +343,12 @@ function WordSetter({
           type="text"
           className="hangman-input"
           value={hint}
-          onChange={(e) => setHint(e.target.value)}
+          onChange={(e) => {
+            setHint(e.target.value);
+            // Once edited by hand it's no longer purely the model's
+            // wording, so the badge shouldn't keep claiming it.
+            setHintSource(null);
+          }}
           placeholder="A clue (optional)"
           maxLength={60}
           autoComplete="off"
@@ -350,6 +362,7 @@ function WordSetter({
           {hinting ? 'Thinking…' : 'Suggest'}
         </button>
       </div>
+      {hintSource && <ProviderBadge source={hintSource} />}
       {hintNote && <p className="hangman-setter-hint">{hintNote}</p>}
       {problem && <p className="hangman-problem">{problem}</p>}
       <button className="btn btn-primary" type="submit" disabled={saving}>

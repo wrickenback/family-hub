@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Screen } from '../components/Screen';
 import { HangmanBoard } from '../components/HangmanBoard';
 import { IconAlert, IconSpinner } from '../components/icons';
+import { ProviderBadge, type ProviderSource } from '../components/ProviderBadge';
 import {
   HANGMAN_CATEGORIES,
   fetchHangmanWord,
@@ -34,8 +35,16 @@ export function HangmanGame({ uid, displayName, onBack }: Props) {
   const [guessed, setGuessed] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [source, setSource] = useState<ProviderSource>(null);
 
   const scoreSubmitted = useRef(false);
+  // Words already seen this session, per category, so a category played
+  // for ten rounds in a row doesn't keep landing on the same word — both
+  // providers reliably converge on the same "quirky but recognizable" pick
+  // for a narrow category without something to steer them away from it.
+  // Session-only on purpose: a fresh visit is allowed to repeat, since
+  // there's no meaningful memory to carry across a full navigation away.
+  const seenRef = useRef<Record<string, string[]>>({});
 
   const outcome = !word
     ? 'playing'
@@ -54,9 +63,15 @@ export function HangmanGame({ uid, displayName, onBack }: Props) {
     setHint('');
     scoreSubmitted.current = false;
     try {
-      const picked = await fetchHangmanWord(next);
+      const avoid = seenRef.current[next.id] ?? [];
+      const picked = await fetchHangmanWord(next, avoid);
       setWord(picked.word);
       setHint(picked.hint);
+      setSource(picked.source);
+      // Cap at 8 — enough to break repetition without eventually excluding
+      // so much of a small category that nothing is left to pick.
+      const history = [...avoid, picked.word].slice(-8);
+      seenRef.current = { ...seenRef.current, [next.id]: history };
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong.');
     } finally {
@@ -145,6 +160,7 @@ export function HangmanGame({ uid, displayName, onBack }: Props) {
   return (
     <Screen title="Hangman" subtitle={category.label} onBack={onBack}>
       <div className="hangman-fit">
+        <ProviderBadge source={source} />
         <HangmanBoard
           word={word}
           guessed={guessed}

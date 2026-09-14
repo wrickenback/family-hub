@@ -146,6 +146,18 @@ export function providersFrom(
   return providers;
 }
 
+/** Which provider actually produced a result — surfaced all the way to the
+ * player as a small badge, since "the AI" covers two very different models
+ * behind one button and it's been worth knowing which one answered while
+ * this is new. `null` means the whole chain came up empty; the caller
+ * substitutes its own bundled fallback and labels it as such. */
+export type ProviderSource = 'gemini' | 'haiku';
+
+export interface Generated<T> {
+  value: T;
+  source: ProviderSource | null;
+}
+
 /** Runs a prompt down the provider chain until something parses.
  *
  * Each provider gets `attempts` tries with a short backoff before we move
@@ -155,8 +167,9 @@ export function providersFrom(
  * case: a blocked response and a malformed one are equally useless, and
  * both are worth another try.
  *
- * Returns the empty value if the whole chain comes up short; callers decide
- * whether that means a bundled fallback or an error the player sees. */
+ * Returns the empty value (with a null source) if the whole chain comes up
+ * short; callers decide whether that means a bundled fallback or an error
+ * the player sees. */
 export async function generate<T>(
   label: string,
   providers: ModelProvider[],
@@ -165,7 +178,7 @@ export async function generate<T>(
   isEmpty: (value: T) => boolean,
   empty: T,
   attempts = 2
-): Promise<T> {
+): Promise<Generated<T>> {
   for (const provider of providers) {
     for (let n = 1; n <= attempts; n++) {
       if (n > 1) {
@@ -180,14 +193,14 @@ export async function generate<T>(
             // retry, is the signal that the primary is struggling.
             console.info(`${label}: served by ${provider.name} on attempt ${n}`);
           }
-          return parsed;
+          return { value: parsed, source: provider.name as ProviderSource };
         }
       }
       console.warn(`${label}: ${provider.name} attempt ${n} came back empty`);
     }
   }
   console.error(`${label}: every provider came up empty`);
-  return empty;
+  return { value: empty, source: null };
 }
 
 /** Pulls the first JSON array or object out of a model response, which

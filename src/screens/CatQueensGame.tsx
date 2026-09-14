@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import type { PointerEvent as ReactPointerEvent } from 'react';
 import { Screen } from '../components/Screen';
 import { CAT_BREEDS, CatFace, getBreed } from '../components/CatFace';
+import { CatCollection } from '../components/CatCollection';
 import {
   findConflicts,
   generateCatQueensPuzzle,
@@ -50,13 +51,27 @@ function formatElapsed(ms: number): string {
   return `${mins}:${String(secs).padStart(2, '0')}`;
 }
 
+/** Which breed shows up on the next puzzle. Weighted toward ones this
+ * account hasn't found yet, so every solve makes real progress toward a
+ * full collection instead of the same handful of breeds turning up over
+ * and over while others never appear. Once everything is found, it's just
+ * uniformly random — there's nothing left to chase, so variety is all that
+ * matters. */
+function pickBreedId(discoveredBreeds: string[]): string {
+  const found = new Set(discoveredBreeds);
+  const undiscovered = CAT_BREEDS.filter((b) => !found.has(b.id));
+  const pool = undiscovered.length > 0 ? undiscovered : CAT_BREEDS;
+  return pool[Math.floor(Math.random() * pool.length)].id;
+}
+
 function newPuzzle(
   size: number,
-  level: number
+  level: number,
+  discoveredBreeds: string[]
 ): { puzzle: CatQueensPuzzle; breedId: string } {
   return {
     puzzle: generateCatQueensPuzzle(size, level <= FREEBIE_LEVEL_CAP),
-    breedId: CAT_BREEDS[Math.floor(Math.random() * CAT_BREEDS.length)].id,
+    breedId: pickBreedId(discoveredBreeds),
   };
 }
 
@@ -78,6 +93,14 @@ export function CatQueensGame({
   const [completed, setCompleted] = useState(false);
   const [scoreSaved, setScoreSaved] = useState(false);
   const [justDiscovered, setJustDiscovered] = useState(false);
+  const [gaveUp, setGaveUp] = useState(false);
+  const [confirmGiveUp, setConfirmGiveUp] = useState(false);
+  const [showCollection, setShowCollection] = useState(false);
+
+  // Either way the round is over: no more moves, no timer, nothing to
+  // score. Kept as one flag so every interaction guard only has to check
+  // one thing instead of two.
+  const locked = completed || gaveUp;
 
   const startTimeRef = useRef(Date.now());
   const completeRef = useRef<HTMLDivElement>(null);
@@ -109,18 +132,18 @@ export function CatQueensGame({
   useEffect(() => {
     if (!progress || round) return;
     const level = progress.levels[String(size)] ?? 1;
-    setRound(newPuzzle(size, level));
+    setRound(newPuzzle(size, level, progress.discoveredBreeds));
     setCells(emptyGrid(size));
     startTimeRef.current = Date.now();
   }, [progress, round, size]);
 
   useEffect(() => {
-    if (completed || !round) return;
+    if (locked || !round) return;
     const id = window.setInterval(() => {
       setElapsedMs(Date.now() - startTimeRef.current);
     }, 200);
     return () => window.clearInterval(id);
-  }, [completed, round]);
+  }, [locked, round]);
 
   const breed = round ? getBreed(round.breedId) : null;
 
@@ -143,17 +166,19 @@ export function CatQueensGame({
   const restart = () => {
     if (!progress) return;
     const level = progress.levels[String(size)] ?? 1;
-    setRound(newPuzzle(size, level));
+    setRound(newPuzzle(size, level, progress.discoveredBreeds));
     setCells(emptyGrid(size));
     setElapsedMs(0);
     setCompleted(false);
     setScoreSaved(false);
     setJustDiscovered(false);
+    setGaveUp(false);
+    setConfirmGiveUp(false);
     startTimeRef.current = Date.now();
   };
 
   const handleTap = (r: number, c: number) => {
-    if (completed) return;
+    if (locked) return;
     setCells((prev) => {
       if (!prev) return prev;
       const next = prev.map((row) => [...row]);
@@ -165,7 +190,7 @@ export function CatQueensGame({
   };
 
   const clearBoard = () => {
-    if (completed) return;
+    if (locked) return;
     setCells(emptyGrid(size));
   };
 
@@ -193,7 +218,7 @@ export function CatQueensGame({
   };
 
   const handleBoardPointerDown = (e: ReactPointerEvent<HTMLDivElement>) => {
-    if (completed) return;
+    if (locked) return;
     const cell = cellFromPoint(e.clientX, e.clientY);
     if (!cell) return;
     e.currentTarget.setPointerCapture(e.pointerId);
@@ -202,7 +227,7 @@ export function CatQueensGame({
 
   const handleBoardPointerMove = (e: ReactPointerEvent<HTMLDivElement>) => {
     const start = dragStateRef.current;
-    if (!start || completed) return;
+    if (!start || locked) return;
     const cell = cellFromPoint(e.clientX, e.clientY);
     if (!cell) return;
     if (cell.r !== start.r || cell.c !== start.c) {
@@ -258,12 +283,12 @@ export function CatQueensGame({
   }, [completed, scoreSaved, uid, displayName, elapsedMs]);
 
   // The board can run taller than the viewport on the bigger sizes, so the
-  // "Solved!" card lands below the fold — bring it into view rather than
-  // leaving the player staring at an unchanged board.
+  // result card — solved or given up — lands below the fold; bring it into
+  // view rather than leaving the player staring at an unchanged board.
   useEffect(() => {
-    if (!completed) return;
+    if (!locked) return;
     completeRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-  }, [completed]);
+  }, [locked]);
 
   if (!progress || !round || !cells || !breed) {
     return (
@@ -277,6 +302,15 @@ export function CatQueensGame({
   const discoveredCount = progress.discoveredBreeds.length;
   const { puzzle } = round;
 
+  // Only computed when it'll actually be shown — the solution is already
+  // sitting in round.puzzle.solution either way, nothing to fetch.
+  const solutionSet = gaveUp
+    ? new Set(puzzle.solution.map((s) => `${s.r}-${s.c}`))
+    : null;
+  const correctCount = gaveUp
+    ? cats.filter((c) => solutionSet!.has(`${c.r}-${c.c}`)).length
+    : 0;
+
   return (
     <Screen title="Cat Queens" onBack={onBack}>
       <div className="cq-scorebar">
@@ -288,10 +322,13 @@ export function CatQueensGame({
           <CatFace breed={breed} size={44} />
           <span>{breed.name}</span>
         </div>
-        <div className="cq-stat cq-stat-right">
+        <button
+          className="cq-stat cq-stat-right cq-collection-btn"
+          onClick={() => setShowCollection(true)}
+        >
           <span className="cq-stat-value">{discoveredCount}/{CAT_BREEDS.length}</span>
           <span className="cq-stat-label">breeds found</span>
-        </div>
+        </button>
       </div>
 
       <p className="cq-rules">
@@ -318,10 +355,21 @@ export function CatQueensGame({
           row.map((state, c) => {
             const region = puzzle.regions[r][c];
             const conflict = conflicts.get(`${r}-${c}`);
+            const key = `${r}-${c}`;
+            // On a give-up reveal: a cat that matches the solution is left
+            // as-is (it was right); a cat that doesn't is marked wrong
+            // rather than erased, so what the player actually had stays
+            // visible next to the real answer; an empty solution cell gets
+            // a faint "ghost" cat showing where one belonged.
+            const inSolution = solutionSet?.has(key) ?? false;
+            const wrongCat = gaveUp && state === 'cat' && !inSolution;
+            const missedCat = gaveUp && state !== 'cat' && inSolution;
             return (
               <button
-                key={`${r}-${c}`}
-                className={`cq-cell ${conflict ? 'conflict' : ''}`}
+                key={key}
+                className={`cq-cell ${conflict && !gaveUp ? 'conflict' : ''} ${
+                  wrongCat ? 'cq-cell-wrong' : ''
+                } ${missedCat ? 'cq-cell-missed' : ''}`}
                 style={{ background: REGION_COLORS[region % REGION_COLORS.length] }}
                 onClick={() => {
                   // The board's own pointer handlers already resolve a tap
@@ -334,8 +382,13 @@ export function CatQueensGame({
                   }
                   handleTap(r, c);
                 }}
+                disabled={gaveUp}
                 aria-label={
-                  state === 'cat'
+                  wrongCat
+                    ? `${breed.name} placed here, but that was wrong`
+                    : missedCat
+                    ? `A ${breed.name.toLowerCase()} belonged here`
+                    : state === 'cat'
                     ? `${breed.name} placed`
                     : state === 'x'
                     ? 'Marked empty'
@@ -343,7 +396,13 @@ export function CatQueensGame({
                 }
               >
                 {state === 'cat' && <CatFace breed={breed} size={30} />}
-                {state === 'x' && <span className="cq-x">✕</span>}
+                {missedCat && (
+                  <span className="cq-cell-ghost">
+                    <CatFace breed={breed} size={30} />
+                  </span>
+                )}
+                {wrongCat && <span className="cq-wrong-mark">✕</span>}
+                {state === 'x' && !gaveUp && <span className="cq-x">✕</span>}
               </button>
             );
           })
@@ -351,13 +410,45 @@ export function CatQueensGame({
       </div>
 
       <div className="cq-actions">
-        <button className="btn btn-secondary" onClick={clearBoard} disabled={completed}>
+        <button className="btn btn-secondary" onClick={clearBoard} disabled={locked}>
           Clear board
         </button>
         <button className="btn btn-secondary" onClick={restart}>
           New puzzle
         </button>
       </div>
+
+      {!locked && !confirmGiveUp && (
+        <button
+          className="btn btn-text cq-giveup-btn"
+          onClick={() => setConfirmGiveUp(true)}
+        >
+          Give up
+        </button>
+      )}
+
+      {!locked && confirmGiveUp && (
+        <div className="card cq-giveup-confirm">
+          <p>Reveal the solution? This puzzle won&rsquo;t count as solved.</p>
+          <div className="cq-giveup-confirm-actions">
+            <button
+              className="btn btn-text"
+              onClick={() => setConfirmGiveUp(false)}
+            >
+              Keep trying
+            </button>
+            <button
+              className="btn btn-primary"
+              onClick={() => {
+                setGaveUp(true);
+                setConfirmGiveUp(false);
+              }}
+            >
+              Show me
+            </button>
+          </div>
+        </div>
+      )}
 
       {completed && (
         <div className="cq-complete card" ref={completeRef}>
@@ -373,6 +464,25 @@ export function CatQueensGame({
             Play another
           </button>
         </div>
+      )}
+
+      {gaveUp && (
+        <div className="cq-complete card" ref={completeRef}>
+          <h3>Here&rsquo;s the solution</h3>
+          <p className="cq-complete-time">
+            You had {correctCount} of {size} right
+          </p>
+          <button className="btn btn-primary" onClick={restart}>
+            Try another
+          </button>
+        </div>
+      )}
+
+      {showCollection && (
+        <CatCollection
+          discoveredBreeds={progress.discoveredBreeds}
+          onClose={() => setShowCollection(false)}
+        />
       )}
     </Screen>
   );

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Screen } from '../components/Screen';
 import { IconAlert, IconSpinner } from '../components/icons';
+import { ProviderBadge, type ProviderSource } from '../components/ProviderBadge';
 import { submitScore } from '../lib/firestoreScores';
 import {
   fetchDailyWord,
@@ -49,6 +50,7 @@ export function WordleGame({ mode, uid, displayName, onBack }: Props) {
 
   const [answer, setAnswer] = useState<string | null>(null);
   const [pickedByName, setPickedByName] = useState<string | null>(null);
+  const [source, setSource] = useState<ProviderSource>(null);
   const [guesses, setGuesses] = useState<string[]>([]);
   /** Guesses whose flip animation has finished — what the keyboard and the
    * result card are allowed to know about. */
@@ -75,10 +77,11 @@ export function WordleGame({ mode, uid, displayName, onBack }: Props) {
    * the network. */
   const loadFreeBatch = useCallback(async () => {
     setLoading(true);
-    const words = await fetchFreePlayWords();
+    const { words, source: batchSource } = await fetchFreePlayWords();
     const pool = words.length > 0 ? words : [randomAnswer()];
     setAnswer(pool[0]);
     setFreeQueue(pool.slice(1));
+    setSource(words.length > 0 ? batchSource : 'fallback');
     setLoading(false);
   }, []);
 
@@ -94,6 +97,7 @@ export function WordleGame({ mode, uid, displayName, onBack }: Props) {
         if (cancelled) return;
         setAnswer(daily.word);
         setPickedByName(daily.pickedByName);
+        setSource(daily.source);
         if (progress?.guesses?.length) {
           setGuesses(progress.guesses);
           // A resumed day starts fully revealed: re-running six flips on a
@@ -314,6 +318,8 @@ export function WordleGame({ mode, uid, displayName, onBack }: Props) {
             {pickedByName} opened today&rsquo;s word first.
           </p>
         )}
+
+        <ProviderBadge source={source} className="wordle-source-badge" />
 
         <div className="wordle-board-wrap">
           {toast && (

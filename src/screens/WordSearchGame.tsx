@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import type { CSSProperties, PointerEvent as ReactPointerEvent } from 'react';
 import { Screen } from '../components/Screen';
+import { ProviderBadge } from '../components/ProviderBadge';
+import { Confetti } from '../components/Confetti';
 import {
   deleteWordSearchProgress,
   fetchPuzzle,
@@ -151,6 +153,7 @@ export function WordSearchGame({
   } | null>(null);
 
   const boardRef = useRef<HTMLDivElement>(null);
+  const completeRef = useRef<HTMLDivElement>(null);
   const startTimeRef = useRef(Date.now());
   // True only if the final word was found on THIS device — gates score
   // submission so a second open device that merely syncs to "solved"
@@ -354,6 +357,14 @@ export function WordSearchGame({
     }).catch(() => setScoreSaved(false));
   }, [completed, scoreSaved, puzzle, uid, displayName, elapsedMs]);
 
+  // The grid plus the found-word list can easily run past the fold on a
+  // phone, especially for a 10x10 board — bring the "Solved!" card into
+  // view rather than leaving the player staring at an unchanged board.
+  useEffect(() => {
+    if (!completed) return;
+    completeRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, [completed]);
+
   if (loadError) {
     return (
       <Screen title="Word Search" onBack={onBack}>
@@ -393,6 +404,10 @@ export function WordSearchGame({
           <span className="ws-stat-label">found</span>
         </div>
       </div>
+
+      {puzzle.source && (
+        <ProviderBadge source={puzzle.source} className="ws-source-badge" />
+      )}
 
       {/* One fixed-height line that does three jobs in priority order:
           celebrate a find, mirror the letters being traced (a finger covers
@@ -462,13 +477,16 @@ export function WordSearchGame({
       </ul>
 
       {completed && (
-        <div className="ws-complete card">
-          <h3>Solved!</h3>
-          <p className="ws-complete-time">{formatElapsed(elapsedMs)}</p>
-          <button className="btn btn-primary" onClick={onBack}>
-            Back to Word Search
-          </button>
-        </div>
+        <>
+          <Confetti />
+          <div className="ws-complete card" ref={completeRef}>
+            <h3>Solved!</h3>
+            <p className="ws-complete-time">{formatElapsed(elapsedMs)}</p>
+            <button className="btn btn-primary" onClick={onBack}>
+              Back to Word Search
+            </button>
+          </div>
+        </>
       )}
     </Screen>
   );

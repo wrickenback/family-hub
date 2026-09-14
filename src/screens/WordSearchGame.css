@@ -199,3 +199,9 @@
   color: var(--teal);
   margin-bottom: 1.25rem;
 }
+
+.ws-source-badge {
+  display: block;
+  width: fit-content;
+  margin: 0.4rem auto 0;
+}

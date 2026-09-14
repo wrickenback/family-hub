@@ -1,0 +1,49 @@
+.confetti-burst {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 50;
+}
+
+.confetti-burst span {
+  position: absolute;
+  top: -8%;
+  width: 0.45rem;
+  height: 0.8rem;
+  border-radius: 1px;
+  background: var(--gold);
+  opacity: 0;
+  animation: confetti-fall 1.3s ease-in forwards;
+}
+
+.confetti-burst span:nth-child(3n + 1) {
+  background: var(--rust);
+}
+
+.confetti-burst span:nth-child(3n + 2) {
+  background: var(--teal);
+}
+
+.confetti-burst span:nth-child(5n) {
+  width: 0.6rem;
+  height: 0.6rem;
+  border-radius: 50%;
+}
+
+@keyframes confetti-fall {
+  0% {
+    opacity: 1;
+    transform: translate(0, 0) rotate(0deg);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(var(--drift), 110vh) rotate(320deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .confetti-burst {
+    display: none;
+  }
+}

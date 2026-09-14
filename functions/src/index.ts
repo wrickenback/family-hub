@@ -83,7 +83,7 @@ export const generateWordSearchPuzzle = onCall(
 
     const difficulty: Difficulty = request.data?.difficulty === 'easy' ? 'easy' : 'hard';
 
-    const words = await generateTopicWords(models(), topic);
+    const { value: words, source } = await generateTopicWords(models(), topic);
     if (words.length < MIN_TOPIC_WORDS) {
       throw new HttpsError(
         'unavailable',
@@ -103,6 +103,9 @@ export const generateWordSearchPuzzle = onCall(
       );
     }
 
+    // source is never null here — a null source means the whole chain came
+    // up empty, which the length check above already turned into a thrown
+    // error before this point.
     const docRef = await db.collection('wordSearchPuzzles').add({
       topic,
       topicSlug: slugify(topic),
@@ -110,12 +113,13 @@ export const generateWordSearchPuzzle = onCall(
       size: puzzle.size,
       grid: puzzle.grid,
       words: puzzle.words,
+      source,
       createdBy: caller.uid,
       createdByName: caller.name,
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
     });
 
-    return { id: docRef.id, ...puzzle, topic, difficulty };
+    return { id: docRef.id, ...puzzle, topic, difficulty, source };
   }
 );
 
@@ -157,24 +161,35 @@ export const getDailyWord = onCall(
         dateKey,
         word: data.word as string,
         pickedByName: (data.pickedByName as string) ?? null,
-        source: (data.source as string) ?? 'ai',
+        source: (data.source as string) ?? 'fallback',
       };
     }
 
     // Two weeks of answers to steer Gemini away from — enough that a repeat
     // is noticeable, small enough to stay one cheap query.
+    //
+    // Ordered by createdAt, not by document id: Firestore auto-indexes
+    // every field ascending AND descending, but __name__ (the document id)
+    // only gets an automatic ascending index — querying it descending
+    // needs an explicit composite index that was never created, which made
+    // every single call here throw FAILED_PRECONDITION and made Daily
+    // Word unplayable in both modes. createdAt needs no such index and is
+    // the more honest "recent" anyway.
     const recentSnap = await db
       .collection('dailyWords')
-      .orderBy(admin.firestore.FieldPath.documentId(), 'desc')
+      .orderBy('createdAt', 'desc')
       .limit(14)
       .get();
     const recentWords = recentSnap.docs
       .map((doc) => doc.data().word as string)
       .filter(Boolean);
 
-    const generated = await generateWordleWords(models(), recentWords);
+    const { value: generated, source: servedBy } = await generateWordleWords(
+      models(),
+      recentWords
+    );
     const word = generated[0] ?? fallbackDailyWord(dateKey);
-    const source = generated.length > 0 ? 'ai' : 'fallback';
+    const source = servedBy ?? 'fallback';
 
     try {
       await ref.create({
@@ -193,7 +208,7 @@ export const getDailyWord = onCall(
         dateKey,
         word: data.word as string,
         pickedByName: (data.pickedByName as string) ?? null,
-        source: (data.source as string) ?? 'ai',
+        source: (data.source as string) ?? 'fallback',
       };
     }
   }
@@ -213,13 +228,13 @@ export const getWordleWords = onCall(
   async (request) => {
     await requireFamilyMember(request);
 
-    const words = await generateWordleWords(models(), [], 12);
+    const { value: words, source } = await generateWordleWords(models(), [], 12);
     if (words.length === 0) {
       // The client falls back to its bundled list, so this is a soft
       // failure rather than an error the player has to look at.
       return { words: [], source: 'fallback' };
     }
-    return { words, source: 'ai' };
+    return { words, source };
   }
 );
 
@@ -235,14 +250,21 @@ export const getHangmanHint = onCall(
       throw new HttpsError('invalid-argument', 'That word cannot be hinted.');
     }
 
-    const hint = await generateHangmanHint(models(), word);
-    return { hint: hint ?? '' };
+    const { value: hint, source } = await generateHangmanHint(models(), word);
+    // source is already null exactly when hint is null (generate()'s empty
+    // check is `hint === null`), so this passes both straight through.
+    return { hint: hint ?? '', source };
   }
 );
 
 /** One word and a clue for a solo game of Hangman. Nothing is stored: solo
  * rounds are disposable, and keeping the word out of Firestore means there
- * is nothing to look up mid-round. */
+ * is nothing to look up mid-round.
+ *
+ * `avoid` is the last several words the client has already seen for this
+ * category this session — see the comment on generateHangmanWord for why
+ * that's what actually stops the same word (looking at you, PLATYPUS) from
+ * coming back round after round. */
 export const getHangmanWord = onCall(
   { region: 'us-central1', secrets: [geminiApiKey, anthropicApiKey] },
   async (request) => {
@@ -253,10 +275,19 @@ export const getHangmanWord = onCall(
       throw new HttpsError('invalid-argument', 'Unknown category.');
     }
     const label = String(request.data?.label ?? category).trim().slice(0, 40);
+    const avoid = Array.isArray(request.data?.avoid)
+      ? (request.data.avoid as unknown[])
+          .filter((w): w is string => typeof w === 'string')
+          .slice(0, 20)
+      : [];
 
-    const generated = await generateHangmanWord(models(), label || category);
-    const picked = generated ?? fallbackHangmanWord(category);
-    return { ...picked, category, source: generated ? 'ai' : 'fallback' };
+    const { value: generated, source: servedBy } = await generateHangmanWord(
+      models(),
+      label || category,
+      avoid
+    );
+    const picked = generated ?? fallbackHangmanWord(category, avoid);
+    return { ...picked, category, source: servedBy ?? 'fallback' };
   }
 );
 

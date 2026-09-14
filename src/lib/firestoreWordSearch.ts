@@ -36,6 +36,10 @@ export interface WordSearchPuzzle {
   words: PlacedWord[];
   createdBy?: string;
   createdByName?: string;
+  /** Which model wrote the word list. Absent on puzzles generated before
+   * this was tracked, and on the bundled offline puzzles, which never call
+   * a model at all. */
+  source?: 'gemini' | 'haiku';
 }
 
 /** Calls the Cloud Function that asks Gemini for words and builds the grid
