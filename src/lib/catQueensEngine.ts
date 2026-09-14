@@ -162,8 +162,17 @@ function countSolutions(
   return count;
 }
 
-export function generateCatQueensPuzzle(size: number): CatQueensPuzzle {
-  const freebieRegion = Math.floor(Math.random() * size);
+/** `includeFreebie` gives one region a guaranteed single cell — an easy
+ * on-ramp for a solver's first puzzles at a given size. Off by default
+ * once they've got the hang of it, so the puzzle stays real logic instead
+ * of a free first move forever. */
+export function generateCatQueensPuzzle(
+  size: number,
+  includeFreebie: boolean
+): CatQueensPuzzle {
+  const freebieRegion = includeFreebie
+    ? Math.floor(Math.random() * size)
+    : undefined;
   for (let attempt = 0; attempt < 80; attempt++) {
     const cols = generateSolution(size);
     if (!cols) continue;

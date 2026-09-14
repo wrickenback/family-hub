@@ -52,6 +52,11 @@
   text-align: center;
 }
 
+.cq-level {
+  font-weight: 700;
+  color: var(--rust);
+}
+
 .cq-board {
   display: grid;
   gap: 2px;

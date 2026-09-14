@@ -29,6 +29,11 @@ const REGION_COLORS = [
 ];
 
 const DISCOVERED_KEY = 'catqueens-discovered-breeds';
+const LEVEL_KEY_PREFIX = 'catqueens-level-';
+// Only a solver's first couple of puzzles at a given size get the one-cell
+// freebie region — enough to learn the rules on, without making every
+// puzzle trivially easy forever.
+const FREEBIE_LEVEL_CAP = 2;
 
 function loadDiscovered(): Set<string> {
   try {
@@ -47,6 +52,24 @@ function saveDiscovered(ids: Set<string>) {
   }
 }
 
+function loadLevel(size: number): number {
+  try {
+    const raw = window.localStorage.getItem(`${LEVEL_KEY_PREFIX}${size}`);
+    const n = raw ? Number(raw) : 1;
+    return Number.isFinite(n) && n >= 1 ? n : 1;
+  } catch {
+    return 1;
+  }
+}
+
+function saveLevel(size: number, level: number) {
+  try {
+    window.localStorage.setItem(`${LEVEL_KEY_PREFIX}${size}`, String(level));
+  } catch {
+    // best effort — a missed save just costs the level tracking, not play
+  }
+}
+
 function formatElapsed(ms: number): string {
   const totalSeconds = Math.floor(ms / 1000);
   const mins = Math.floor(totalSeconds / 60);
@@ -54,9 +77,12 @@ function formatElapsed(ms: number): string {
   return `${mins}:${String(secs).padStart(2, '0')}`;
 }
 
-function newPuzzle(size: number): { puzzle: CatQueensPuzzle; breedId: string } {
+function newPuzzle(
+  size: number,
+  level: number
+): { puzzle: CatQueensPuzzle; breedId: string } {
   return {
-    puzzle: generateCatQueensPuzzle(size),
+    puzzle: generateCatQueensPuzzle(size, level <= FREEBIE_LEVEL_CAP),
     breedId: CAT_BREEDS[Math.floor(Math.random() * CAT_BREEDS.length)].id,
   };
 }
@@ -67,7 +93,8 @@ export function CatQueensGame({
   displayName,
   onBack,
 }: CatQueensGameProps) {
-  const [{ puzzle, breedId }, setRound] = useState(() => newPuzzle(size));
+  const [level, setLevel] = useState(() => loadLevel(size));
+  const [{ puzzle, breedId }, setRound] = useState(() => newPuzzle(size, level));
   const [cells, setCells] = useState<CellState[][]>(() =>
     Array.from({ length: size }, () => new Array(size).fill('empty'))
   );
@@ -106,7 +133,7 @@ export function CatQueensGame({
   );
 
   const restart = (nextSize: number = size) => {
-    setRound(newPuzzle(nextSize));
+    setRound(newPuzzle(nextSize, level));
     setCells(Array.from({ length: nextSize }, () => new Array(nextSize).fill('empty')));
     setElapsedMs(0);
     setCompleted(false);
@@ -136,6 +163,11 @@ export function CatQueensGame({
     if (!isSolved(puzzle.size, puzzle.regions, cats)) return;
     setCompleted(true);
     playClear(3);
+    setLevel((l) => {
+      const next = l + 1;
+      saveLevel(size, next);
+      return next;
+    });
     if (!discoveredRef.current.has(breedId)) {
       discoveredRef.current = new Set(discoveredRef.current).add(breedId);
       saveDiscovered(discoveredRef.current);
@@ -183,8 +215,9 @@ export function CatQueensGame({
       </div>
 
       <p className="cq-rules">
-        One {breed.name.toLowerCase()} per row, column and color. No two cats
-        may touch, even diagonally.
+        <span className="cq-level">Level {level}</span> · One{' '}
+        {breed.name.toLowerCase()} per row, column and color. No two cats may
+        touch, even diagonally.
       </p>
 
       <div
