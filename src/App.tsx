@@ -35,6 +35,7 @@ import { ConnectFourGame } from './screens/ConnectFourGame';
 import { ConnectFourOnline } from './screens/ConnectFourOnline';
 import { BattleshipOnline } from './screens/BattleshipOnline';
 import { ReactionGame } from './screens/ReactionGame';
+import { CatQueensGame } from './screens/CatQueensGame';
 import './App.css';
 
 const HOME: Route = { screen: 'home' };
@@ -288,6 +289,7 @@ export function App() {
             }
             onPlayBattleship={() => navigate({ screen: 'play-battleship' })}
             onPlayReaction={() => navigate({ screen: 'play-reaction' })}
+            onPlayCatQueens={(size) => navigate({ screen: 'play-catqueens', size })}
           />
         )}
         {route.screen === 'play-blocks' && (
@@ -335,6 +337,14 @@ export function App() {
         )}
         {route.screen === 'play-reaction' && (
           <ReactionGame
+            uid={user.uid}
+            displayName={user.displayName || user.email || 'Someone'}
+            onBack={back}
+          />
+        )}
+        {route.screen === 'play-catqueens' && (
+          <CatQueensGame
+            size={route.size}
             uid={user.uid}
             displayName={user.displayName || user.email || 'Someone'}
             onBack={back}

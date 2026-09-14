@@ -11,6 +11,7 @@ import UnoIcon from '../assets/game-icons/uno.svg?react';
 import WordSearchIcon from '../assets/game-icons/wordsearch.svg?react';
 import WordleIcon from '../assets/game-icons/wordle.svg?react';
 import ReactionIcon from '../assets/game-icons/reaction.svg?react';
+import { Cat as CatQueensIcon } from 'lucide-react';
 
 export type Route =
   | { screen: 'home' }
@@ -24,7 +25,8 @@ export type Route =
   | { screen: 'play-tictactoe'; mode: 'pass' | 'online' }
   | { screen: 'play-connect4'; mode: 'pass' | 'online' }
   | { screen: 'play-battleship' }
-  | { screen: 'play-reaction' };
+  | { screen: 'play-reaction' }
+  | { screen: 'play-catqueens'; size: 6 | 7 | 8 | 9 };
 
 /** Mode string used for any game that doesn't partition its leaderboard by
  * mode (i.e. everything except Blocks' free/daily split and the online
@@ -104,6 +106,23 @@ export const games: GameApp[] = [
         name: 'Library',
         blurb: 'Play the puzzles the rest of the family has made.',
       },
+    ],
+  },
+  {
+    id: 'catqueens',
+    name: 'Cat Queens',
+    path: '/catqueens',
+    visibility: 'familyOnly',
+    players: 'solo',
+    scoring: 'bestDuration',
+    icon: CatQueensIcon,
+    blurb: 'One cat per row, column and color — and no two may touch.',
+    built: true,
+    modes: [
+      { id: 'kitten', name: 'Kitten', blurb: 'A gentle 6x6 board to learn the rules.' },
+      { id: 'cat', name: 'Cat', blurb: 'A 7x7 board with a bit more bite.' },
+      { id: 'bigcat', name: 'Big Cat', blurb: 'An 8x8 board for confident solvers.' },
+      { id: 'lion', name: 'Lion', blurb: 'A 9x9 board — the toughest hunt.' },
     ],
   },
   {
@@ -280,6 +299,8 @@ export function routeToPath(route: Route): string {
       return '/play/battleship';
     case 'play-reaction':
       return '/play/reaction';
+    case 'play-catqueens':
+      return `/play/catqueens/${route.size}`;
   }
 }
 
@@ -317,6 +338,12 @@ export function pathToRoute(pathname: string): Route | null {
       }
       if (second === 'reaction') {
         return { screen: 'play-reaction' };
+      }
+      if (second === 'catqueens' && third) {
+        const size = Number(third);
+        if (size === 6 || size === 7 || size === 8 || size === 9) {
+          return { screen: 'play-catqueens', size };
+        }
       }
       return null;
     }
@@ -375,6 +402,13 @@ export function parentChainFor(route: Route): Route[] {
         HOME,
         { screen: 'games' },
         { screen: 'game', gameId: 'reaction' },
+        route,
+      ];
+    case 'play-catqueens':
+      return [
+        HOME,
+        { screen: 'games' },
+        { screen: 'game', gameId: 'catqueens' },
         route,
       ];
     default:

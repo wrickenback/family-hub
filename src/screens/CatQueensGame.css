@@ -1,0 +1,130 @@
+.cq-scorebar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.4rem 0.75rem;
+  margin-bottom: 0.5rem;
+  background: linear-gradient(135deg, var(--rust) 0%, #7a3a1c 100%);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-card);
+  color: #fff;
+}
+
+.cq-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.1rem;
+}
+
+.cq-stat-right {
+  align-items: flex-end;
+}
+
+.cq-stat-value {
+  font-family: Poppins, system-ui, sans-serif;
+  font-size: 0.9rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.cq-stat-label {
+  font-size: 0.55rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  opacity: 0.8;
+}
+
+.cq-breed-badge {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+}
+
+.cq-rules {
+  margin: 0 0 0.6rem;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.cq-board {
+  display: grid;
+  gap: 2px;
+  width: 100%;
+  max-width: 26rem;
+  aspect-ratio: 1;
+  margin: 0 auto 0.75rem;
+  padding: 4px;
+  background: var(--sand-200);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-card);
+  user-select: none;
+}
+
+.cq-cell {
+  display: grid;
+  place-items: center;
+  border: none;
+  border-radius: 2px;
+  padding: 0;
+  overflow: hidden;
+  cursor: pointer;
+  transition: transform 0.08s ease;
+}
+
+.cq-cell:active {
+  transform: scale(0.94);
+}
+
+.cq-cell.conflict {
+  box-shadow: inset 0 0 0 3px #c0392b;
+}
+
+.cq-x {
+  font-size: clamp(0.9rem, 4.5vw, 1.4rem);
+  font-weight: 700;
+  color: rgba(0, 0, 0, 0.35);
+}
+
+.cq-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.cq-actions .btn {
+  flex: 1;
+}
+
+.cq-complete {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 1.5rem;
+  text-align: center;
+}
+
+.cq-complete h3 {
+  font-size: 1.25rem;
+  margin: 0.5rem 0 0.25rem;
+}
+
+.cq-complete-time {
+  font-family: Poppins, system-ui, sans-serif;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--rust);
+  margin-bottom: 0.75rem;
+}
+
+.cq-discovered-flag {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--teal);
+  margin-bottom: 1rem;
+}

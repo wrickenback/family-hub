@@ -101,26 +101,6 @@ function GameSection({ title, icon, games, onOpenGame }: GameSectionProps) {
                   <span className="game-blurb">{game.blurb}</span>
                 </span>
                 <span className="game-meta">
-                  <span
-                    className={`pill ${
-                      game.players === 'multi' ? 'pill-multi' : 'pill-solo'
-                    }`}
-                  >
-                    {game.players === 'solo' && (
-                      <IconSolo aria-hidden="true" />
-                    )}
-                    {game.players === 'multi' && (
-                      <IconMulti aria-hidden="true" />
-                    )}
-                    {game.players === 'solo'
-                      ? '1 player'
-                      : game.players === 'multi'
-                      ? '2 players'
-                      : '1–2'}
-                  </span>
-                  {!game.built && (
-                    <span className="pill pill-sample">Coming soon</span>
-                  )}
                   {top && (
                     <span className="game-top-score">
                       <IconTrophy aria-hidden="true" />

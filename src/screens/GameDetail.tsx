@@ -45,6 +45,7 @@ export function GameDetail({
   onPlayConnectFour,
   onPlayBattleship,
   onPlayReaction,
+  onPlayCatQueens,
 }: {
   gameId: string;
   /** Mode tab to land on, e.g. from a deep link — falls back to the game's
@@ -59,6 +60,7 @@ export function GameDetail({
   onPlayConnectFour: (mode: 'pass' | 'online') => void;
   onPlayBattleship: () => void;
   onPlayReaction: () => void;
+  onPlayCatQueens: (size: 6 | 7 | 8 | 9) => void;
 }) {
   const game = getGame(gameId);
   const [modeId, setModeId] = useState(
@@ -96,6 +98,13 @@ export function GameDetail({
   const isReaction = game.id === 'reaction';
   const isConnectFour = game.id === 'connect4';
   const isBattleship = game.id === 'battleship';
+  const isCatQueens = game.id === 'catqueens';
+  const catQueensSizes: Record<string, 6 | 7 | 8 | 9> = {
+    kitten: 6,
+    cat: 7,
+    bigcat: 8,
+    lion: 9,
+  };
   // Which slice of the scores collection this game's board reads. Only
   // Blocks partitions its board by the selected mode; Tic Tac Toe always
   // shows the online board, since pass-and-play wins are never submitted
@@ -212,6 +221,15 @@ export function GameDetail({
           onClick={onPlayBattleship}
         >
           Find a family member
+        </button>
+      )}
+
+      {isCatQueens && (
+        <button
+          className="btn btn-primary blocks-play-btn"
+          onClick={() => onPlayCatQueens(catQueensSizes[mode?.id ?? 'cat'] ?? 7)}
+        >
+          Play {mode?.name ?? 'now'}
         </button>
       )}
 
