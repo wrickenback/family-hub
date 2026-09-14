@@ -17,8 +17,21 @@ import { GoogleGenAI, HarmCategory, HarmBlockThreshold } from '@google/genai';
 
 // A stable alias (not a pinned version) so this doesn't silently 404 again
 // the next time Google retires a dated model — it always resolves to
-// whatever flash model is currently recommended.
-const GEMINI_MODEL = 'gemini-flash-latest';
+// whatever flash-lite model is currently recommended.
+//
+// Deliberately -lite, not the flagship flash alias. Measured directly
+// against this project's own key: the flagship model's free tier is
+// 20 requests/day, shared across every AI feature in the app — a single
+// family evening burns through that in minutes, which is why Haiku ended
+// up serving nearly every request. Flash-Lite's free tier runs roughly
+// 25x more requests/day, at a real but small quality cost that doesn't
+// matter for what this app asks of it: short, constrained JSON —
+// a word list, a word-and-clue pair, a one-line hint. None of that leans
+// on the reasoning depth flash-lite trades away. Live-tested against all
+// four of this app's prompts (word search topics, Wordle answers, hangman
+// words, hangman hints) before switching; results were as good as the
+// flagship model's on the same prompts.
+const GEMINI_MODEL = 'gemini-flash-lite-latest';
 const HAIKU_MODEL = 'claude-haiku-4-5';
 
 // Belt-and-suspenders for a kids' feature, backed by the API's own
