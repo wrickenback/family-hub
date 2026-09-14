@@ -17,6 +17,11 @@ import { DEFAULT_MODE, getGame } from '../lib/router';
 import { todayKey } from '../lib/blocksEngine';
 import { sampleScores } from '../lib/sampleData';
 import { generatePuzzle, type WordSearchDifficulty } from '../lib/firestoreWordSearch';
+import {
+  OFFLINE_PUZZLE_COUNT,
+  randomOfflinePuzzle,
+} from '../lib/wordSearchOffline';
+import { useOnlineStatus } from '../lib/useOnlineStatus';
 import './Games.css';
 
 const scoringLabel: Record<string, string> = {
@@ -46,6 +51,8 @@ export function GameDetail({
   onPlayBattleship,
   onPlayReaction,
   onPlayCatQueens,
+  onPlayWordle,
+  onPlayHangman,
 }: {
   gameId: string;
   /** Mode tab to land on, e.g. from a deep link — falls back to the game's
@@ -61,6 +68,8 @@ export function GameDetail({
   onPlayBattleship: () => void;
   onPlayReaction: () => void;
   onPlayCatQueens: (size: 6 | 7 | 8 | 9) => void;
+  onPlayWordle: (mode: 'family' | 'free') => void;
+  onPlayHangman: (mode: 'solo' | 'family') => void;
 }) {
   const game = getGame(gameId);
   const [modeId, setModeId] = useState(
@@ -70,6 +79,7 @@ export function GameDetail({
   );
   const [generating, setGenerating] = useState(false);
   const [genError, setGenError] = useState<string | null>(null);
+  const online = useOnlineStatus();
 
   const selectMode = (id: string) => {
     setModeId(id);
@@ -99,6 +109,8 @@ export function GameDetail({
   const isConnectFour = game.id === 'connect4';
   const isBattleship = game.id === 'battleship';
   const isCatQueens = game.id === 'catqueens';
+  const isWordle = game.id === 'wordle';
+  const isHangman = game.id === 'hangman';
   const catQueensSizes: Record<string, 6 | 7 | 8 | 9> = {
     kitten: 6,
     cat: 7,
@@ -109,15 +121,29 @@ export function GameDetail({
   // Blocks partitions its board by the selected mode; Tic Tac Toe always
   // shows the online board, since pass-and-play wins are never submitted
   // (the second player isn't signed in on that device to attribute them to).
+  // Hangman keeps two boards, one per tab: solo rounds and family rounds
+  // are different games and shouldn't share a ranking. Daily Word shows the
+  // family board on both tabs — free play is unlimited, so it never scores
+  // and has no board of its own to show.
   const leaderboardMode = isBlocks
     ? mode?.id ?? 'free'
     : isTicTacToe || isConnectFour || isBattleship
     ? 'online'
+    : isWordle
+    ? 'family'
+    : isHangman
+    ? mode?.id === 'family'
+      ? 'online'
+      : 'solo'
     : DEFAULT_MODE;
   // Scores for a daily-seeded mode aren't comparable to free play, so they get
   // their own scoreboard entry (see sampleData: 'blocks:daily' vs 'blocks').
   const scoreKey =
     game.id === 'blocks' && mode?.id === 'daily' ? 'blocks:daily' : game.id;
+
+  const playOfflinePuzzle = () => {
+    onPlayWordSearch(randomOfflinePuzzle().id);
+  };
 
   const handleGenerateTopic = async (
     topic: string,
@@ -233,6 +259,24 @@ export function GameDetail({
         </button>
       )}
 
+      {isWordle && (
+        <button
+          className="btn btn-primary blocks-play-btn"
+          onClick={() => onPlayWordle(mode?.id === 'free' ? 'free' : 'family')}
+        >
+          {mode?.id === 'free' ? 'Play a random word' : "Play today's word"}
+        </button>
+      )}
+
+      {isHangman && (
+        <button
+          className="btn btn-primary blocks-play-btn"
+          onClick={() => onPlayHangman(mode?.id === 'family' ? 'family' : 'solo')}
+        >
+          {mode?.id === 'family' ? 'Find a family member' : 'Play now'}
+        </button>
+      )}
+
       {isReaction && (
         <button
           className="btn btn-primary blocks-play-btn"
@@ -246,6 +290,28 @@ export function GameDetail({
         <>
           {!generating && !genError && (
             <ResumeBanner uid={uid} onResume={onPlayWordSearch} />
+          )}
+          {/* Offline is a different problem from "the AI couldn't do it",
+              and needs a different offer. With no connection there is no
+              point showing a topic box that cannot work — so the bundled
+              puzzles are offered instead. When the models fail while
+              online, the topic picker stays put, because trying another
+              topic is the thing that actually helps. */}
+          {!online && !generating && (
+            <div className="card offline-offer">
+              <p className="offline-offer-title">You&rsquo;re offline</p>
+              <p className="offline-offer-detail">
+                New puzzles need a connection to build. There are{' '}
+                {OFFLINE_PUZZLE_COUNT} ready-made ones saved on this device —
+                want to play one?
+              </p>
+              <button
+                className="btn btn-primary offline-offer-btn"
+                onClick={playOfflinePuzzle}
+              >
+                Play a ready-made puzzle
+              </button>
+            </div>
           )}
           {generating && (
             <div className="card generating-card">
@@ -264,7 +330,7 @@ export function GameDetail({
               </div>
             </div>
           )}
-          {!generating && (
+          {!generating && online && (
             <TopicPicker onSelect={handleGenerateTopic} busy={generating} />
           )}
         </>

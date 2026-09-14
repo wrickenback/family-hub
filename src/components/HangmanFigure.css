@@ -1,0 +1,89 @@
+/* Hand-drawn gallows. Every stroke shares one draw-on animation driven off
+   pathLength="1", so a short arm and a long post take the same time to
+   appear and the drawing reads as one hand working at one speed. */
+
+.hangman-figure {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+
+.hangman-figure svg {
+  width: min(15rem, 62vw);
+  height: auto;
+  overflow: visible;
+}
+
+.hangman-stroke {
+  fill: none;
+  stroke: var(--text-primary);
+  stroke-width: 3.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  /* Every path carries pathLength="1", so a dash of 1 is the whole line
+     whatever its real length — one keyframe draws them all at one speed. */
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: hangman-draw 0.55s ease-out forwards;
+}
+
+.hangman-stroke-echo {
+  stroke-width: 1.9;
+  opacity: 0.4;
+  animation-duration: 0.62s;
+}
+
+.hangman-gallows {
+  stroke: var(--sand-600);
+}
+
+.hangman-part {
+  stroke: var(--rust);
+  stroke-width: 3.8;
+}
+
+.hangman-detail {
+  stroke: var(--rust);
+  stroke-width: 2.6;
+  animation-duration: 0.3s;
+}
+
+@keyframes hangman-draw {
+  from { stroke-dashoffset: 1; }
+  to { stroke-dashoffset: 0; }
+}
+
+/* A slow sway from the rope once the figure is complete — the drawing is
+   finished, so the only thing left to animate is the hang itself. The
+   origin is the knot at the top of the rope, in viewBox units, which is
+   what transform-box: view-box makes 100px 25px mean here. */
+.hangman-figure.is-lost svg > g {
+  animation: hangman-sway 3.4s ease-in-out 0.5s infinite;
+  transform-box: view-box;
+  transform-origin: 100px 25px;
+}
+
+@keyframes hangman-sway {
+  0%, 100% { transform: rotate(-1.6deg); }
+  50% { transform: rotate(1.6deg); }
+}
+
+.hangman-figure.is-won .hangman-part {
+  stroke: var(--teal);
+}
+
+.hangman-figure.is-won .hangman-detail {
+  stroke: var(--teal);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* The global reduced-motion rule shortens durations to near zero, which
+     would leave every stroke parked at dashoffset 1 — invisible. Draw them
+     outright instead. */
+  .hangman-stroke {
+    stroke-dashoffset: 0;
+  }
+  .hangman-figure.is-lost svg > g {
+    animation: none;
+  }
+}

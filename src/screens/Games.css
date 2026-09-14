@@ -308,3 +308,35 @@
   color: var(--rust);
   opacity: 0.9;
 }
+
+/* The offline offer on the Word Search create tab. Styled as an invitation
+   rather than an error — being on a train is not a mistake the player made,
+   and there is something good to do about it. */
+.offline-offer {
+  padding: 1.25rem;
+  margin-bottom: 1.5rem;
+  background: var(--teal-soft);
+}
+
+.offline-offer-title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--teal);
+}
+
+.offline-offer-detail {
+  margin-top: 0.35rem;
+  font-size: 0.85rem;
+  line-height: 1.45;
+  color: var(--text-secondary);
+}
+
+.offline-offer-btn {
+  width: 100%;
+  margin-top: 0.9rem;
+  background: var(--teal);
+}
+
+.offline-offer-btn:hover {
+  background: var(--teal-hover);
+}

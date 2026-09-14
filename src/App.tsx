@@ -36,6 +36,9 @@ import { ConnectFourOnline } from './screens/ConnectFourOnline';
 import { BattleshipOnline } from './screens/BattleshipOnline';
 import { ReactionGame } from './screens/ReactionGame';
 import { CatQueensGame } from './screens/CatQueensGame';
+import { WordleGame } from './screens/WordleGame';
+import { HangmanGame } from './screens/HangmanGame';
+import { HangmanOnline } from './screens/HangmanOnline';
 import './App.css';
 
 const HOME: Route = { screen: 'home' };
@@ -292,6 +295,8 @@ export function App() {
             onPlayBattleship={() => navigate({ screen: 'play-battleship' })}
             onPlayReaction={() => navigate({ screen: 'play-reaction' })}
             onPlayCatQueens={(size) => navigate({ screen: 'play-catqueens', size })}
+            onPlayWordle={(mode) => navigate({ screen: 'play-wordle', mode })}
+            onPlayHangman={(mode) => navigate({ screen: 'play-hangman', mode })}
           />
         )}
         {route.screen === 'play-blocks' && (
@@ -352,6 +357,28 @@ export function App() {
             onBack={back}
           />
         )}
+        {route.screen === 'play-wordle' && (
+          <WordleGame
+            mode={route.mode === 'free' ? 'free' : 'family'}
+            uid={user.uid}
+            displayName={user.displayName || user.email || 'Someone'}
+            onBack={back}
+          />
+        )}
+        {route.screen === 'play-hangman' &&
+          (route.mode === 'family' ? (
+            <HangmanOnline
+              uid={user.uid}
+              displayName={user.displayName || user.email || 'Someone'}
+              onBack={back}
+            />
+          ) : (
+            <HangmanGame
+              uid={user.uid}
+              displayName={user.displayName || user.email || 'Someone'}
+              onBack={back}
+            />
+          ))}
         {route.screen === 'scores' && (
           <ScoresScreen userRole={userRole} onBack={back} />
         )}

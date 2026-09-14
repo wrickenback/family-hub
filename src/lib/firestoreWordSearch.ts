@@ -14,6 +14,7 @@ import {
   Timestamp,
 } from 'firebase/firestore';
 import { db, functions } from './firebase';
+import { getOfflinePuzzle, isOfflinePuzzleId } from './wordSearchOffline';
 
 export interface PlacedWord {
   word: string;
@@ -177,6 +178,10 @@ export async function getResumablePuzzle(uid: string): Promise<ResumablePuzzle |
 }
 
 export async function fetchPuzzle(id: string): Promise<WordSearchPuzzle | null> {
+  // Bundled puzzles never touch the network — which is the entire point of
+  // them, since the only way to be playing one is to have had no
+  // connection when the puzzle was chosen.
+  if (isOfflinePuzzleId(id)) return getOfflinePuzzle(id);
   if (!db) return null;
   const snap = await getDoc(doc(db, 'wordSearchPuzzles', id));
   if (!snap.exists()) return null;

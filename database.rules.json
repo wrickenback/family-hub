@@ -28,7 +28,7 @@
         ".validate": "newData.hasChildren(['kind', 'status', 'players', 'createdBy'])",
 
         "kind": {
-          ".validate": "newData.isString() && (newData.val() === 'tictactoe' || newData.val() === 'connect4' || newData.val() === 'battleship')"
+          ".validate": "newData.isString() && (newData.val() === 'tictactoe' || newData.val() === 'connect4' || newData.val() === 'battleship' || newData.val() === 'hangman')"
         },
         "status": {
           ".validate": "newData.isString() && (newData.val() === 'waiting' || newData.val() === 'placing' || newData.val() === 'active' || newData.val() === 'done')"

@@ -34,6 +34,11 @@ export async function submitScore(params: {
   uid: string;
   name: string;
   value: number;
+  /** Extra fields stored beside the score for a game that has something
+   * worth showing next to it — Daily Word records how many guesses a solve
+   * took, since every solve is worth the same single win. Never read by the
+   * leaderboard, which only ever ranks on `value`. */
+  extra?: Record<string, string | number>;
 }) {
   if (!db) return;
   await addDoc(collection(db, 'scores'), {
@@ -43,6 +48,7 @@ export async function submitScore(params: {
     uid: params.uid,
     name: params.name,
     value: params.value,
+    ...params.extra,
     createdAt: serverTimestamp(),
   });
 }

@@ -1,0 +1,372 @@
+/* Shared by solo and family hangman — the board is the same game in both,
+   so it gets one stylesheet rather than two that drift. */
+
+.hangman-fit {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.hangman-board {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.hangman-thinking {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 2.5rem 1.25rem;
+  text-align: center;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+
+.hangman-lives {
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+/* ---------- the word ---------- */
+
+.hangman-word {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.3rem 0.35rem;
+  width: 100%;
+}
+
+.hangman-slot {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  width: 1.6rem;
+  height: 2rem;
+  /* The blank is the underline, drawn a touch uneven to match the figure's
+     hand-drawn stroke rather than sitting under it as crisp vector. */
+  border-bottom: 3px solid var(--sand-300);
+  border-radius: 2px;
+  font-family: Poppins, system-ui, sans-serif;
+  font-size: 1.3rem;
+  font-weight: 700;
+  line-height: 1.3;
+  color: var(--text-primary);
+}
+
+.hangman-slot.revealed {
+  border-bottom-color: var(--teal);
+}
+
+/* The letters the guesser never found, shown only once the round is lost. */
+.hangman-slot.missed {
+  color: var(--rust);
+  border-bottom-color: var(--rust);
+}
+
+.hangman-letter {
+  animation: hangman-letter-in 0.28s ease-out;
+}
+
+@keyframes hangman-letter-in {
+  from { opacity: 0; transform: translateY(6px) rotate(-4deg); }
+  to { opacity: 1; transform: translateY(0) rotate(0); }
+}
+
+.hangman-space {
+  width: 0.9rem;
+}
+
+.hangman-hint {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  text-align: center;
+  font-style: italic;
+}
+
+.hangman-missed {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.3rem;
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: var(--rust);
+  text-decoration: line-through;
+}
+
+/* ---------- keyboard ---------- */
+
+.hangman-keyboard {
+  width: 100%;
+  max-width: 34rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+
+.hangman-key-row {
+  display: flex;
+  justify-content: center;
+  gap: 0.25rem;
+}
+
+.hangman-key {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 2.85rem;
+  padding: 0;
+  border-radius: var(--radius-sm);
+  background: var(--sand-100);
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.hangman-key:hover:not(:disabled) {
+  background: var(--sand-200);
+}
+
+.hangman-key:disabled {
+  cursor: default;
+}
+
+.hangman-key.hit {
+  background: var(--teal-soft);
+  color: var(--teal);
+}
+
+.hangman-key.miss {
+  background: transparent;
+  color: var(--sand-300);
+  text-decoration: line-through;
+}
+
+/* A key that's simply not yours to press (you set the word) shouldn't look
+   like a key you've already used up. */
+.hangman-key:disabled:not(.hit):not(.miss) {
+  opacity: 0.45;
+}
+
+/* ---------- round end, and the family game's chrome ---------- */
+
+.hangman-result {
+  width: 100%;
+  padding: 1.25rem;
+  text-align: center;
+}
+
+.hangman-result h3 {
+  font-size: 1.4rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.hangman-result-detail {
+  margin-top: 0.35rem;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+.hangman-result .btn {
+  margin-top: 0.85rem;
+  width: 100%;
+}
+
+.hangman-wide-btn {
+  width: 100%;
+  margin-bottom: 0.75rem;
+}
+
+.hangman-categories {
+  padding: 1.25rem;
+}
+
+.hangman-categories-note {
+  margin: 0.35rem 0 1rem;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+.hangman-category-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.hangman-category {
+  width: 100%;
+  padding: 0.85rem 1rem;
+  text-align: left;
+  background: var(--sand-50);
+  border: 1px solid var(--sand-200);
+  border-radius: var(--radius-md);
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.hangman-category:hover {
+  background: var(--rust-soft);
+  border-color: var(--rust);
+  color: var(--rust);
+}
+
+.hangman-scorebar {
+  width: 100%;
+  display: flex;
+  gap: 0.5rem;
+}
+
+.hangman-tally {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.15rem;
+  padding: 0.55rem 0.5rem;
+  background: var(--bg-surface);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-card);
+}
+
+.hangman-tally-name {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.hangman-tally-value {
+  font-family: Poppins, system-ui, sans-serif;
+  font-size: 1.15rem;
+  font-weight: 700;
+}
+
+.hangman-status-row {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.hangman-status {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.hangman-status.settled {
+  color: var(--rust);
+}
+
+.hangman-status-spinner {
+  width: 15px;
+  height: 15px;
+  animation: generating-spin 0.8s linear infinite;
+}
+
+.hangman-next-btn {
+  padding: 0.55rem 0.9rem;
+  font-size: 0.85rem;
+  white-space: nowrap;
+}
+
+.hangman-waiting-card,
+.hangman-setter {
+  width: 100%;
+  padding: 1.25rem;
+}
+
+.hangman-waiting-card p {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  text-align: center;
+}
+
+.hangman-setter {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.hangman-input {
+  width: 100%;
+  padding: 0.75rem 0.9rem;
+  border: 1px solid var(--sand-200);
+  border-radius: var(--radius-sm);
+  background: var(--sand-50);
+  font-family: inherit;
+  font-size: 1rem;
+  color: var(--text-primary);
+}
+
+.hangman-input:focus {
+  outline: 2px solid var(--rust);
+  outline-offset: 1px;
+}
+
+.hangman-problem {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--rust);
+}
+
+.hangman-setter-hint {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.hangman-setter-note {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.hangman-setter-note strong {
+  letter-spacing: 0.08em;
+  color: var(--text-secondary);
+}
+
+.hangman-error {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  background: var(--rust-soft);
+  color: var(--rust);
+  font-size: 0.85rem;
+}
+
+.hangman-leave {
+  margin-top: 0.25rem;
+}
+
+/* The clue field and its "Suggest" button share a row — the button is a
+   shortcut for filling the field beside it, not a separate step. */
+.hangman-hint-row {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.hangman-hint-row .hangman-input {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.hangman-suggest {
+  flex: 0 0 auto;
+  padding: 0.75rem 1rem;
+  font-size: 0.85rem;
+  white-space: nowrap;
+}

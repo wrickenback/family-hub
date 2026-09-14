@@ -26,6 +26,8 @@ export type Route =
   | { screen: 'play-connect4'; mode: 'pass' | 'online' }
   | { screen: 'play-battleship' }
   | { screen: 'play-reaction' }
+  | { screen: 'play-wordle'; mode: 'family' | 'free' }
+  | { screen: 'play-hangman'; mode: 'solo' | 'family' }
   | { screen: 'play-catqueens'; size: 6 | 7 | 8 | 9 };
 
 /** Mode string used for any game that doesn't partition its leaderboard by
@@ -138,6 +140,20 @@ export const games: GameApp[] = [
     scoring: 'wins',
     icon: WordleIcon,
     blurb: 'Six guesses, five letters. Same word for the whole family.',
+    built: true,
+    modes: [
+      {
+        id: 'family',
+        name: 'Family word',
+        blurb:
+          "One word a day for everyone. Whoever opens it first gets it picked for the family — you get one go at it.",
+      },
+      {
+        id: 'free',
+        name: 'Free play',
+        blurb: 'A fresh word whenever you want one. Play as many as you like.',
+      },
+    ],
   },
   {
     id: 'reaction',
@@ -159,6 +175,21 @@ export const games: GameApp[] = [
     scoring: 'wins',
     icon: HangmanIcon,
     blurb: 'Guess the word letter by letter. Play solo or pick an opponent.',
+    built: true,
+    modes: [
+      {
+        id: 'solo',
+        name: 'Solo',
+        blurb: 'Pick a category and a word gets chosen for you, clue included.',
+        players: 'solo',
+      },
+      {
+        id: 'family',
+        name: 'Family game',
+        blurb: 'One of you sets the word, the other guesses. Swap every round.',
+        players: 'multi',
+      },
+    ],
   },
   {
     id: 'tictactoe',
@@ -303,6 +334,10 @@ export function routeToPath(route: Route): string {
       return '/play/battleship';
     case 'play-reaction':
       return '/play/reaction';
+    case 'play-wordle':
+      return `/play/wordle/${route.mode}`;
+    case 'play-hangman':
+      return `/play/hangman/${route.mode}`;
     case 'play-catqueens':
       return `/play/catqueens/${route.size}`;
   }
@@ -342,6 +377,12 @@ export function pathToRoute(pathname: string): Route | null {
       }
       if (second === 'reaction') {
         return { screen: 'play-reaction' };
+      }
+      if (second === 'wordle' && (third === 'family' || third === 'free')) {
+        return { screen: 'play-wordle', mode: third };
+      }
+      if (second === 'hangman' && (third === 'solo' || third === 'family')) {
+        return { screen: 'play-hangman', mode: third };
       }
       if (second === 'catqueens' && third) {
         const size = Number(third);
@@ -413,6 +454,20 @@ export function parentChainFor(route: Route): Route[] {
         HOME,
         { screen: 'games' },
         { screen: 'game', gameId: 'catqueens' },
+        route,
+      ];
+    case 'play-wordle':
+      return [
+        HOME,
+        { screen: 'games' },
+        { screen: 'game', gameId: 'wordle' },
+        route,
+      ];
+    case 'play-hangman':
+      return [
+        HOME,
+        { screen: 'games' },
+        { screen: 'game', gameId: 'hangman' },
         route,
       ];
     default:

@@ -1,0 +1,276 @@
+/* Daily Word. The board is sized off the viewport rather than fixed pixels
+   so all six rows plus the keyboard fit on a phone without scrolling — the
+   whole point of the game is seeing your earlier guesses while you think. */
+
+.wordle-fit {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.wordle-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 2.5rem 1.25rem;
+  text-align: center;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+
+.wordle-picked-by {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.wordle-board-wrap {
+  position: relative;
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+
+.wordle-board {
+  display: grid;
+  gap: 0.375rem;
+  /* Tile size follows the narrower of "a fifth of the width" and "a slice
+     of the height", so a short landscape window shrinks the board instead
+     of pushing the keyboard off screen. */
+  --tile: min(3.5rem, calc((100vw - 2 * var(--gutter) - 4 * 0.375rem) / 5), 11vh);
+}
+
+.wordle-row {
+  display: grid;
+  grid-template-columns: repeat(5, var(--tile));
+  gap: 0.375rem;
+}
+
+.wordle-row.shaking {
+  animation: wordle-shake 0.45s ease-in-out;
+}
+
+@keyframes wordle-shake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-7px); }
+  40% { transform: translateX(7px); }
+  60% { transform: translateX(-4px); }
+  80% { transform: translateX(4px); }
+}
+
+.wordle-tile {
+  position: relative;
+  width: var(--tile);
+  height: var(--tile);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid var(--sand-200);
+  border-radius: var(--radius-sm);
+  background: var(--bg-surface);
+  font-family: Poppins, system-ui, sans-serif;
+  font-weight: 700;
+  font-size: calc(var(--tile) * 0.5);
+  line-height: 1;
+  text-transform: uppercase;
+  color: var(--text-primary);
+}
+
+.wordle-tile.filled {
+  border-color: var(--sand-300);
+  animation: wordle-pop 0.12s ease-out;
+}
+
+@keyframes wordle-pop {
+  from { transform: scale(0.9); }
+  to { transform: scale(1); }
+}
+
+/* Each state only declares its colour; whether that colour is painted now
+   or halfway through a flip is decided below, so the two paths can't drift
+   to different greens. */
+.wordle-tile.state-correct { --tile-bg: var(--teal); }
+.wordle-tile.state-present { --tile-bg: var(--gold); }
+.wordle-tile.state-absent { --tile-bg: var(--sand-600); }
+
+.wordle-tile[class*='state-']:not(.flipping) {
+  background: var(--tile-bg);
+  border-color: var(--tile-bg);
+  color: #fff;
+}
+
+.wordle-tile.flipping {
+  animation: wordle-flip var(--flip-ms) ease-in forwards;
+  animation-delay: var(--flip-delay);
+}
+
+/* The colour swaps at the exact midpoint, while the tile is edge-on — which
+   is what sells it as the tile turning over rather than just recolouring. */
+@keyframes wordle-flip {
+  0% {
+    transform: rotateX(0deg);
+    background: var(--bg-surface);
+    border-color: var(--sand-300);
+    color: var(--text-primary);
+  }
+  49.9% {
+    transform: rotateX(90deg);
+    background: var(--bg-surface);
+    border-color: var(--sand-300);
+    color: var(--text-primary);
+  }
+  50% {
+    transform: rotateX(90deg);
+    background: var(--tile-bg);
+    border-color: var(--tile-bg);
+    color: #fff;
+  }
+  100% {
+    transform: rotateX(0deg);
+    background: var(--tile-bg);
+    border-color: var(--tile-bg);
+    color: #fff;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* No flip, but the tile must still end up coloured — without this the
+     shortened animation leaves it on the 0% frame, i.e. blank. */
+  .wordle-tile.flipping {
+    background: var(--tile-bg);
+    border-color: var(--tile-bg);
+    color: #fff;
+  }
+}
+
+.wordle-toast {
+  position: absolute;
+  top: -0.25rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 2;
+  padding: 0.4rem 0.9rem;
+  border-radius: var(--radius-pill);
+  background: var(--text-primary);
+  color: var(--sand-50);
+  font-size: 0.8rem;
+  font-weight: 600;
+  box-shadow: var(--shadow-raised);
+  animation: wordle-toast-in 0.15s ease-out;
+}
+
+@keyframes wordle-toast-in {
+  from { opacity: 0; transform: translate(-50%, -6px); }
+  to { opacity: 1; transform: translate(-50%, 0); }
+}
+
+/* ---------- keyboard ---------- */
+
+.wordle-keyboard {
+  width: 100%;
+  max-width: 34rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  margin-top: 0.25rem;
+}
+
+.wordle-key-row {
+  display: flex;
+  justify-content: center;
+  gap: 0.25rem;
+}
+
+.wordle-key {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 3rem;
+  padding: 0;
+  border-radius: var(--radius-sm);
+  background: var(--sand-100);
+  color: var(--text-primary);
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.wordle-key:hover {
+  background: var(--sand-200);
+}
+
+.wordle-key-wide {
+  flex: 1.6 1 auto;
+  font-size: 0.8rem;
+}
+
+.wordle-key.state-correct { background: var(--teal); color: #fff; }
+.wordle-key.state-present { background: var(--gold); color: #fff; }
+.wordle-key.state-absent { background: var(--sand-300); color: var(--text-muted); }
+
+/* ---------- after the round ---------- */
+
+.wordle-result {
+  width: 100%;
+  padding: 1.25rem;
+  text-align: center;
+}
+
+.wordle-result h3 {
+  font-size: 1.5rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.wordle-result-detail {
+  margin-top: 0.35rem;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+.wordle-result-next {
+  margin-top: 0.75rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--rust);
+  font-variant-numeric: tabular-nums;
+}
+
+.wordle-result .btn {
+  margin-top: 1rem;
+  width: 100%;
+}
+
+.wordle-family {
+  width: 100%;
+  margin-top: 0.75rem;
+}
+
+.wordle-family-list {
+  list-style: none;
+  padding: 0.25rem 0;
+}
+
+.wordle-family-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.65rem 1rem;
+  font-size: 0.9rem;
+}
+
+.wordle-family-row + .wordle-family-row {
+  border-top: 1px solid var(--sand-100);
+}
+
+.wordle-family-row.is-you .wordle-family-name {
+  font-weight: 700;
+  color: var(--rust);
+}
+
+.wordle-family-guesses {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-muted);
+}

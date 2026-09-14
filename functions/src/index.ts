@@ -2,13 +2,33 @@ import * as functions from 'firebase-functions';
 import * as admin from 'firebase-admin';
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { defineSecret } from 'firebase-functions/params';
-import { generateTopicWords } from './gemini';
+import { providersFrom } from './providers';
+import {
+  MIN_TOPIC_WORDS,
+  fallbackDailyWord,
+  fallbackHangmanWord,
+  generateHangmanHint,
+  generateHangmanWord,
+  generateTopicWords,
+  generateWordleWords,
+} from './wordGames';
 import { buildWordSearchGrid, type Difficulty } from './wordSearchGrid';
 
 admin.initializeApp();
 const db = admin.firestore();
 
 const geminiApiKey = defineSecret('GEMINI_API_KEY');
+// Claude Haiku backs Gemini up when it returns a transient 503 or a
+// response nothing usable can be parsed from. Declared as a secret like the
+// Gemini key; providersFrom() simply drops whichever key is absent, so the
+// functions still deploy and run with only one of the two configured.
+const anthropicApiKey = defineSecret('ANTHROPIC_API_KEY');
+
+/** The model chain every generator runs down, built per request so a key
+ * rotation takes effect without a redeploy. */
+function models() {
+  return providersFrom(geminiApiKey.value(), anthropicApiKey.value());
+}
 
 function slugify(topic: string): string {
   return topic
@@ -19,6 +39,31 @@ function slugify(topic: string): string {
     .slice(0, 60);
 }
 
+interface Caller {
+  uid: string;
+  email: string;
+  name: string;
+}
+
+/** Every callable here is family-only: signed in, and on the allowlist the
+ * Firestore rules use. Shared so a new game can't accidentally ship without
+ * the check — or with a subtly different one. Returns the caller, which also
+ * saves each function re-narrowing `request.auth` after the guard. */
+async function requireFamilyMember(request: {
+  auth?: { uid: string; token: { email?: string; name?: string } };
+}): Promise<Caller> {
+  const email = request.auth?.token.email;
+  if (!request.auth || !email) {
+    throw new HttpsError('unauthenticated', 'Sign in required.');
+  }
+  const allowlistDoc = await db.doc('config/allowedEmails').get();
+  const allowedEmails: string[] = allowlistDoc.data()?.emails ?? [];
+  if (!allowedEmails.includes(email)) {
+    throw new HttpsError('permission-denied', 'Not a family member.');
+  }
+  return { uid: request.auth.uid, email, name: request.auth.token.name ?? 'Someone' };
+}
+
 /**
  * Generates a new Word Search puzzle for a topic: Gemini supplies the word
  * list (never called from the client — the API key stays server-side),
@@ -27,18 +72,9 @@ function slugify(topic: string): string {
  * playing immediately without a second round trip.
  */
 export const generateWordSearchPuzzle = onCall(
-  { region: 'us-central1', secrets: [geminiApiKey] },
+  { region: 'us-central1', secrets: [geminiApiKey, anthropicApiKey] },
   async (request) => {
-    const email = request.auth?.token.email;
-    if (!request.auth || !email) {
-      throw new HttpsError('unauthenticated', 'Sign in required.');
-    }
-
-    const allowlistDoc = await db.doc('config/allowedEmails').get();
-    const allowedEmails: string[] = allowlistDoc.data()?.emails ?? [];
-    if (!allowedEmails.includes(email)) {
-      throw new HttpsError('permission-denied', 'Not a family member.');
-    }
+    const caller = await requireFamilyMember(request);
 
     const topic = String(request.data?.topic ?? '').trim();
     if (!topic || topic.length > 60) {
@@ -47,8 +83,8 @@ export const generateWordSearchPuzzle = onCall(
 
     const difficulty: Difficulty = request.data?.difficulty === 'easy' ? 'easy' : 'hard';
 
-    const words = await generateTopicWords(geminiApiKey.value(), topic);
-    if (words.length < 4) {
+    const words = await generateTopicWords(models(), topic);
+    if (words.length < MIN_TOPIC_WORDS) {
       throw new HttpsError(
         'unavailable',
         "Couldn't find enough words for that topic — try a different one."
@@ -74,12 +110,153 @@ export const generateWordSearchPuzzle = onCall(
       size: puzzle.size,
       grid: puzzle.grid,
       words: puzzle.words,
-      createdBy: request.auth.uid,
-      createdByName: request.auth.token.name ?? 'Someone',
+      createdBy: caller.uid,
+      createdByName: caller.name,
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
     });
 
     return { id: docRef.id, ...puzzle, topic, difficulty };
+  }
+);
+
+/** The one place the Daily Word answer lives. Clients never read
+ * `dailyWords` directly (the Firestore rules deny it outright) — they ask
+ * here, which is also what makes "the first person to open it today picks
+ * the word for everyone" work: the doc is created once, by whoever loads
+ * first, and everyone after reads that same answer back.
+ *
+ * `create()` rather than `set()` is doing the real work: two family members
+ * opening the app in the same second both find no doc and both generate a
+ * word, but only one write can land. The loser re-reads and plays the
+ * winner's word, so the family never splits across two answers.
+ */
+export const getDailyWord = onCall(
+  { region: 'us-central1', secrets: [geminiApiKey, anthropicApiKey] },
+  async (request) => {
+    const caller = await requireFamilyMember(request);
+
+    const dateKey = String(request.data?.dateKey ?? '').trim();
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(dateKey)) {
+      throw new HttpsError('invalid-argument', 'Bad date.');
+    }
+    // The key is the client's *local* date, so a family west of UTC gets a
+    // new word at their own midnight rather than mid-afternoon. A device
+    // with a wildly wrong clock (or someone trying to read tomorrow's word
+    // early) is fenced to a day either side of the server's date.
+    const serverDay = new Date().toISOString().slice(0, 10);
+    const dayApart = Math.abs(Date.parse(dateKey) - Date.parse(serverDay));
+    if (!Number.isFinite(dayApart) || dayApart > 36 * 60 * 60 * 1000) {
+      throw new HttpsError('invalid-argument', 'That day is out of range.');
+    }
+
+    const ref = db.doc(`dailyWords/${dateKey}`);
+    const existing = await ref.get();
+    if (existing.exists) {
+      const data = existing.data() ?? {};
+      return {
+        dateKey,
+        word: data.word as string,
+        pickedByName: (data.pickedByName as string) ?? null,
+        source: (data.source as string) ?? 'ai',
+      };
+    }
+
+    // Two weeks of answers to steer Gemini away from — enough that a repeat
+    // is noticeable, small enough to stay one cheap query.
+    const recentSnap = await db
+      .collection('dailyWords')
+      .orderBy(admin.firestore.FieldPath.documentId(), 'desc')
+      .limit(14)
+      .get();
+    const recentWords = recentSnap.docs
+      .map((doc) => doc.data().word as string)
+      .filter(Boolean);
+
+    const generated = await generateWordleWords(models(), recentWords);
+    const word = generated[0] ?? fallbackDailyWord(dateKey);
+    const source = generated.length > 0 ? 'ai' : 'fallback';
+
+    try {
+      await ref.create({
+        word,
+        source,
+        pickedBy: caller.uid,
+        pickedByName: caller.name,
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+      return { dateKey, word, pickedByName: caller.name, source };
+    } catch {
+      // Someone else's create() won the race — play their word, not ours.
+      const winner = await ref.get();
+      const data = winner.data() ?? {};
+      return {
+        dateKey,
+        word: data.word as string,
+        pickedByName: (data.pickedByName as string) ?? null,
+        source: (data.source as string) ?? 'ai',
+      };
+    }
+  }
+);
+
+/** A batch of answers for Daily Word's free-play mode. Returns a list
+ * rather than one word on purpose: free play is unlimited, and a request
+ * per round would be both slow between rounds and wasteful, when one
+ * request produces ten perfectly good words for the same price. The client
+ * plays through the batch and comes back when it runs low.
+ *
+ * Nothing is stored — free-play words are disposable and, unlike the daily
+ * word, don't need to be the same for everyone.
+ */
+export const getWordleWords = onCall(
+  { region: 'us-central1', secrets: [geminiApiKey, anthropicApiKey] },
+  async (request) => {
+    await requireFamilyMember(request);
+
+    const words = await generateWordleWords(models(), [], 12);
+    if (words.length === 0) {
+      // The client falls back to its bundled list, so this is a soft
+      // failure rather than an error the player has to look at.
+      return { words: [], source: 'fallback' };
+    }
+    return { words, source: 'ai' };
+  }
+);
+
+/** Suggests a clue for a word the setter has typed in the family game.
+ * Best-effort: an empty hint means "write your own", not an error. */
+export const getHangmanHint = onCall(
+  { region: 'us-central1', secrets: [geminiApiKey, anthropicApiKey] },
+  async (request) => {
+    await requireFamilyMember(request);
+
+    const word = String(request.data?.word ?? '').trim().toUpperCase();
+    if (!/^[A-Z]+( [A-Z]+)*$/.test(word) || word.replace(/ /g, '').length > 18) {
+      throw new HttpsError('invalid-argument', 'That word cannot be hinted.');
+    }
+
+    const hint = await generateHangmanHint(models(), word);
+    return { hint: hint ?? '' };
+  }
+);
+
+/** One word and a clue for a solo game of Hangman. Nothing is stored: solo
+ * rounds are disposable, and keeping the word out of Firestore means there
+ * is nothing to look up mid-round. */
+export const getHangmanWord = onCall(
+  { region: 'us-central1', secrets: [geminiApiKey, anthropicApiKey] },
+  async (request) => {
+    await requireFamilyMember(request);
+
+    const category = String(request.data?.category ?? 'anything').trim();
+    if (!/^[a-z]{1,20}$/.test(category)) {
+      throw new HttpsError('invalid-argument', 'Unknown category.');
+    }
+    const label = String(request.data?.label ?? category).trim().slice(0, 40);
+
+    const generated = await generateHangmanWord(models(), label || category);
+    const picked = generated ?? fallbackHangmanWord(category);
+    return { ...picked, category, source: generated ? 'ai' : 'fallback' };
   }
 );
 

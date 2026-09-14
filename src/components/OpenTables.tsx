@@ -15,6 +15,7 @@ const GAME_LABEL: Record<GameKind, string> = {
   tictactoe: 'Tic Tac Toe',
   connect4: 'Connect 4',
   battleship: 'Battleship',
+  hangman: 'Hangman',
 };
 
 function routeFor(kind: GameKind): Route {
@@ -25,6 +26,8 @@ function routeFor(kind: GameKind): Route {
       return { screen: 'play-connect4', mode: 'online' };
     case 'battleship':
       return { screen: 'play-battleship' };
+    case 'hangman':
+      return { screen: 'play-hangman', mode: 'family' };
   }
 }
 

@@ -70,6 +70,13 @@ service cloud.firestore {
       match /catQueensProgress/{document=**} {
         allow read, write: if request.auth.uid == uid;
       }
+
+      // Daily Word: one doc per day holding this player's guesses. Owner
+      // only — it carries the day's answer, so a family member reading
+      // someone else's would be reading the answer off their board.
+      match /dailyWordProgress/{dateKey} {
+        allow read, write: if request.auth.uid == uid;
+      }
     }
 
     // Real-time 2-player games
@@ -143,6 +150,16 @@ service cloud.firestore {
       allow read: if isSignedIn() && isAllowed();
       allow create, update: if false;
       allow delete: if isSignedIn() && isAllowed();
+    }
+
+    // Daily Word answers, one doc per day, written only by the getDailyWord
+    // Cloud Function (which creates the day's word the first time anyone in
+    // the family opens the game). Deliberately unreadable by clients: the
+    // document *is* the answer, so a player who could read it would simply
+    // look today's word up instead of playing. The function hands the word
+    // back through its own response instead.
+    match /dailyWords/{dateKey} {
+      allow read, write: if false;
     }
 
     // Schedule (merged from calendar + ICS)
