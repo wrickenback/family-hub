@@ -66,6 +66,10 @@ service cloud.firestore {
       match /wordSearchProgress/{puzzleId} {
         allow read, write: if request.auth.uid == uid;
       }
+
+      match /catQueensProgress/{document=**} {
+        allow read, write: if request.auth.uid == uid;
+      }
     }
 
     // Real-time 2-player games

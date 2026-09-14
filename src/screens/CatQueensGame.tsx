@@ -7,6 +7,11 @@ import {
   isSolved,
   type CatQueensPuzzle,
 } from '../lib/catQueensEngine';
+import {
+  loadCatQueensProgress,
+  saveCatQueensProgress,
+  type CatQueensProgress,
+} from '../lib/firestoreCatQueens';
 import { submitScore } from '../lib/firestoreScores';
 import { DEFAULT_MODE } from '../lib/router';
 import { playClear } from '../lib/sound';
@@ -28,46 +33,13 @@ const REGION_COLORS = [
   '#e08a7a', '#c9a3e8', '#e8d38a', '#8adbc2', '#e0a3a3',
 ];
 
-const DISCOVERED_KEY = 'catqueens-discovered-breeds';
-const LEVEL_KEY_PREFIX = 'catqueens-level-';
 // Only a solver's first couple of puzzles at a given size get the one-cell
 // freebie region — enough to learn the rules on, without making every
 // puzzle trivially easy forever.
 const FREEBIE_LEVEL_CAP = 2;
 
-function loadDiscovered(): Set<string> {
-  try {
-    const raw = window.localStorage.getItem(DISCOVERED_KEY);
-    return new Set(raw ? (JSON.parse(raw) as string[]) : []);
-  } catch {
-    return new Set();
-  }
-}
-
-function saveDiscovered(ids: Set<string>) {
-  try {
-    window.localStorage.setItem(DISCOVERED_KEY, JSON.stringify([...ids]));
-  } catch {
-    // best effort — a missed save just costs one collection entry
-  }
-}
-
-function loadLevel(size: number): number {
-  try {
-    const raw = window.localStorage.getItem(`${LEVEL_KEY_PREFIX}${size}`);
-    const n = raw ? Number(raw) : 1;
-    return Number.isFinite(n) && n >= 1 ? n : 1;
-  } catch {
-    return 1;
-  }
-}
-
-function saveLevel(size: number, level: number) {
-  try {
-    window.localStorage.setItem(`${LEVEL_KEY_PREFIX}${size}`, String(level));
-  } catch {
-    // best effort — a missed save just costs the level tracking, not play
-  }
+function emptyGrid(size: number): CellState[][] {
+  return Array.from({ length: size }, () => new Array(size).fill('empty'));
 }
 
 function formatElapsed(ms: number): string {
@@ -93,31 +65,54 @@ export function CatQueensGame({
   displayName,
   onBack,
 }: CatQueensGameProps) {
-  const [level, setLevel] = useState(() => loadLevel(size));
-  const [{ puzzle, breedId }, setRound] = useState(() => newPuzzle(size, level));
-  const [cells, setCells] = useState<CellState[][]>(() =>
-    Array.from({ length: size }, () => new Array(size).fill('empty'))
-  );
+  // The solver's level per board size and discovered-breed collection live
+  // on their account, not the device — null while that's still loading.
+  const [progress, setProgress] = useState<CatQueensProgress | null>(null);
+  const [round, setRound] = useState<{
+    puzzle: CatQueensPuzzle;
+    breedId: string;
+  } | null>(null);
+  const [cells, setCells] = useState<CellState[][] | null>(null);
   const [elapsedMs, setElapsedMs] = useState(0);
   const [completed, setCompleted] = useState(false);
   const [scoreSaved, setScoreSaved] = useState(false);
   const [justDiscovered, setJustDiscovered] = useState(false);
 
   const startTimeRef = useRef(Date.now());
-  const discoveredRef = useRef<Set<string>>(loadDiscovered());
   const completeRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (completed) return;
+    let cancelled = false;
+    loadCatQueensProgress(uid).then((p) => {
+      if (!cancelled) setProgress(p);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [uid]);
+
+  // Fires once, the moment progress arrives — starts the first puzzle at
+  // whichever level this account has already reached for this size.
+  useEffect(() => {
+    if (!progress || round) return;
+    const level = progress.levels[String(size)] ?? 1;
+    setRound(newPuzzle(size, level));
+    setCells(emptyGrid(size));
+    startTimeRef.current = Date.now();
+  }, [progress, round, size]);
+
+  useEffect(() => {
+    if (completed || !round) return;
     const id = window.setInterval(() => {
       setElapsedMs(Date.now() - startTimeRef.current);
     }, 200);
     return () => window.clearInterval(id);
-  }, [completed]);
+  }, [completed, round]);
 
-  const breed = getBreed(breedId);
+  const breed = round ? getBreed(round.breedId) : null;
 
   const cats = useMemo(() => {
+    if (!cells) return [];
     const out: { r: number; c: number }[] = [];
     cells.forEach((row, r) =>
       row.forEach((state, c) => {
@@ -128,13 +123,15 @@ export function CatQueensGame({
   }, [cells]);
 
   const conflicts = useMemo(
-    () => findConflicts(puzzle.regions, cats),
-    [puzzle, cats]
+    () => (round ? findConflicts(round.puzzle.regions, cats) : new Map()),
+    [round, cats]
   );
 
-  const restart = (nextSize: number = size) => {
-    setRound(newPuzzle(nextSize, level));
-    setCells(Array.from({ length: nextSize }, () => new Array(nextSize).fill('empty')));
+  const restart = () => {
+    if (!progress) return;
+    const level = progress.levels[String(size)] ?? 1;
+    setRound(newPuzzle(size, level));
+    setCells(emptyGrid(size));
     setElapsedMs(0);
     setCompleted(false);
     setScoreSaved(false);
@@ -145,6 +142,7 @@ export function CatQueensGame({
   const handleTap = (r: number, c: number) => {
     if (completed) return;
     setCells((prev) => {
+      if (!prev) return prev;
       const next = prev.map((row) => [...row]);
       const order: CellState[] = ['empty', 'x', 'cat'];
       const current = next[r][c];
@@ -155,25 +153,28 @@ export function CatQueensGame({
 
   const clearBoard = () => {
     if (completed) return;
-    setCells(Array.from({ length: size }, () => new Array(size).fill('empty')));
+    setCells(emptyGrid(size));
   };
 
   useEffect(() => {
-    if (completed) return;
-    if (!isSolved(puzzle.size, puzzle.regions, cats)) return;
+    if (completed || !round || !progress) return;
+    if (!isSolved(round.puzzle.size, round.puzzle.regions, cats)) return;
     setCompleted(true);
     playClear(3);
-    setLevel((l) => {
-      const next = l + 1;
-      saveLevel(size, next);
-      return next;
-    });
-    if (!discoveredRef.current.has(breedId)) {
-      discoveredRef.current = new Set(discoveredRef.current).add(breedId);
-      saveDiscovered(discoveredRef.current);
-      setJustDiscovered(true);
-    }
-  }, [cats, puzzle, completed, breedId]);
+
+    const nextLevel = (progress.levels[String(size)] ?? 1) + 1;
+    const nextDiscovered = progress.discoveredBreeds.includes(round.breedId)
+      ? progress.discoveredBreeds
+      : [...progress.discoveredBreeds, round.breedId];
+    if (nextDiscovered !== progress.discoveredBreeds) setJustDiscovered(true);
+
+    const nextProgress: CatQueensProgress = {
+      levels: { ...progress.levels, [String(size)]: nextLevel },
+      discoveredBreeds: nextDiscovered,
+    };
+    setProgress(nextProgress);
+    saveCatQueensProgress(uid, nextProgress).catch(() => {});
+  }, [cats, round, completed, progress, size, uid]);
 
   useEffect(() => {
     if (!completed || scoreSaved) return;
@@ -195,7 +196,17 @@ export function CatQueensGame({
     completeRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
   }, [completed]);
 
-  const discoveredCount = discoveredRef.current.size;
+  if (!progress || !round || !cells || !breed) {
+    return (
+      <Screen title="Cat Queens" onBack={onBack}>
+        <div className="card empty-state">Loading your progress…</div>
+      </Screen>
+    );
+  }
+
+  const level = progress.levels[String(size)] ?? 1;
+  const discoveredCount = progress.discoveredBreeds.length;
+  const { puzzle } = round;
 
   return (
     <Screen title="Cat Queens" onBack={onBack}>
@@ -257,7 +268,7 @@ export function CatQueensGame({
         <button className="btn btn-secondary" onClick={clearBoard} disabled={completed}>
           Clear board
         </button>
-        <button className="btn btn-secondary" onClick={() => restart()}>
+        <button className="btn btn-secondary" onClick={restart}>
           New puzzle
         </button>
       </div>
@@ -272,7 +283,7 @@ export function CatQueensGame({
               New breed discovered: {breed.name}!
             </p>
           )}
-          <button className="btn btn-primary" onClick={() => restart()}>
+          <button className="btn btn-primary" onClick={restart}>
             Play another
           </button>
         </div>
