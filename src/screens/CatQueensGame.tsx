@@ -173,7 +173,7 @@ export function CatQueensGame({
           <span className="cq-stat-label">time</span>
         </div>
         <div className="cq-breed-badge">
-          <CatFace breed={breed} size={28} />
+          <CatFace breed={breed} size={44} />
           <span>{breed.name}</span>
         </div>
         <div className="cq-stat cq-stat-right">
@@ -189,7 +189,10 @@ export function CatQueensGame({
 
       <div
         className="cq-board"
-        style={{ gridTemplateColumns: `repeat(${size}, 1fr)` }}
+        style={{
+          gridTemplateColumns: `repeat(${size}, 1fr)`,
+          gridTemplateRows: `repeat(${size}, 1fr)`,
+        }}
       >
         {cells.map((row, r) =>
           row.map((state, c) => {

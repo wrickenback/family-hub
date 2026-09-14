@@ -2,8 +2,8 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 0.5rem;
-  padding: 0.4rem 0.75rem;
+  gap: 0.6rem;
+  padding: 0.6rem 0.9rem;
   margin-bottom: 0.5rem;
   background: linear-gradient(135deg, var(--rust) 0%, #7a3a1c 100%);
   border-radius: var(--radius-md);
@@ -24,13 +24,13 @@
 
 .cq-stat-value {
   font-family: Poppins, system-ui, sans-serif;
-  font-size: 0.9rem;
+  font-size: 1.05rem;
   font-weight: 700;
   line-height: 1;
 }
 
 .cq-stat-label {
-  font-size: 0.55rem;
+  font-size: 0.6rem;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -40,8 +40,8 @@
 .cq-breed-badge {
   display: flex;
   align-items: center;
-  gap: 0.3rem;
-  font-size: 0.7rem;
+  gap: 0.4rem;
+  font-size: 0.8rem;
   font-weight: 600;
 }
 
