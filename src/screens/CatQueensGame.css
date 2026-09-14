@@ -65,6 +65,7 @@
   aspect-ratio: 1;
   margin: 0 auto 0.75rem;
   padding: 4px;
+  touch-action: none;
   background: var(--sand-200);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-card);

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import type { PointerEvent as ReactPointerEvent } from 'react';
 import { Screen } from '../components/Screen';
 import { CAT_BREEDS, CatFace, getBreed } from '../components/CatFace';
 import {
@@ -80,6 +81,18 @@ export function CatQueensGame({
 
   const startTimeRef = useRef(Date.now());
   const completeRef = useRef<HTMLDivElement>(null);
+  const boardRef = useRef<HTMLDivElement>(null);
+  // Tracks a pointer gesture across the board so a drag can mark out a
+  // whole row/column of cells at once, while a plain tap on one cell still
+  // does its full empty -> X -> cat -> empty cycle.
+  const dragStateRef = useRef<{ r: number; c: number; moved: boolean } | null>(
+    null
+  );
+  // A pointer tap resolves the action on pointerup (so it works mid-drag,
+  // not just on release over the same cell) — this flag tells the button's
+  // own click handler (needed for keyboard activation) to skip the
+  // duplicate click event the browser fires right after.
+  const suppressClickRef = useRef(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -154,6 +167,62 @@ export function CatQueensGame({
   const clearBoard = () => {
     if (completed) return;
     setCells(emptyGrid(size));
+  };
+
+  const paintX = (r: number, c: number) => {
+    setCells((prev) => {
+      if (!prev || prev[r][c] !== 'empty') return prev;
+      const next = prev.map((row) => [...row]);
+      next[r][c] = 'x';
+      return next;
+    });
+  };
+
+  const cellFromPoint = (clientX: number, clientY: number) => {
+    const rect = boardRef.current?.getBoundingClientRect();
+    if (!rect) return null;
+    const c = Math.max(
+      0,
+      Math.min(size - 1, Math.floor(((clientX - rect.left) / rect.width) * size))
+    );
+    const r = Math.max(
+      0,
+      Math.min(size - 1, Math.floor(((clientY - rect.top) / rect.height) * size))
+    );
+    return { r, c };
+  };
+
+  const handleBoardPointerDown = (e: ReactPointerEvent<HTMLDivElement>) => {
+    if (completed) return;
+    const cell = cellFromPoint(e.clientX, e.clientY);
+    if (!cell) return;
+    e.currentTarget.setPointerCapture(e.pointerId);
+    dragStateRef.current = { r: cell.r, c: cell.c, moved: false };
+  };
+
+  const handleBoardPointerMove = (e: ReactPointerEvent<HTMLDivElement>) => {
+    const start = dragStateRef.current;
+    if (!start || completed) return;
+    const cell = cellFromPoint(e.clientX, e.clientY);
+    if (!cell) return;
+    if (cell.r !== start.r || cell.c !== start.c) {
+      if (!start.moved) {
+        start.moved = true;
+        // Now that this is confirmed to be a drag (not a tap), the cell it
+        // started on gets marked out too, not just the ones it crosses.
+        paintX(start.r, start.c);
+      }
+      paintX(cell.r, cell.c);
+    }
+  };
+
+  const handleBoardPointerUp = () => {
+    const start = dragStateRef.current;
+    if (start && !start.moved) {
+      handleTap(start.r, start.c);
+      suppressClickRef.current = true;
+    }
+    dragStateRef.current = null;
   };
 
   useEffect(() => {
@@ -233,9 +302,16 @@ export function CatQueensGame({
 
       <div
         className="cq-board"
+        ref={boardRef}
         style={{
           gridTemplateColumns: `repeat(${size}, 1fr)`,
           gridTemplateRows: `repeat(${size}, 1fr)`,
+        }}
+        onPointerDown={handleBoardPointerDown}
+        onPointerMove={handleBoardPointerMove}
+        onPointerUp={handleBoardPointerUp}
+        onPointerCancel={() => {
+          dragStateRef.current = null;
         }}
       >
         {cells.map((row, r) =>
@@ -247,7 +323,17 @@ export function CatQueensGame({
                 key={`${r}-${c}`}
                 className={`cq-cell ${conflict ? 'conflict' : ''}`}
                 style={{ background: REGION_COLORS[region % REGION_COLORS.length] }}
-                onClick={() => handleTap(r, c)}
+                onClick={() => {
+                  // The board's own pointer handlers already resolve a tap
+                  // (and every drag) directly — this only fires for a
+                  // keyboard-activated click, unless it's the browser's
+                  // compatibility click right after a pointer tap.
+                  if (suppressClickRef.current) {
+                    suppressClickRef.current = false;
+                    return;
+                  }
+                  handleTap(r, c);
+                }}
                 aria-label={
                   state === 'cat'
                     ? `${breed.name} placed`
