@@ -285,9 +285,36 @@ function BattlePhase({
   const [myFleet, setMyFleet] = useState<BsFleetDoc | null>(null);
   const [enemyFleet, setEnemyFleet] = useState<BsFleetDoc | null>(null);
 
+  // The two boards page horizontally instead of stacking — see
+  // .bs-grids/.bs-grid-section in BattleshipGame.css. activePage tracks
+  // which one is in view so the tabs can highlight it and the "your move"
+  // pulse knows whether to bother.
+  const scrollerRef = useRef<HTMLDivElement>(null);
+  const [activePage, setActivePage] = useState<'enemy' | 'mine'>('enemy');
+
+  const goToPage = (page: 'enemy' | 'mine') => {
+    const el = scrollerRef.current;
+    if (!el) return;
+    el.scrollTo({ left: page === 'enemy' ? 0 : el.clientWidth, behavior: 'smooth' });
+    setActivePage(page);
+  };
+
+  const handleGridsScroll = () => {
+    const el = scrollerRef.current;
+    if (!el) return;
+    const page = el.scrollLeft > el.clientWidth / 2 ? 'mine' : 'enemy';
+    setActivePage((prev) => (prev === page ? prev : page));
+  };
+
   const myShots = game.shots[uid] ?? [];
   const theirShots = game.shots[opponentUid] ?? [];
   const myTurn = game.status === 'active' && game.turn === uid;
+  // Signals rather than moves: it's genuinely your move and you're not
+  // looking at the board that needs it. Clears itself the instant you
+  // swipe or tap over — nothing ever scrolls you there automatically,
+  // since that instant is also when the opponent's shot just landed on
+  // your own fleet and you might still be reading it.
+  const needsAttention = myTurn && activePage !== 'enemy';
 
   // Both sides' sunk ships are worked out from the layouts this screen
   // already holds plus the shot history, so nothing extra has to be synced
@@ -458,11 +485,38 @@ function BattlePhase({
             {sinkNotice.text}
           </div>
         )}
+
+        {/* Doubles as the two boards' labels now that they no longer both
+            fit on screen at once — tapping either jumps straight there,
+            swiping does the same thing natively. The active tab reads
+            reversed-out; "Enemy Waters" pulses (reusing the turn banner's
+            own glow) when it's your move and you're not looking at it. */}
+        <div className="bs-pager-tabs" role="tablist">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activePage === 'enemy'}
+            className={`bs-pager-tab ${activePage === 'enemy' ? 'active' : ''} ${
+              needsAttention ? 'pulse' : ''
+            }`}
+            onClick={() => goToPage('enemy')}
+          >
+            Enemy Waters
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activePage === 'mine'}
+            className={`bs-pager-tab ${activePage === 'mine' ? 'active' : ''}`}
+            onClick={() => goToPage('mine')}
+          >
+            Your Fleet
+          </button>
+        </div>
       </div>
 
-      <div className="bs-grids">
+      <div className="bs-grids" ref={scrollerRef} onScroll={handleGridsScroll}>
         <div className="bs-grid-section">
-          <span className="bs-grid-label">Enemy waters</span>
           <FleetChips sunk={enemySunk} label={`${opponentName ?? 'Their'} fleet`} />
           <BsGrid
             fleet={enemyFleet?.ships ?? EMPTY_FLEET}
@@ -475,7 +529,6 @@ function BattlePhase({
           />
         </div>
         <div className="bs-grid-section">
-          <span className="bs-grid-label">Your fleet</span>
           <FleetChips sunk={mySunk} label="Your fleet" />
           <BsGrid
             fleet={myFleet?.ships ?? EMPTY_FLEET}

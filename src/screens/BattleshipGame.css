@@ -93,25 +93,62 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* Grids */
+/* Grids — two full-width pages you swipe or tab between, rather than a
+   vertical stack that always shows half a board. Native CSS scroll-snap:
+   no swipe library, and a horizontal snap nested in the screen's own
+   vertical scroll doesn't fight it the way a vertical one would. */
 .bs-grids {
   display: flex;
-  flex-direction: column;
-  gap: 14px;
+  flex-direction: row;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+.bs-grids::-webkit-scrollbar {
+  display: none;
 }
 
 .bs-grid-section {
+  flex: 0 0 100%;
+  min-width: 0;
+  scroll-snap-align: center;
+  scroll-snap-stop: always;
   display: flex;
   flex-direction: column;
   gap: 4px;
 }
 
-.bs-grid-label {
-  font-size: 12px;
+/* ---------- pager tabs ---------- */
+
+.bs-pager-tabs {
+  display: flex;
+  gap: 0.4rem;
+  justify-content: center;
+  padding-top: 0.3rem;
+}
+
+.bs-pager-tab {
+  padding: 0.4rem 0.9rem;
+  border-radius: var(--radius-pill);
+  font-size: 0.8rem;
   font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  opacity: 0.6;
+  color: var(--text-muted);
+  background: transparent;
+}
+
+.bs-pager-tab.active {
+  background: var(--teal);
+  color: #fff;
+}
+
+/* Same glow the turn banner uses for "it's your move" — it's your move
+   here too, just for the other board. Only ever applies to the inactive
+   tab: the moment you switch to it, activePage flips and this class stops
+   being added at all. */
+.bs-pager-tab.pulse {
+  animation: bs-turn-pulse 2.4s ease-in-out infinite;
 }
 
 .bs-board {
