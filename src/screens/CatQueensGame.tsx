@@ -78,6 +78,7 @@ export function CatQueensGame({
 
   const startTimeRef = useRef(Date.now());
   const discoveredRef = useRef<Set<string>>(loadDiscovered());
+  const completeRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (completed) return;
@@ -154,6 +155,14 @@ export function CatQueensGame({
     }).catch(() => setScoreSaved(false));
   }, [completed, scoreSaved, uid, displayName, elapsedMs]);
 
+  // The board can run taller than the viewport on the bigger sizes, so the
+  // "Solved!" card lands below the fold — bring it into view rather than
+  // leaving the player staring at an unchanged board.
+  useEffect(() => {
+    if (!completed) return;
+    completeRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, [completed]);
+
   const discoveredCount = discoveredRef.current.size;
 
   return (
@@ -218,7 +227,7 @@ export function CatQueensGame({
       </div>
 
       {completed && (
-        <div className="cq-complete card">
+        <div className="cq-complete card" ref={completeRef}>
           <CatFace breed={breed} size={56} />
           <h3>Solved!</h3>
           <p className="cq-complete-time">{formatElapsed(elapsedMs)}</p>
