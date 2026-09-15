@@ -1,0 +1,270 @@
+.uno-scorebar {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.35rem;
+  padding: 0.4rem 0.6rem;
+  margin-bottom: 0.4rem;
+  background: linear-gradient(135deg, #D32F2F 0%, #1E6FD9 100%);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-card);
+  color: #fff;
+  text-align: center;
+}
+
+.uno-tally {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  min-width: 0;
+}
+
+.uno-tally-label {
+  font-size: 0.55rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  opacity: 0.85;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.uno-tally-value {
+  font-size: 1.1rem;
+  font-weight: 800;
+}
+
+.uno-status {
+  text-align: center;
+  font-weight: 700;
+  margin: 0.3rem 0 0.5rem;
+  color: var(--text-secondary);
+  min-height: 1.4em;
+}
+
+.uno-status.settled {
+  color: var(--text-primary);
+}
+
+.uno-status-spinner {
+  display: inline-block;
+  vertical-align: -0.15em;
+  margin-right: 0.35rem;
+  animation: uno-spin 1s linear infinite;
+}
+
+@keyframes uno-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.uno-event {
+  text-align: center;
+  font-weight: 800;
+  color: var(--gold);
+  margin-bottom: 0.4rem;
+  min-height: 1.2em;
+}
+
+.uno-table {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  padding: 0.75rem 0;
+}
+
+.uno-opponent {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3rem;
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+}
+
+.uno-opponent-backs {
+  display: flex;
+}
+
+.uno-card-back {
+  width: 32px;
+  height: 46px;
+  border-radius: 6px;
+  background: repeating-linear-gradient(45deg, #1E6FD9, #1E6FD9 4px, #17539E 4px, #17539E 8px);
+  border: 2px solid #fff;
+  box-shadow: var(--shadow-card);
+  margin-left: -18px;
+}
+
+.uno-card-back:first-child {
+  margin-left: 0;
+}
+
+.uno-pile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.uno-card {
+  width: 64px;
+  height: 92px;
+  border-radius: 10px;
+  border: 3px solid #fff;
+  box-shadow: var(--shadow-card);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 1.35rem;
+  color: #fff;
+  flex: none;
+}
+
+.uno-card-wild {
+  background: conic-gradient(#D32F2F 0turn 0.25turn, #E0A80C 0.25turn 0.5turn, #2E9E4F 0.5turn 0.75turn, #1E6FD9 0.75turn 1turn);
+}
+
+.uno-draw-pile {
+  width: 64px;
+  height: 92px;
+  border-radius: 10px;
+  background: repeating-linear-gradient(45deg, #4a3b30, #4a3b30 4px, #3a2d24 4px, #3a2d24 8px);
+  border: 3px solid #fff;
+  box-shadow: var(--shadow-card);
+  color: #fff;
+  font-weight: 700;
+  font-size: 0.7rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+.uno-draw-pile:disabled {
+  opacity: 0.5;
+}
+
+.uno-color-chip {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2px solid #fff;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.15);
+}
+
+.uno-hand-wrap {
+  margin-top: 0.5rem;
+}
+
+.uno-hand-label {
+  text-align: center;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  margin-bottom: 0.4rem;
+}
+
+.uno-hand-label .uno-badge {
+  margin-left: 0.4rem;
+  background: var(--rust);
+  color: #fff;
+  border-radius: var(--radius-pill);
+  padding: 0.1rem 0.5rem;
+  font-size: 0.65rem;
+}
+
+.uno-hand {
+  display: flex;
+  gap: 0.4rem;
+  overflow-x: auto;
+  padding: 0.3rem 0.25rem 0.6rem;
+  -webkit-overflow-scrolling: touch;
+}
+
+.uno-hand-card {
+  border: none;
+  background: none;
+  padding: 0;
+  cursor: pointer;
+}
+
+.uno-hand-card:disabled {
+  cursor: default;
+}
+
+.uno-hand-card .uno-card {
+  border-radius: 8px;
+  width: 56px;
+  height: 82px;
+  font-size: 1.1rem;
+}
+
+.uno-hand-card:disabled .uno-card {
+  opacity: 0.45;
+}
+
+.uno-actions {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: center;
+  margin-top: 0.5rem;
+}
+
+.uno-pass-gate {
+  text-align: center;
+  padding: 2rem 1rem;
+}
+
+.uno-pass-gate h3 {
+  margin-bottom: 0.75rem;
+}
+
+.uno-color-picker {
+  display: flex;
+  gap: 0.6rem;
+  justify-content: center;
+  margin-top: 0.75rem;
+}
+
+.uno-color-btn {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  border: 3px solid #fff;
+  box-shadow: var(--shadow-card);
+}
+
+.uno-result {
+  text-align: center;
+  margin-top: 0.75rem;
+}
+
+.uno-result h3 {
+  margin: 0 0 0.6rem;
+}
+
+.uno-error {
+  padding: 0.875rem 1rem;
+  margin-bottom: 1rem;
+  background: var(--rust-soft);
+  color: var(--rust);
+  border-radius: var(--radius-md);
+  text-align: center;
+  font-weight: 600;
+}
+
+.uno-note {
+  text-align: center;
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  margin-top: 0.75rem;
+}
+
+.uno-leave {
+  display: block;
+  margin: 0.75rem auto 0;
+}

@@ -1,0 +1,204 @@
+.db-scorebar {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.35rem;
+  padding: 0.4rem 0.6rem;
+  margin-bottom: 0.4rem;
+  background: linear-gradient(135deg, #7A3FE0 0%, #43188F 100%);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-card);
+  color: #fff;
+  text-align: center;
+}
+
+.db-tally {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  min-width: 0;
+}
+
+.db-tally-label {
+  font-size: 0.55rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  opacity: 0.8;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.db-tally-value {
+  font-size: 1.1rem;
+  font-weight: 800;
+}
+
+.db-status {
+  text-align: center;
+  font-weight: 700;
+  margin: 0.3rem 0 0.6rem;
+  color: var(--text-secondary);
+}
+
+.db-status.settled {
+  color: var(--text-primary);
+}
+
+.db-status-spinner {
+  display: inline-block;
+  vertical-align: -0.15em;
+  margin-right: 0.35rem;
+  animation: db-spin 1s linear infinite;
+}
+
+@keyframes db-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.db-wrapper {
+  display: flex;
+  justify-content: center;
+  padding: 0.5rem 0 0.75rem;
+}
+
+.db-grid {
+  display: grid;
+  gap: 0;
+}
+
+.db-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--sand-600);
+  justify-self: center;
+  align-self: center;
+}
+
+.db-edge {
+  background: transparent;
+  border: none;
+  padding: 0;
+  border-radius: 4px;
+  touch-action: manipulation;
+}
+
+.db-edge:disabled {
+  cursor: default;
+}
+
+.db-edge-h {
+  height: 10px;
+  margin: 0 -2px;
+}
+
+.db-edge-v {
+  width: 10px;
+  margin: -2px 0;
+}
+
+.db-edge::after {
+  content: '';
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 4px;
+  background: var(--sand-200);
+  transition: background 0.15s ease, transform 0.15s ease;
+}
+
+.db-edge-h::after {
+  height: 6px;
+  margin-top: 2px;
+}
+
+.db-edge-v::after {
+  width: 6px;
+  margin-left: 2px;
+}
+
+.db-edge:not(:disabled):hover::after,
+.db-edge:not(:disabled):active::after {
+  background: var(--sand-300);
+}
+
+.db-edge.drawn::after {
+  background: #7A3FE0;
+}
+
+.db-edge.newly-drawn::after {
+  animation: db-edge-pop 0.25s ease;
+}
+
+@keyframes db-edge-pop {
+  from {
+    transform: scale(0.4);
+  }
+  to {
+    transform: scale(1);
+  }
+}
+
+.db-box {
+  border-radius: 3px;
+  transition: background 0.2s ease, transform 0.2s ease;
+}
+
+.db-box.owner-A {
+  background: rgba(122, 63, 224, 0.25);
+}
+
+.db-box.owner-B {
+  background: rgba(255, 138, 61, 0.25);
+}
+
+.db-box.newly-claimed {
+  animation: db-box-pop 0.3s ease;
+}
+
+@keyframes db-box-pop {
+  0% {
+    transform: scale(0.6);
+    opacity: 0.3;
+  }
+  60% {
+    transform: scale(1.08);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.db-result {
+  text-align: center;
+  margin-top: 0.75rem;
+}
+
+.db-result h3 {
+  margin: 0 0 0.6rem;
+}
+
+.db-error {
+  padding: 0.875rem 1rem;
+  margin-bottom: 1rem;
+  background: var(--rust-soft);
+  color: var(--rust);
+  border-radius: var(--radius-md);
+  text-align: center;
+  font-weight: 600;
+}
+
+.db-note {
+  text-align: center;
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  margin-top: 0.75rem;
+}
+
+.db-leave {
+  display: block;
+  margin: 0.75rem auto 0;
+}

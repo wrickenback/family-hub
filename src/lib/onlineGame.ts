@@ -24,7 +24,14 @@ import { rtdb } from './firebase';
  * the local cache and fires listeners *before* it reaches the server, so
  * your own move paints instantly and still can't race the opponent's. */
 
-export type GameKind = 'tictactoe' | 'connect4' | 'battleship' | 'hangman';
+export type GameKind =
+  | 'tictactoe'
+  | 'connect4'
+  | 'battleship'
+  | 'hangman'
+  | 'dotsandboxes'
+  | 'war'
+  | 'uno';
 export type OnlineStatus = 'waiting' | 'placing' | 'active' | 'done';
 export type Outcome = 'win' | 'draw' | null;
 

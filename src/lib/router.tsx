@@ -24,6 +24,9 @@ export type Route =
   | { screen: 'play-wordsearch'; puzzleId: string }
   | { screen: 'play-tictactoe'; mode: 'pass' | 'online' }
   | { screen: 'play-connect4'; mode: 'pass' | 'online' }
+  | { screen: 'play-dotsandboxes'; mode: 'pass' | 'online' }
+  | { screen: 'play-war'; mode: 'pass' | 'online' }
+  | { screen: 'play-uno'; mode: 'pass' | 'online' }
   | { screen: 'play-battleship' }
   | { screen: 'play-reaction' }
   | { screen: 'play-wordle'; mode: 'family' | 'free' }
@@ -246,6 +249,19 @@ export const games: GameApp[] = [
     scoring: 'wins',
     icon: DotsAndBoxesIcon,
     blurb: 'Draw lines, close boxes, claim the most squares.',
+    built: true,
+    modes: [
+      {
+        id: 'pass',
+        name: 'Pass and play',
+        blurb: 'Two of you, one phone. Stays on this device.',
+      },
+      {
+        id: 'online',
+        name: 'Play a family member',
+        blurb: 'Two devices, live. Wins count on the family board.',
+      },
+    ],
   },
   {
     id: 'battleship',
@@ -274,6 +290,19 @@ export const games: GameApp[] = [
     scoring: 'wins',
     icon: WarIcon,
     blurb: 'Highest card takes the pile. Pure luck, pure chaos.',
+    built: true,
+    modes: [
+      {
+        id: 'pass',
+        name: 'Pass and play',
+        blurb: 'Two of you, one phone. Stays on this device.',
+      },
+      {
+        id: 'online',
+        name: 'Play a family member',
+        blurb: 'Two devices, live. Wins count on the family board.',
+      },
+    ],
   },
   {
     id: 'uno',
@@ -284,6 +313,19 @@ export const games: GameApp[] = [
     scoring: 'wins',
     icon: UnoIcon,
     blurb: 'Match colours and numbers, and never forget to call it.',
+    built: true,
+    modes: [
+      {
+        id: 'pass',
+        name: 'Pass and play',
+        blurb: 'Two of you, one phone. Stays on this device.',
+      },
+      {
+        id: 'online',
+        name: 'Play a family member',
+        blurb: 'Two devices, live. Wins count on the family board.',
+      },
+    ],
   },
 ];
 
@@ -330,6 +372,12 @@ export function routeToPath(route: Route): string {
       return `/play/tictactoe/${route.mode}`;
     case 'play-connect4':
       return `/play/connect4/${route.mode}`;
+    case 'play-dotsandboxes':
+      return `/play/dotsandboxes/${route.mode}`;
+    case 'play-war':
+      return `/play/war/${route.mode}`;
+    case 'play-uno':
+      return `/play/uno/${route.mode}`;
     case 'play-battleship':
       return '/play/battleship';
     case 'play-reaction':
@@ -371,6 +419,18 @@ export function pathToRoute(pathname: string): Route | null {
       }
       if (second === 'connect4' && (third === 'pass' || third === 'online')) {
         return { screen: 'play-connect4', mode: third };
+      }
+      if (
+        second === 'dotsandboxes' &&
+        (third === 'pass' || third === 'online')
+      ) {
+        return { screen: 'play-dotsandboxes', mode: third };
+      }
+      if (second === 'war' && (third === 'pass' || third === 'online')) {
+        return { screen: 'play-war', mode: third };
+      }
+      if (second === 'uno' && (third === 'pass' || third === 'online')) {
+        return { screen: 'play-uno', mode: third };
       }
       if (second === 'battleship') {
         return { screen: 'play-battleship' };
@@ -433,6 +493,27 @@ export function parentChainFor(route: Route): Route[] {
         HOME,
         { screen: 'games' },
         { screen: 'game', gameId: 'connect4' },
+        route,
+      ];
+    case 'play-dotsandboxes':
+      return [
+        HOME,
+        { screen: 'games' },
+        { screen: 'game', gameId: 'dotsandboxes' },
+        route,
+      ];
+    case 'play-war':
+      return [
+        HOME,
+        { screen: 'games' },
+        { screen: 'game', gameId: 'war' },
+        route,
+      ];
+    case 'play-uno':
+      return [
+        HOME,
+        { screen: 'games' },
+        { screen: 'game', gameId: 'uno' },
         route,
       ];
     case 'play-battleship':

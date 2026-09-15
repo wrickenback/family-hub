@@ -48,6 +48,9 @@ export function GameDetail({
   onPlayWordSearch,
   onPlayTicTacToe,
   onPlayConnectFour,
+  onPlayDotsAndBoxes,
+  onPlayWar,
+  onPlayUno,
   onPlayBattleship,
   onPlayReaction,
   onPlayCatQueens,
@@ -65,6 +68,9 @@ export function GameDetail({
   onPlayWordSearch: (puzzleId: string) => void;
   onPlayTicTacToe: (mode: 'pass' | 'online') => void;
   onPlayConnectFour: (mode: 'pass' | 'online') => void;
+  onPlayDotsAndBoxes: (mode: 'pass' | 'online') => void;
+  onPlayWar: (mode: 'pass' | 'online') => void;
+  onPlayUno: (mode: 'pass' | 'online') => void;
   onPlayBattleship: () => void;
   onPlayReaction: () => void;
   onPlayCatQueens: (size: 6 | 7 | 8 | 9) => void;
@@ -107,6 +113,9 @@ export function GameDetail({
   const isTicTacToe = game.id === 'tictactoe';
   const isReaction = game.id === 'reaction';
   const isConnectFour = game.id === 'connect4';
+  const isDotsAndBoxes = game.id === 'dotsandboxes';
+  const isWar = game.id === 'war';
+  const isUno = game.id === 'uno';
   const isBattleship = game.id === 'battleship';
   const isCatQueens = game.id === 'catqueens';
   const isWordle = game.id === 'wordle';
@@ -127,7 +136,12 @@ export function GameDetail({
   // and has no board of its own to show.
   const leaderboardMode = isBlocks
     ? mode?.id ?? 'free'
-    : isTicTacToe || isConnectFour || isBattleship
+    : isTicTacToe ||
+      isConnectFour ||
+      isBattleship ||
+      isDotsAndBoxes ||
+      isWar ||
+      isUno
     ? 'online'
     : isWordle
     ? 'family'
@@ -236,6 +250,35 @@ export function GameDetail({
           onClick={() =>
             onPlayConnectFour(mode?.id === 'online' ? 'online' : 'pass')
           }
+        >
+          {mode?.id === 'online' ? 'Find a family member' : 'Start on this phone'}
+        </button>
+      )}
+
+      {isDotsAndBoxes && (
+        <button
+          className="btn btn-primary blocks-play-btn"
+          onClick={() =>
+            onPlayDotsAndBoxes(mode?.id === 'online' ? 'online' : 'pass')
+          }
+        >
+          {mode?.id === 'online' ? 'Find a family member' : 'Start on this phone'}
+        </button>
+      )}
+
+      {isWar && (
+        <button
+          className="btn btn-primary blocks-play-btn"
+          onClick={() => onPlayWar(mode?.id === 'online' ? 'online' : 'pass')}
+        >
+          {mode?.id === 'online' ? 'Find a family member' : 'Start on this phone'}
+        </button>
+      )}
+
+      {isUno && (
+        <button
+          className="btn btn-primary blocks-play-btn"
+          onClick={() => onPlayUno(mode?.id === 'online' ? 'online' : 'pass')}
         >
           {mode?.id === 'online' ? 'Find a family member' : 'Start on this phone'}
         </button>

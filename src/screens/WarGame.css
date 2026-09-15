@@ -1,0 +1,203 @@
+.war-scorebar {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.35rem;
+  padding: 0.4rem 0.6rem;
+  margin-bottom: 0.4rem;
+  background: linear-gradient(135deg, #B8862B 0%, #7A5615 100%);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-card);
+  color: #fff;
+  text-align: center;
+}
+
+.war-tally {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  min-width: 0;
+}
+
+.war-tally-label {
+  font-size: 0.55rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  opacity: 0.85;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.war-tally-value {
+  font-size: 1.1rem;
+  font-weight: 800;
+}
+
+.war-status {
+  text-align: center;
+  font-weight: 700;
+  margin: 0.3rem 0 0.6rem;
+  color: var(--text-secondary);
+  min-height: 1.4em;
+}
+
+.war-status.settled {
+  color: var(--text-primary);
+}
+
+.war-status-spinner {
+  display: inline-block;
+  vertical-align: -0.15em;
+  margin-right: 0.35rem;
+  animation: war-spin 1s linear infinite;
+}
+
+@keyframes war-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.war-table {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem 0.5rem;
+}
+
+.war-side {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.war-side-label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.war-pile-count {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.war-vs {
+  font-size: 0.85rem;
+  font-weight: 800;
+  color: var(--gold);
+}
+
+.war-card {
+  width: 76px;
+  height: 106px;
+  border-radius: 10px;
+  background: #fff;
+  border: 2px solid var(--sand-200);
+  box-shadow: var(--shadow-card);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 1.6rem;
+  transition: transform 0.2s ease;
+}
+
+.war-card.flipping {
+  animation: war-flip 0.35s ease;
+}
+
+@keyframes war-flip {
+  0% {
+    transform: rotateY(90deg) scale(0.9);
+  }
+  100% {
+    transform: rotateY(0deg) scale(1);
+  }
+}
+
+.war-card.red {
+  color: #c0392b;
+}
+
+.war-card.black {
+  color: #1a1410;
+}
+
+.war-card-suit {
+  font-size: 1.2rem;
+}
+
+.war-card.empty {
+  border-style: dashed;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+}
+
+.war-card.winner {
+  border-color: var(--teal);
+  box-shadow: 0 0 0 3px rgba(45, 107, 95, 0.25);
+}
+
+.war-history {
+  display: flex;
+  justify-content: center;
+  gap: 0.3rem;
+  flex-wrap: wrap;
+  margin: 0.5rem 0;
+  min-height: 1.4rem;
+}
+
+.war-history-pair {
+  display: flex;
+  gap: 0.15rem;
+  align-items: center;
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  background: var(--sand-100);
+  border-radius: var(--radius-sm);
+  padding: 0.15rem 0.4rem;
+}
+
+.war-flip-btn {
+  display: block;
+  width: 100%;
+  margin-top: 0.5rem;
+}
+
+.war-result {
+  text-align: center;
+  margin-top: 0.75rem;
+}
+
+.war-result h3 {
+  margin: 0 0 0.6rem;
+}
+
+.war-error {
+  padding: 0.875rem 1rem;
+  margin-bottom: 1rem;
+  background: var(--rust-soft);
+  color: var(--rust);
+  border-radius: var(--radius-md);
+  text-align: center;
+  font-weight: 600;
+}
+
+.war-note {
+  text-align: center;
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  margin-top: 0.75rem;
+}
+
+.war-leave {
+  display: block;
+  margin: 0.75rem auto 0;
+}

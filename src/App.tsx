@@ -33,6 +33,12 @@ import { TicTacToeGame } from './screens/TicTacToeGame';
 import { TicTacToeOnline } from './screens/TicTacToeOnline';
 import { ConnectFourGame } from './screens/ConnectFourGame';
 import { ConnectFourOnline } from './screens/ConnectFourOnline';
+import { DotsAndBoxesGame } from './screens/DotsAndBoxesGame';
+import { DotsAndBoxesOnline } from './screens/DotsAndBoxesOnline';
+import { WarGame } from './screens/WarGame';
+import { WarOnline } from './screens/WarOnline';
+import { UnoGame } from './screens/UnoGame';
+import { UnoOnline } from './screens/UnoOnline';
 import { BattleshipOnline } from './screens/BattleshipOnline';
 import { ReactionGame } from './screens/ReactionGame';
 import { CatQueensGame } from './screens/CatQueensGame';
@@ -292,6 +298,11 @@ export function App() {
             onPlayConnectFour={(mode) =>
               navigate({ screen: 'play-connect4', mode })
             }
+            onPlayDotsAndBoxes={(mode) =>
+              navigate({ screen: 'play-dotsandboxes', mode })
+            }
+            onPlayWar={(mode) => navigate({ screen: 'play-war', mode })}
+            onPlayUno={(mode) => navigate({ screen: 'play-uno', mode })}
             onPlayBattleship={() => navigate({ screen: 'play-battleship' })}
             onPlayReaction={() => navigate({ screen: 'play-reaction' })}
             onPlayCatQueens={(size) => navigate({ screen: 'play-catqueens', size })}
@@ -334,6 +345,36 @@ export function App() {
             />
           ) : (
             <ConnectFourGame onBack={back} />
+          ))}
+        {route.screen === 'play-dotsandboxes' &&
+          (route.mode === 'online' ? (
+            <DotsAndBoxesOnline
+              uid={user.uid}
+              displayName={user.displayName || user.email || 'Someone'}
+              onBack={back}
+            />
+          ) : (
+            <DotsAndBoxesGame onBack={back} />
+          ))}
+        {route.screen === 'play-war' &&
+          (route.mode === 'online' ? (
+            <WarOnline
+              uid={user.uid}
+              displayName={user.displayName || user.email || 'Someone'}
+              onBack={back}
+            />
+          ) : (
+            <WarGame onBack={back} />
+          ))}
+        {route.screen === 'play-uno' &&
+          (route.mode === 'online' ? (
+            <UnoOnline
+              uid={user.uid}
+              displayName={user.displayName || user.email || 'Someone'}
+              onBack={back}
+            />
+          ) : (
+            <UnoGame onBack={back} />
           ))}
         {route.screen === 'play-battleship' && (
           <BattleshipOnline

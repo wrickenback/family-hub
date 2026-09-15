@@ -90,16 +90,10 @@ export const sampleEvents: ScheduleEvent[] = [
 // Firestore scores (see GameLeaderboard), so leaving a seed in place would
 // print invented names and times on its card and leaderboard as if they
 // were real family results — and set a fake target to beat. 'wordsearch',
-// 'reaction', 'tictactoe' and 'connect4' were all dropped from this list as they
-// shipped.
-export const sampleScores: Record<string, ScoreEntry[]> = {
-  wordle: [
-    { name: 'Will', value: 18, date: at(0, 7, 15) },
-    { name: 'Nora', value: 16, date: at(0, 7, 50) },
-    { name: 'Sam', value: 12, date: at(-1, 8, 5) },
-    { name: 'Iris', value: 9, date: at(0, 9, 30) },
-  ],
-};
+// 'reaction', 'tictactoe', 'connect4', 'wordle', 'hangman', 'catqueens',
+// 'battleship', 'dotsandboxes', 'war' and 'uno' were all dropped from this
+// list as they shipped — currently empty since every game is now built.
+export const sampleScores: Record<string, ScoreEntry[]> = {};
 
 export function getTopScore(
   gameId: string,
