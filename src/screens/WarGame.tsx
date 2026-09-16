@@ -1,8 +1,11 @@
 import { useState } from 'react';
 import { Screen } from '../components/Screen';
+import { TurnBanner } from '../components/TurnBanner';
 import {
+  MAX_ROUNDS,
   deal,
   isRed,
+  leader,
   playRound,
   rankLabel,
   suitSymbol,
@@ -37,6 +40,24 @@ export function WarCard({
   );
 }
 
+/** How close the flips are to running out — without it, a capped game just
+ * stops dead with no warning that it was going to. */
+export function WarProgress({ rounds }: { rounds: number }) {
+  const pct = Math.min(100, (rounds / MAX_ROUNDS) * 100);
+  return (
+    <div
+      className="war-progress"
+      role="progressbar"
+      aria-valuenow={rounds}
+      aria-valuemin={0}
+      aria-valuemax={MAX_ROUNDS}
+      aria-label="Rounds played"
+    >
+      <span className="war-progress-fill" style={{ width: `${pct}%` }} />
+    </div>
+  );
+}
+
 export function WarHistory({ reveals }: { reveals: Reveal[] }) {
   if (reveals.length <= 1) return <div className="war-history" />;
   return (
@@ -65,20 +86,24 @@ export function WarGame({ onBack }: { onBack: () => void }) {
     if (gameOver) return;
     const result = playRound(handA, handB);
     if (!result) return;
+    const nextRound = rounds + 1;
     setHandA(result.handA);
     setHandB(result.handB);
     setReveals(result.reveals);
     setRoundWinner(result.winner);
-    setRounds((n) => n + 1);
+    setRounds(nextRound);
 
     if (result.reveals.length > 1) playClear(result.reveals.length);
     else playPlace();
 
-    if (result.handA.length === 0) {
-      setGameOver('B');
+    const cleanedOut = result.handA.length === 0 || result.handB.length === 0;
+    const ahead = leader(result.handA.length, result.handB.length);
+    // Level piles at the cap play on — the next flip always breaks the tie.
+    if (cleanedOut) {
+      setGameOver(result.handA.length > 0 ? 'A' : 'B');
       playGameOver();
-    } else if (result.handB.length === 0) {
-      setGameOver('A');
+    } else if (nextRound >= MAX_ROUNDS && ahead) {
+      setGameOver(ahead);
       playGameOver();
     }
   };
@@ -108,17 +133,32 @@ export function WarGame({ onBack }: { onBack: () => void }) {
         </div>
       </div>
 
-      <p className={`war-status ${gameOver ? 'settled' : ''}`} aria-live="polite">
-        {gameOver
-          ? `Player ${gameOver === 'A' ? '1' : '2'} wins the deck!`
-          : rounds === 0
-          ? 'Tap flip to start'
-          : reveals.length > 1
-          ? "It's a war!"
-          : roundWinner === 'A'
-          ? 'Player 1 took that round'
-          : 'Player 2 took that round'}
-      </p>
+      {gameOver ? (
+        <p className="war-status settled" aria-live="polite">
+          Player {gameOver === 'A' ? '1' : '2'} wins!
+        </p>
+      ) : (
+        <>
+          <TurnBanner
+            active
+            label={
+              rounds >= MAX_ROUNDS
+                ? 'Sudden death'
+                : `Round ${rounds + 1} of ${MAX_ROUNDS}`
+            }
+            hint={
+              rounds >= MAX_ROUNDS
+                ? 'Level on cards — next flip to lead takes it'
+                : rounds === 0
+                ? 'Tap flip to start'
+                : reveals.length > 1
+                ? "It's a war!"
+                : `Player ${roundWinner === 'A' ? '1' : '2'} took that round`
+            }
+          />
+          <WarProgress rounds={rounds} />
+        </>
+      )}
 
       <div className="war-table">
         <div className="war-side">
@@ -153,6 +193,11 @@ export function WarGame({ onBack }: { onBack: () => void }) {
       {gameOver && (
         <div className="war-result card">
           <h3>Player {gameOver === 'A' ? '1' : '2'} wins!</h3>
+          <p className="war-note">
+            {handA.length === 0 || handB.length === 0
+              ? 'Took the whole deck.'
+              : `Most cards after ${rounds} rounds: ${handA.length}–${handB.length}.`}
+          </p>
           <button className="btn btn-primary" onClick={newGame}>
             New deck
           </button>

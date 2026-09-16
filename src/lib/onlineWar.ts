@@ -1,6 +1,8 @@
 import {
+  MAX_ROUNDS,
   deal,
   fromHandString,
+  leader,
   playRound,
   toHandString,
   type CardCode,
@@ -18,6 +20,9 @@ export interface WarState {
   handB: string;
   reveals: { a: CardCode; b: CardCode }[];
   roundWinner: 'A' | 'B' | null;
+  /** Flips played, against MAX_ROUNDS. Absent on tables dealt before the
+   * round cap existed, so every read defaults it. */
+  rounds: number;
 }
 
 export const warRules: GameRules<WarState> = {
@@ -34,6 +39,7 @@ export const warRules: GameRules<WarState> = {
       handB: toHandString(b),
       reveals: [],
       roundWinner: null,
+      rounds: 0,
     };
   },
 
@@ -45,40 +51,44 @@ export const warRules: GameRules<WarState> = {
     if (!result) return null;
 
     const opponent = game.players.find((p) => p !== game.turn) ?? game.turn;
-    const gameOver = result.handA.length === 0 || result.handB.length === 0;
+    const rounds = (game.state.rounds ?? 0) + 1;
+    const nextState = {
+      ...game.state,
+      handA: toHandString(result.handA),
+      handB: toHandString(result.handB),
+      reveals: result.reveals,
+      roundWinner: result.winner,
+      rounds,
+    };
 
-    if (gameOver) {
-      const winnerLetter = result.handA.length > 0 ? 'A' : 'B';
-      const winnerUid =
-        Object.entries(game.state.players).find(
-          ([, letter]) => letter === winnerLetter
-        )?.[0] ?? game.turn;
-      return {
-        ...game,
-        status: 'done',
-        outcome: 'win',
-        winnerUid,
-        wins: { ...game.wins, [winnerUid]: (game.wins[winnerUid] ?? 0) + 1 },
-        state: {
-          ...game.state,
-          handA: toHandString(result.handA),
-          handB: toHandString(result.handB),
-          reveals: result.reveals,
-          roundWinner: result.winner,
-        },
-      };
+    // Two ways to finish: someone is cleaned out, or the flips have run out
+    // and one pile is bigger. Level piles at the cap play on rather than
+    // ending in a dead heat — a round always moves cards one way or the
+    // other, so the very next flip settles it.
+    const cleanedOut = result.handA.length === 0 || result.handB.length === 0;
+    const ahead = leader(result.handA.length, result.handB.length);
+    const decidedOnCards = rounds >= MAX_ROUNDS && ahead !== null;
+    if (!cleanedOut && !decidedOnCards) {
+      return { ...game, turn: opponent, state: nextState };
     }
 
+    const winnerLetter = cleanedOut
+      ? result.handA.length > 0
+        ? 'A'
+        : 'B'
+      : (ahead as 'A' | 'B');
+
+    const winnerUid =
+      Object.entries(game.state.players).find(
+        ([, letter]) => letter === winnerLetter
+      )?.[0] ?? game.turn;
     return {
       ...game,
-      turn: opponent,
-      state: {
-        ...game.state,
-        handA: toHandString(result.handA),
-        handB: toHandString(result.handB),
-        reveals: result.reveals,
-        roundWinner: result.winner,
-      },
+      status: 'done',
+      outcome: 'win',
+      winnerUid,
+      wins: { ...game.wins, [winnerUid]: (game.wins[winnerUid] ?? 0) + 1 },
+      state: nextState,
     };
   },
 
@@ -92,6 +102,7 @@ export const warRules: GameRules<WarState> = {
       handB: toHandString(b),
       reveals: [],
       roundWinner: null,
+      rounds: 0,
     };
   },
 };

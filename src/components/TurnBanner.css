@@ -1,0 +1,84 @@
+.turn-banner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.15rem;
+  padding: 0.6rem 0.9rem;
+  margin: 0.25rem 0 0.7rem;
+  border-radius: var(--radius-md);
+  text-align: center;
+}
+
+.turn-banner-main {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  font-weight: 800;
+  font-size: 1rem;
+  letter-spacing: 0.01em;
+}
+
+/* Your move: loud enough to spot from across the room. */
+.turn-banner.active {
+  background: var(--teal);
+  color: #fff;
+  box-shadow: var(--shadow-card);
+}
+
+/* Their move: deliberately quiet, so the two states never read alike. */
+.turn-banner.waiting {
+  background: var(--sand-100);
+  color: var(--text-secondary);
+}
+
+.turn-banner-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex: none;
+  background: currentColor;
+}
+
+.turn-banner.active .turn-banner-dot {
+  animation: turn-pulse 1.4s ease-in-out infinite;
+}
+
+.turn-banner.waiting .turn-banner-dot {
+  opacity: 0.5;
+}
+
+/* A swatch wins over the plain dot when the game has a colour to show —
+   whose colour it is in Dots and Boxes, the live colour in Uno. */
+.turn-banner-swatch {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  flex: none;
+  border: 2px solid rgba(255, 255, 255, 0.9);
+  box-shadow: 0 0 0 1px rgba(26, 20, 16, 0.18);
+}
+
+@keyframes turn-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.5);
+    opacity: 0.55;
+  }
+}
+
+.turn-banner-hint {
+  font-size: 0.75rem;
+  font-weight: 700;
+  opacity: 0.9;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .turn-banner.active .turn-banner-dot {
+    animation: none;
+  }
+}

@@ -34,12 +34,16 @@ export function cardKind(card: CardCode): Kind {
   return 'number';
 }
 
+/** What's printed on the card. Skip and Reverse use the glyphs the real
+ * deck uses — spelled out, "Reverse" is wider than the card and spills over
+ * its neighbours in a hand. Use cardName() for anything a screen reader or
+ * a sentence needs. */
 export function cardLabel(card: CardCode): string {
   switch (cardKind(card)) {
     case 'skip':
-      return 'Skip';
+      return '⊘'; // circle with a slash
     case 'reverse':
-      return 'Reverse';
+      return '⇄'; // paired arrows
     case 'draw2':
       return '+2';
     case 'wild':
@@ -49,6 +53,25 @@ export function cardLabel(card: CardCode): string {
     default:
       return card[1];
   }
+}
+
+/** The card said out loud, for aria labels and prose. */
+export function cardName(card: CardCode): string {
+  const kind = cardKind(card);
+  const color = cardColor(card);
+  const face =
+    kind === 'skip'
+      ? 'Skip'
+      : kind === 'reverse'
+      ? 'Reverse'
+      : kind === 'draw2'
+      ? 'Draw Two'
+      : kind === 'wild'
+      ? 'Wild'
+      : kind === 'wild4'
+      ? 'Wild Draw Four'
+      : card[1];
+  return color ? `${COLOR_NAME[color]} ${face}` : face;
 }
 
 export const COLOR_HEX: Record<Color, string> = {

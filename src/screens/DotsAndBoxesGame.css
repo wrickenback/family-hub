@@ -64,14 +64,19 @@
   padding: 0.5rem 0 0.75rem;
 }
 
+/* Sized off the viewport rather than fixed pixels: the board used to come
+   out ~186px wide, which left the boxes tiny and stranded in the middle of
+   a phone screen. min() keeps it from overflowing the narrowest handset. */
 .db-grid {
+  --db-dot: 12px;
+  --db-edge: min(64px, calc((100vw - 3rem - 5 * var(--db-dot)) / 4));
   display: grid;
   gap: 0;
 }
 
 .db-dot {
-  width: 10px;
-  height: 10px;
+  width: var(--db-dot);
+  height: var(--db-dot);
   border-radius: 50%;
   background: var(--sand-600);
   justify-self: center;
@@ -79,6 +84,7 @@
 }
 
 .db-edge {
+  position: relative;
   background: transparent;
   border: none;
   padding: 0;
@@ -86,17 +92,30 @@
   touch-action: manipulation;
 }
 
+/* The line itself is only as thick as the gap between dots, which is far
+   too thin to hit with a thumb — this grows the touch target well past the
+   drawn line without moving it. */
+.db-edge::before {
+  content: '';
+  position: absolute;
+  inset: -9px 0;
+}
+
+.db-edge-v::before {
+  inset: 0 -9px;
+}
+
 .db-edge:disabled {
   cursor: default;
 }
 
 .db-edge-h {
-  height: 10px;
+  height: var(--db-dot);
   margin: 0 -2px;
 }
 
 .db-edge-v {
-  width: 10px;
+  width: var(--db-dot);
   margin: -2px 0;
 }
 
@@ -110,14 +129,25 @@
   transition: background 0.15s ease, transform 0.15s ease;
 }
 
+/* An undrawn edge is a faint hint of where a line could go; a drawn one is
+   thick and in its owner's colour. They used to be near enough the same
+   weight, which made an empty board look half-played. */
+.db-edge {
+  --db-line: 3px;
+}
+
+.db-edge.drawn {
+  --db-line: 7px;
+}
+
 .db-edge-h::after {
-  height: 6px;
-  margin-top: 2px;
+  height: var(--db-line);
+  margin-top: calc((var(--db-dot) - var(--db-line)) / 2);
 }
 
 .db-edge-v::after {
-  width: 6px;
-  margin-left: 2px;
+  width: var(--db-line);
+  margin-left: calc((var(--db-dot) - var(--db-line)) / 2);
 }
 
 .db-edge:not(:disabled):hover::after,
@@ -125,8 +155,12 @@
   background: var(--sand-300);
 }
 
-.db-edge.drawn::after {
+.db-edge.drawn-A::after {
   background: #7A3FE0;
+}
+
+.db-edge.drawn-B::after {
+  background: #FF8A3D;
 }
 
 .db-edge.newly-drawn::after {

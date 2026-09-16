@@ -1,12 +1,15 @@
 import { useState } from 'react';
 import { Screen } from '../components/Screen';
+import { TurnBanner } from '../components/TurnBanner';
 import {
   COLORS,
   COLOR_HEX,
   COLOR_NAME,
   anyPlayable,
   cardColor,
+  cardKind,
   cardLabel,
+  cardName,
   deal,
   drawOne,
   isPlayable,
@@ -30,14 +33,22 @@ const EVENT_TEXT: Record<Exclude<PlayEvent, null>, string> = {
 export function UnoCard({ card }: { card: CardCode }) {
   if (isWild(card)) {
     return (
-      <span className="uno-card uno-card-wild">
+      <span className="uno-card uno-card-wild" title={cardName(card)}>
         <span>{cardLabel(card)}</span>
       </span>
     );
   }
   const color = cardColor(card) as Color;
+  const kind = cardKind(card);
+  // Skip/Reverse print as glyphs, which sit visually lighter than a numeral
+  // at the same size — nudge them up so a hand reads evenly.
+  const glyph = kind === 'skip' || kind === 'reverse';
   return (
-    <span className="uno-card" style={{ background: COLOR_HEX[color] }}>
+    <span
+      className={`uno-card ${glyph ? 'uno-card-glyph' : ''}`}
+      style={{ background: COLOR_HEX[color] }}
+      title={cardName(card)}
+    >
       {cardLabel(card)}
     </span>
   );
@@ -84,12 +95,16 @@ export function UnoHand({
   topCard: CardCode;
   color: Color;
   disabled: boolean;
-  onPlay: (card: CardCode, index: number) => void;
+  onPlay: (card: CardCode) => void;
 }) {
+  const playableCount = disabled
+    ? 0
+    : hand.filter((c) => isPlayable(c, topCard, color)).length;
   return (
     <div className="uno-hand-wrap">
       <p className="uno-hand-label">
-        Your hand
+        Your hand · {hand.length} card{hand.length === 1 ? '' : 's'}
+        {!disabled && ` · ${playableCount} playable`}
         {hand.length === 1 && <span className="uno-badge">UNO!</span>}
       </p>
       <div className="uno-hand">
@@ -100,8 +115,8 @@ export function UnoHand({
               key={`${card}-${i}`}
               className="uno-hand-card"
               disabled={!playable}
-              onClick={() => onPlay(card, i)}
-              aria-label={`Play ${cardLabel(card)}`}
+              onClick={() => onPlay(card)}
+              aria-label={`Play ${cardName(card)}`}
             >
               <UnoCard card={card} />
             </button>
@@ -112,7 +127,7 @@ export function UnoHand({
   );
 }
 
-type PendingWild = { card: CardCode; index: number } | null;
+type PendingWild = CardCode | null;
 
 export function UnoGame({ onBack }: { onBack: () => void }) {
   const [state, setState] = useState<UnoState>(() => deal());
@@ -139,10 +154,10 @@ export function UnoGame({ onBack }: { onBack: () => void }) {
     }
   };
 
-  const handlePlay = (card: CardCode, _index: number) => {
+  const handlePlay = (card: CardCode) => {
     if (winner) return;
     if (isWild(card)) {
-      setPendingWild({ card, index: _index });
+      setPendingWild(card);
       return;
     }
     resolvePlay(card);
@@ -221,13 +236,17 @@ export function UnoGame({ onBack }: { onBack: () => void }) {
         </div>
       </div>
 
-      <p className={`uno-status ${winner ? 'settled' : ''}`} aria-live="polite">
-        {winner
-          ? `Player ${winner === 'A' ? '1' : '2'} wins!`
-          : `Player ${turn === 'A' ? '1' : '2'}'s turn`}
-      </p>
-      {event && !winner && (
-        <p className="uno-event">{EVENT_TEXT[event]}</p>
+      {winner ? (
+        <p className="uno-status settled" aria-live="polite">
+          Player {winner === 'A' ? '1' : '2'} wins!
+        </p>
+      ) : (
+        <TurnBanner
+          active
+          label={`Player ${turn === 'A' ? '1' : '2'}'s turn`}
+          hint={event ? EVENT_TEXT[event] : undefined}
+          accent={COLOR_HEX[state.color]}
+        />
       )}
 
       {!winner && (
@@ -260,9 +279,7 @@ export function UnoGame({ onBack }: { onBack: () => void }) {
       {pendingWild && (
         <div className="card">
           <p className="uno-hand-label">Pick a colour</p>
-          <UnoColorPicker
-            onPick={(color) => resolvePlay(pendingWild.card, color)}
-          />
+          <UnoColorPicker onPick={(color) => resolvePlay(pendingWild, color)} />
         </div>
       )}
 

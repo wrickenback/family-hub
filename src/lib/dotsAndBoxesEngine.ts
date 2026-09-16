@@ -6,9 +6,10 @@
 //
 // A 4x4 grid of boxes (5x5 dots). Edges are one flat 40-character string:
 // indices 0-19 are horizontal edges (the top/bottom of a box), 20-39 are
-// vertical edges (the left/right of a box), '-' for undrawn and 'X' for
-// drawn. Boxes are a separate 16-character string, '-' for unclaimed or the
-// claiming player's letter.
+// vertical edges (the left/right of a box), '-' for undrawn and otherwise
+// the letter of whoever drew it — so the board can show each player their
+// own lines. Boxes are a separate 16-character string, '-' for unclaimed or
+// the claiming player's letter.
 
 export const GRID = 4;
 const H_COUNT = (GRID + 1) * GRID; // 20
@@ -81,7 +82,7 @@ export function drawEdge(
   if (edge < 0 || edge >= EDGE_COUNT) return null;
   if (edges[edge] !== '-') return null;
 
-  const nextEdges = edges.slice(0, edge) + 'X' + edges.slice(edge + 1);
+  const nextEdges = edges.slice(0, edge) + player + edges.slice(edge + 1);
   let nextBoxes = boxes;
   let completed = 0;
 
@@ -89,7 +90,7 @@ export function drawEdge(
     if (nextBoxes[box] !== '-') continue;
     const r = Math.floor(box / GRID);
     const c = box % GRID;
-    const done = boxEdges(r, c).every((e) => nextEdges[e] === 'X');
+    const done = boxEdges(r, c).every((e) => nextEdges[e] !== '-');
     if (done) {
       nextBoxes = nextBoxes.slice(0, box) + player + nextBoxes.slice(box + 1);
       completed++;
@@ -97,6 +98,18 @@ export function drawEdge(
   }
 
   return { edges: nextEdges, boxes: nextBoxes, completed };
+}
+
+/** Whether the edge just drawn closed a box — which is what earned the
+ * player another turn, and the thing players kept missing when the turn
+ * silently stayed put.
+ *
+ * Safe to derive from the board alone: a box is only ever claimed on the
+ * drawing of its fourth edge, so if a box touching `lastEdge` is owned,
+ * `lastEdge` is necessarily the edge that completed it. */
+export function closedABox(boxes: string, lastEdge: number | null): boolean {
+  if (lastEdge === null) return false;
+  return boxesForEdge(lastEdge).some((box) => boxes[box] !== '-');
 }
 
 export function tally(boxes: string): { A: number; B: number } {

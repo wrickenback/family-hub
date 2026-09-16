@@ -1,10 +1,12 @@
 import { useState } from 'react';
 import { Screen } from '../components/Screen';
+import { TurnBanner } from '../components/TurnBanner';
 import {
   EMPTY_BOXES,
   EMPTY_EDGES,
   GRID,
   boxIndex,
+  closedABox,
   drawEdge,
   hIndex,
   isFull,
@@ -17,6 +19,12 @@ import { playClear, playGameOver, playPlace } from '../lib/sound';
 import './DotsAndBoxesGame.css';
 
 const LABEL: Record<Player, string> = { A: 'Purple', B: 'Orange' };
+
+/** Kept in step with the .db-box / .db-edge colours in the stylesheet. */
+export const PLAYER_HEX: Record<Player, string> = {
+  A: '#7A3FE0',
+  B: '#FF8A3D',
+};
 
 type Result = { winner: Player | null } | null;
 
@@ -84,16 +92,25 @@ export function DotsAndBoxesGame({ onBack }: { onBack: () => void }) {
         </div>
       </div>
 
-      <p className={`db-status ${result ? 'settled' : ''}`} aria-live="polite">
-        {result
-          ? result.winner
-            ? `${LABEL[result.winner]} wins ${Math.max(counts.A, counts.B)}-${Math.min(
+      {result ? (
+        <p className="db-status settled" aria-live="polite">
+          {result.winner
+            ? `${LABEL[result.winner]} wins ${Math.max(
                 counts.A,
                 counts.B
-              )}!`
-            : `Draw — ${counts.A}-${counts.B}`
-          : `${LABEL[turn]}'s turn (${counts.A}-${counts.B})`}
-      </p>
+              )}-${Math.min(counts.A, counts.B)}!`
+            : `Draw — ${counts.A}-${counts.B}`}
+        </p>
+      ) : (
+        <TurnBanner
+          active
+          label={`${LABEL[turn]}'s turn — ${counts.A}-${counts.B}`}
+          hint={
+            closedABox(boxes, lastEdge) ? 'Box closed! Same player again.' : undefined
+          }
+          accent={turn === 'A' ? PLAYER_HEX.A : PLAYER_HEX.B}
+        />
+      )}
 
       <DBBoard
         edges={edges}
@@ -133,10 +150,11 @@ export function DBBoard({
   disabled: boolean;
   onDraw: (edge: number) => void;
 }) {
-  const dotSize = '10px';
-  const edgeSize = '34px';
+  // Sizes come from CSS custom properties (see DotsAndBoxesGame.css) so the
+  // board can scale with the viewport; this only lays out the alternating
+  // dot / edge / dot rhythm the grid needs.
   const track = Array.from({ length: 2 * GRID + 1 })
-    .map((_, i) => (i % 2 === 0 ? dotSize : edgeSize))
+    .map((_, i) => (i % 2 === 0 ? 'var(--db-dot)' : 'var(--db-edge)'))
     .join(' ');
 
   const cells: { key: string; el: React.ReactNode }[] = [];
@@ -149,12 +167,14 @@ export function DBBoard({
         cells.push({ key: `d${r}-${c}`, el: <span className="db-dot" /> });
       } else if (rEven && !cEven) {
         const edge = hIndex(r / 2, (c - 1) / 2);
-        const drawn = edges[edge] === 'X';
+        const drawn = edges[edge] !== '-';
         cells.push({
           key: `h${edge}`,
           el: (
             <button
-              className={`db-edge db-edge-h ${drawn ? 'drawn' : ''} ${
+              className={`db-edge db-edge-h ${
+                drawn ? `drawn drawn-${edges[edge]}` : ''
+              } ${
                 lastEdge === edge ? 'newly-drawn' : ''
               }`}
               disabled={disabled || drawn}
@@ -165,12 +185,14 @@ export function DBBoard({
         });
       } else if (!rEven && cEven) {
         const edge = vIndex((r - 1) / 2, c / 2);
-        const drawn = edges[edge] === 'X';
+        const drawn = edges[edge] !== '-';
         cells.push({
           key: `v${edge}`,
           el: (
             <button
-              className={`db-edge db-edge-v ${drawn ? 'drawn' : ''} ${
+              className={`db-edge db-edge-v ${
+                drawn ? `drawn drawn-${edges[edge]}` : ''
+              } ${
                 lastEdge === edge ? 'newly-drawn' : ''
               }`}
               disabled={disabled || drawn}

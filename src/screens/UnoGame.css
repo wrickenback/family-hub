@@ -122,6 +122,18 @@
   font-size: 1.35rem;
   color: #fff;
   flex: none;
+  /* Belt and braces: no face value may ever spill onto its neighbours. */
+  overflow: hidden;
+  padding: 0 2px;
+}
+
+.uno-card-glyph {
+  font-size: 1.9rem;
+  line-height: 1;
+}
+
+.uno-hand-card .uno-card-glyph {
+  font-size: 1.6rem;
 }
 
 .uno-card-wild {
@@ -177,12 +189,15 @@
   font-size: 0.65rem;
 }
 
+/* Wraps into rows rather than scrolling sideways: a hand that has picked
+   up a couple of +4s is far too wide for a phone, and cards parked off the
+   right edge may as well not be in your hand at all. */
 .uno-hand {
   display: flex;
-  gap: 0.4rem;
-  overflow-x: auto;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.35rem;
   padding: 0.3rem 0.25rem 0.6rem;
-  -webkit-overflow-scrolling: touch;
 }
 
 .uno-hand-card {
@@ -198,13 +213,20 @@
 
 .uno-hand-card .uno-card {
   border-radius: 8px;
-  width: 56px;
-  height: 82px;
-  font-size: 1.1rem;
+  width: 52px;
+  height: 76px;
+  font-size: 1.05rem;
 }
 
 .uno-hand-card:disabled .uno-card {
-  opacity: 0.45;
+  opacity: 0.4;
+}
+
+/* A card you could actually play sits slightly proud of the rest, so the
+   playable ones read as a group at a glance. */
+.uno-hand-card:not(:disabled) .uno-card {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-raised);
 }
 
 .uno-actions {

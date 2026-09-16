@@ -80,6 +80,20 @@ export function deal(): { a: CardCode[]; b: CardCode[] } {
   return { a: deck.slice(0, half), b: deck.slice(half) };
 }
 
+/** War has no decisions in it, and two evenly matched piles can trade the
+ * same cards back and forth indefinitely — a simulated game here ran 5000
+ * rounds without either side running out. So the deck isn't the finish
+ * line: after this many flips, the bigger pile takes it. It keeps a game to
+ * a few minutes and, unlike "play until someone has all 52", guarantees
+ * there is an end to get to. */
+export const MAX_ROUNDS = 60;
+
+/** Who's ahead on cards, or null if the piles are level. */
+export function leader(countA: number, countB: number): 'A' | 'B' | null {
+  if (countA === countB) return null;
+  return countA > countB ? 'A' : 'B';
+}
+
 export interface RoundResult {
   handA: CardCode[];
   handB: CardCode[];

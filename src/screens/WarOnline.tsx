@@ -3,8 +3,9 @@ import { Screen } from '../components/Screen';
 import { OnlineLobby } from '../components/OnlineLobby';
 import { IdleClaim } from '../components/IdleClaim';
 import { IconSpinner } from '../components/icons';
-import { WarCard, WarHistory } from './WarGame';
-import { fromHandString } from '../lib/warEngine';
+import { TurnBanner } from '../components/TurnBanner';
+import { WarCard, WarHistory, WarProgress } from './WarGame';
+import { MAX_ROUNDS, fromHandString } from '../lib/warEngine';
 import { warRules, type WarState } from '../lib/onlineWar';
 import { useBoardChange, useOnlineGame } from '../lib/useOnlineGame';
 import { submitScore } from '../lib/firestoreScores';
@@ -85,6 +86,7 @@ export function WarOnline({
   const myCount = myHand ? fromHandString(myHand).length : 0;
   const theirCount = theirHand ? fromHandString(theirHand).length : 0;
   const reveals = game.state?.reveals ?? [];
+  const rounds = game.state?.rounds ?? 0;
   const last = reveals[reveals.length - 1];
   const myCard = last ? (myLetter === 'B' ? last.b : last.a) : null;
   const theirCard = last ? (myLetter === 'B' ? last.a : last.b) : null;
@@ -123,25 +125,36 @@ export function WarOnline({
         onClaim={claimWin}
       />
 
-      <p
-        className={`war-status ${game.status === 'done' ? 'settled' : ''}`}
-        aria-live="polite"
-      >
-        {waiting && (
-          <IconSpinner className="war-status-spinner" aria-hidden="true" />
-        )}
-        {waiting
-          ? 'Waiting for someone to join…'
-          : game.status === 'done'
-          ? game.winnerUid === uid
-            ? 'You win the deck!'
-            : `${opponentName} wins the deck`
-          : reveals.length > 1
-          ? "It's a war!"
-          : myTurn
-          ? 'Your turn to flip'
-          : `Waiting on ${opponentName ?? 'them'} to flip`}
-      </p>
+      {game.status === 'active' ? (
+        <>
+          <TurnBanner
+            active={myTurn}
+            label={myTurn ? 'Your turn to flip' : `${opponentName ?? 'They'} flip next`}
+            hint={
+              reveals.length > 1
+                ? "It's a war!"
+                : rounds >= MAX_ROUNDS
+                ? 'Sudden death — next flip to lead takes it'
+                : `Round ${rounds + 1} of ${MAX_ROUNDS}`
+            }
+          />
+          <WarProgress rounds={rounds} />
+        </>
+      ) : (
+        <p
+          className={`war-status ${game.status === 'done' ? 'settled' : ''}`}
+          aria-live="polite"
+        >
+          {waiting && (
+            <IconSpinner className="war-status-spinner" aria-hidden="true" />
+          )}
+          {waiting
+            ? 'Waiting for someone to join…'
+            : game.winnerUid === uid
+            ? 'You win!'
+            : `${opponentName} wins`}
+        </p>
+      )}
 
       <div className="war-table">
         <div className="war-side">
@@ -176,6 +189,11 @@ export function WarOnline({
       {game.status === 'done' && (
         <div className="war-result card">
           <h3>{game.winnerUid === uid ? 'You win!' : `${opponentName} wins`}</h3>
+          <p className="war-note">
+            {myCount === 0 || theirCount === 0
+              ? 'Took the whole deck.'
+              : `Most cards after ${rounds} rounds: ${myCount}–${theirCount}.`}
+          </p>
           <button className="btn btn-primary" onClick={rematch}>
             Rematch
           </button>

@@ -3,8 +3,9 @@ import { Screen } from '../components/Screen';
 import { OnlineLobby } from '../components/OnlineLobby';
 import { IdleClaim } from '../components/IdleClaim';
 import { IconSpinner } from '../components/icons';
-import { DBBoard } from './DotsAndBoxesGame';
-import { EMPTY_EDGES, tally } from '../lib/dotsAndBoxesEngine';
+import { TurnBanner } from '../components/TurnBanner';
+import { DBBoard, PLAYER_HEX } from './DotsAndBoxesGame';
+import { EMPTY_EDGES, closedABox, tally } from '../lib/dotsAndBoxesEngine';
 import { dotsAndBoxesRules, type DBState } from '../lib/onlineDotsAndBoxes';
 import { useBoardChange, useOnlineGame } from '../lib/useOnlineGame';
 import { submitScore } from '../lib/firestoreScores';
@@ -124,25 +125,44 @@ export function DotsAndBoxesOnline({
         onClaim={claimWin}
       />
 
-      <p
-        className={`db-status ${game.status === 'done' ? 'settled' : ''}`}
-        aria-live="polite"
-      >
-        {waiting && (
-          <IconSpinner className="db-status-spinner" aria-hidden="true" />
-        )}
-        {waiting
-          ? 'Waiting for someone to join…'
-          : game.status === 'done'
-          ? game.outcome === 'draw'
+      {game.status === 'active' ? (
+        <TurnBanner
+          active={myTurn}
+          label={`${myTurn ? 'Your turn' : `${opponentName ?? 'Opponent'}'s turn`} — ${
+            myLetter === 'B' ? counts.B : counts.A
+          }-${myLetter === 'B' ? counts.A : counts.B}`}
+          hint={
+            closedABox(boxes, game.state?.lastEdge ?? null)
+              ? myTurn
+                ? 'Box closed! Go again.'
+                : 'They closed a box — they go again.'
+              : undefined
+          }
+          accent={
+            myLetter
+              ? PLAYER_HEX[
+                  myTurn ? myLetter : myLetter === 'A' ? 'B' : 'A'
+                ]
+              : undefined
+          }
+        />
+      ) : (
+        <p
+          className={`db-status ${game.status === 'done' ? 'settled' : ''}`}
+          aria-live="polite"
+        >
+          {waiting && (
+            <IconSpinner className="db-status-spinner" aria-hidden="true" />
+          )}
+          {waiting
+            ? 'Waiting for someone to join…'
+            : game.outcome === 'draw'
             ? `Draw — ${counts.A}-${counts.B}`
             : game.winnerUid === uid
             ? 'You win!'
-            : `${opponentName} wins`
-          : myTurn
-          ? `Your turn (${counts.A}-${counts.B})`
-          : `${opponentName ?? 'Opponent'}'s turn (${counts.A}-${counts.B})`}
-      </p>
+            : `${opponentName} wins`}
+        </p>
+      )}
 
       <DBBoard
         edges={edges}

@@ -3,8 +3,17 @@ import { Screen } from '../components/Screen';
 import { OnlineLobby } from '../components/OnlineLobby';
 import { IdleClaim } from '../components/IdleClaim';
 import { IconSpinner } from '../components/icons';
+import { TurnBanner } from '../components/TurnBanner';
 import { UnoCard, UnoColorChip, UnoColorPicker, UnoHand } from './UnoGame';
-import { anyPlayable, fromHandString, isWild, type CardCode, type Color, type PlayEvent } from '../lib/unoEngine';
+import {
+  COLOR_HEX,
+  anyPlayable,
+  fromHandString,
+  isWild,
+  type CardCode,
+  type Color,
+  type PlayEvent,
+} from '../lib/unoEngine';
 import { unoRules, type DBUnoState, type UnoMove } from '../lib/onlineUno';
 import { useOnlineGame } from '../lib/useOnlineGame';
 import { submitScore } from '../lib/firestoreScores';
@@ -40,10 +49,15 @@ export function UnoOnline({
   const [pendingWild, setPendingWild] = useState<CardCode | null>(null);
   const lastEvent = useRef<PlayEvent>(null);
 
+  // A fresh turn re-arms the one draw you're allowed. Watching the turn
+  // alone wasn't enough: Skip, Reverse, +2 and +4 all hand the turn back to
+  // the same player, so `turn` doesn't change and a player who had drawn
+  // before playing one of them started their next turn unable to draw. The
+  // played card is the signal that actually moves — a draw leaves it alone.
   useEffect(() => {
     setHasDrawn(false);
     setPendingWild(null);
-  }, [game?.turn]);
+  }, [game?.turn, game?.state?.topCard]);
 
   useEffect(() => {
     if (!game) return;
@@ -151,25 +165,27 @@ export function UnoOnline({
         onClaim={claimWin}
       />
 
-      <p
-        className={`uno-status ${game.status === 'done' ? 'settled' : ''}`}
-        aria-live="polite"
-      >
-        {waiting && (
-          <IconSpinner className="uno-status-spinner" aria-hidden="true" />
-        )}
-        {waiting
-          ? 'Waiting for someone to join…'
-          : game.status === 'done'
-          ? game.winnerUid === uid
+      {game.status === 'active' ? (
+        <TurnBanner
+          active={myTurn}
+          label={myTurn ? 'Your turn' : `${opponentName ?? 'Opponent'}'s turn`}
+          hint={event ? EVENT_TEXT[event] : undefined}
+          accent={color ? COLOR_HEX[color] : undefined}
+        />
+      ) : (
+        <p
+          className={`uno-status ${game.status === 'done' ? 'settled' : ''}`}
+          aria-live="polite"
+        >
+          {waiting && (
+            <IconSpinner className="uno-status-spinner" aria-hidden="true" />
+          )}
+          {waiting
+            ? 'Waiting for someone to join…'
+            : game.winnerUid === uid
             ? 'You win!'
-            : `${opponentName} wins`
-          : myTurn
-          ? 'Your turn'
-          : `${opponentName ?? 'Opponent'}'s turn`}
-      </p>
-      {event && game.status === 'active' && (
-        <p className="uno-event">{EVENT_TEXT[event]}</p>
+            : `${opponentName} wins`}
+        </p>
       )}
 
       {!waiting && topCard && color && (
