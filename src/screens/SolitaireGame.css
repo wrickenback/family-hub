@@ -1,0 +1,306 @@
+/* Card geometry is driven by one variable so the whole board scales
+   together. Seven columns have to fit the narrowest phone without any
+   sideways scrolling — you can never be asked to scroll to see your own
+   cards — so the width comes from the viewport, divided seven ways, with a
+   cap so it doesn't become absurd on a tablet. */
+.sol-screen {
+  --sol-card-w: min(calc((100vw - 2 * var(--gutter) - 6 * 3px) / 7), 62px);
+  --sol-card-h: calc(var(--sol-card-w) * 1.4);
+  /* How much of a covered card stays visible. Enough to read the rank and
+     suit, which is all you need to plan a move. */
+  --sol-overlap: calc(var(--sol-card-h) * 0.34);
+}
+
+.sol-statbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.5rem 0.8rem;
+  margin-bottom: 0.6rem;
+  background: linear-gradient(135deg, var(--teal) 0%, #1a3f39 100%);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-card);
+  color: #fff;
+}
+
+.sol-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.1rem;
+  background: none;
+  border: none;
+  color: inherit;
+  padding: 0;
+}
+
+.sol-stat-value {
+  font-family: Poppins, system-ui, sans-serif;
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.sol-stat-label {
+  font-size: 0.58rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  opacity: 0.8;
+}
+
+.sol-undo {
+  cursor: pointer;
+  padding: 0.2rem 0.5rem;
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.sol-undo:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.sol-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.4rem;
+  margin-bottom: 0.7rem;
+}
+
+.sol-stock-area {
+  display: flex;
+  align-items: flex-start;
+  gap: 3px;
+}
+
+/* The waste needs room for the draw-3 fan without pushing the foundations
+   off the row, so it reserves a fixed slice rather than growing. */
+.sol-waste {
+  position: relative;
+  width: calc(var(--sol-card-w) + 32px);
+  height: var(--sol-card-h);
+}
+
+.sol-waste-slot {
+  position: absolute;
+  top: 0;
+}
+
+.sol-foundations {
+  display: flex;
+  gap: 3px;
+}
+
+.sol-pile,
+.sol-card {
+  width: var(--sol-card-w);
+  height: var(--sol-card-h);
+  border-radius: 6px;
+  border: 1px solid rgba(26, 20, 16, 0.18);
+  padding: 0;
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-start;
+  background: var(--bg-surface);
+  box-shadow: 0 1px 2px rgba(26, 20, 16, 0.16);
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.sol-card {
+  cursor: pointer;
+}
+
+.sol-card.face-down {
+  background: repeating-linear-gradient(
+    45deg,
+    var(--teal) 0 4px,
+    #1a3f39 4px 8px
+  );
+  cursor: default;
+}
+
+.sol-card.red {
+  color: #b3261e;
+}
+
+.sol-card.black,
+.sol-foundation.black {
+  color: var(--text-primary);
+}
+
+.sol-foundation.red {
+  color: #b3261e;
+}
+
+.sol-card-corner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  line-height: 1;
+  padding: 3px 0 0 3px;
+  font-family: Poppins, system-ui, sans-serif;
+  font-weight: 700;
+}
+
+.sol-card-rank {
+  font-size: calc(var(--sol-card-w) * 0.38);
+}
+
+.sol-card-suit {
+  font-size: calc(var(--sol-card-w) * 0.34);
+}
+
+/* The selected card and everything riding on it get lifted and outlined —
+   at this card size a faint tint would be invisible, and knowing exactly
+   what is in your hand is the whole basis of tap-to-move. */
+.sol-card.selected {
+  outline: 3px solid var(--gold);
+  outline-offset: -1px;
+  transform: translateY(-5px);
+  box-shadow: 0 4px 10px rgba(26, 20, 16, 0.3);
+  z-index: 3;
+}
+
+.sol-card-buried {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.sol-empty {
+  background: rgba(26, 20, 16, 0.05);
+  border-style: dashed;
+  box-shadow: none;
+}
+
+/* A pile that can take what's in hand is called out, so placing is a matter
+   of picking from the highlighted options rather than trial and error. */
+.droppable,
+.sol-pile.droppable {
+  outline: 2px solid var(--gold);
+  outline-offset: 1px;
+  background: rgba(184, 134, 43, 0.14);
+}
+
+.sol-column.droppable {
+  outline-offset: 2px;
+  border-radius: 8px;
+}
+
+.sol-stock {
+  align-items: center;
+  justify-content: center;
+  background: repeating-linear-gradient(
+    45deg,
+    var(--teal) 0 4px,
+    #1a3f39 4px 8px
+  );
+  color: #fff;
+  cursor: pointer;
+}
+
+.sol-stock:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.sol-stock-count {
+  font-family: Poppins, system-ui, sans-serif;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.sol-recycle {
+  background: rgba(26, 20, 16, 0.06);
+  border-style: dashed;
+  color: var(--text-secondary);
+}
+
+.sol-recycle-mark {
+  font-size: 1.1rem;
+  line-height: 1;
+}
+
+.sol-foundation {
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.sol-foundation .sol-card-corner {
+  padding: 0;
+}
+
+.sol-foundation-ghost {
+  font-size: calc(var(--sol-card-w) * 0.5);
+  opacity: 0.25;
+}
+
+.sol-tableau {
+  display: grid;
+  grid-template-columns: repeat(7, var(--sol-card-w));
+  gap: 3px;
+  justify-content: space-between;
+  /* Columns grow downward; the screen scrolls vertically, never sideways. */
+  align-items: start;
+  min-height: calc(var(--sol-card-h) * 2);
+}
+
+.sol-column {
+  display: flex;
+  flex-direction: column;
+  min-height: var(--sol-card-h);
+}
+
+/* Every card after the first is pulled up over the one before it. */
+.sol-column .sol-card + .sol-card {
+  margin-top: calc(var(--sol-overlap) - var(--sol-card-h));
+}
+
+.sol-finish {
+  display: block;
+  width: 100%;
+  margin-top: 1rem;
+}
+
+.sol-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+.sol-actions .btn {
+  flex: 1;
+}
+
+.sol-hint {
+  margin: 0.7rem 0 0;
+  font-size: 0.72rem;
+  line-height: 1.5;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.sol-result {
+  margin-top: 1rem;
+  text-align: center;
+}
+
+.sol-result h3 {
+  margin: 0 0 0.3rem;
+}
+
+.sol-result-detail {
+  margin: 0 0 0.6rem;
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+}
+
+.sol-result-note {
+  margin: 0 0 0.9rem;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}

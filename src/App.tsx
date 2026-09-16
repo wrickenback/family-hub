@@ -45,6 +45,9 @@ import { CatQueensGame } from './screens/CatQueensGame';
 import { WordleGame } from './screens/WordleGame';
 import { HangmanGame } from './screens/HangmanGame';
 import { HangmanOnline } from './screens/HangmanOnline';
+import { SolitaireGame } from './screens/SolitaireGame';
+import { SimonGame } from './screens/SimonGame';
+import { WaterSortGame } from './screens/WaterSortGame';
 import './App.css';
 
 const HOME: Route = { screen: 'home' };
@@ -308,6 +311,9 @@ export function App() {
             onPlayCatQueens={(size) => navigate({ screen: 'play-catqueens', size })}
             onPlayWordle={(mode) => navigate({ screen: 'play-wordle', mode })}
             onPlayHangman={(mode) => navigate({ screen: 'play-hangman', mode })}
+            onPlaySolitaire={(mode) => navigate({ screen: 'play-solitaire', mode })}
+            onPlaySimon={(mode) => navigate({ screen: 'play-simon', mode })}
+            onPlayWaterSort={() => navigate({ screen: 'play-watersort' })}
           />
         )}
         {route.screen === 'play-blocks' && (
@@ -385,6 +391,29 @@ export function App() {
         )}
         {route.screen === 'play-reaction' && (
           <ReactionGame
+            uid={user.uid}
+            displayName={user.displayName || user.email || 'Someone'}
+            onBack={back}
+          />
+        )}
+        {route.screen === 'play-solitaire' && (
+          <SolitaireGame
+            mode={route.mode}
+            uid={user.uid}
+            displayName={user.displayName || user.email || 'Someone'}
+            onBack={back}
+          />
+        )}
+        {route.screen === 'play-simon' && (
+          <SimonGame
+            mode={route.mode}
+            uid={user.uid}
+            displayName={user.displayName || user.email || 'Someone'}
+            onBack={back}
+          />
+        )}
+        {route.screen === 'play-watersort' && (
+          <WaterSortGame
             uid={user.uid}
             displayName={user.displayName || user.email || 'Someone'}
             onBack={back}

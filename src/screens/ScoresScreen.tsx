@@ -6,6 +6,20 @@ import { DEFAULT_MODE, getVisibleGames, type Role } from '../lib/router';
 import { IS_SAMPLE_DATA, sampleScores } from '../lib/sampleData';
 import './Scores.css';
 
+/** Games whose all-time board lives under a mode other than the default. */
+const ALL_TIME_MODE: Record<string, string> = {
+  blocks: 'free',
+  tictactoe: 'online',
+  connect4: 'online',
+  dotsandboxes: 'online',
+  battleship: 'online',
+  war: 'online',
+  uno: 'online',
+  hangman: 'solo',
+  wordle: 'family',
+  solitaire: 'daily',
+};
+
 export function ScoresScreen({
   userRole,
   onBack,
@@ -57,15 +71,13 @@ export function ScoresScreen({
       {selected.built ? (
         <GameLeaderboard
           gameId={selected.id}
-          // Blocks' all-time board is free play; Tic Tac Toe's is the online
-          // board (pass-and-play wins never leave the device).
-          mode={
-            selected.id === 'blocks'
-              ? 'free'
-              : selected.id === 'tictactoe' || selected.id === 'connect4'
-              ? 'online'
-              : DEFAULT_MODE
-          }
+          // Which slice of a game's scores its all-time board reads.
+          // Blocks' is free play; every two-player game's is the online
+          // board, since pass-and-play wins never leave the device;
+          // Solitaire's and Daily Word's are the daily deal, the only
+          // comparable thing they record. Passing DEFAULT_MODE for any of
+          // these would quietly show an empty board.
+          mode={ALL_TIME_MODE[selected.id] ?? DEFAULT_MODE}
           scoring={selected.scoring}
         />
       ) : (

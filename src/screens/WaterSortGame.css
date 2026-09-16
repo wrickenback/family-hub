@@ -1,0 +1,167 @@
+/* Tube size is derived from the viewport so even a ten-colour level (twelve
+   tubes plus a spare) lays out in two rows without sideways scrolling. */
+.ws-screen {
+  --ws-tube-w: min(calc((100vw - 2 * var(--gutter) - 5 * 10px) / 6), 54px);
+  --ws-unit-h: calc(var(--ws-tube-w) * 0.78);
+}
+
+.ws-statbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.4rem;
+  padding: 0.55rem 0.8rem;
+  margin-bottom: 1rem;
+  background: linear-gradient(135deg, #2b3c6b 0%, #16213f 100%);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-card);
+  color: #fff;
+}
+
+.ws-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.1rem;
+}
+
+.ws-stat-value {
+  font-family: Poppins, system-ui, sans-serif;
+  font-size: 1.05rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.ws-stat-label {
+  font-size: 0.58rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  opacity: 0.8;
+}
+
+.ws-rack {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: flex-end;
+  gap: 10px 10px;
+  padding: 0.5rem 0 0.2rem;
+}
+
+.ws-tube {
+  background: none;
+  border: none;
+  padding: 6px 2px 2px;
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  /* A picked-up tube rises out of the rack, so what's in hand is obvious
+     without needing colour to carry the message. */
+  transition: transform 120ms ease-out;
+}
+
+.ws-tube.picked {
+  transform: translateY(-10px);
+}
+
+.ws-tube-glass {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  width: var(--ws-tube-w);
+  height: calc(var(--ws-unit-h) * 4);
+  border: 2px solid rgba(26, 20, 16, 0.22);
+  border-top: none;
+  border-radius: 4px 4px calc(var(--ws-tube-w) * 0.45)
+    calc(var(--ws-tube-w) * 0.45);
+  background: rgba(255, 255, 255, 0.72);
+  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.6);
+  overflow: hidden;
+}
+
+.ws-tube.picked .ws-tube-glass {
+  border-color: var(--gold);
+}
+
+.ws-tube.receivable .ws-tube-glass {
+  border-color: var(--gold);
+  box-shadow: 0 0 0 3px rgba(184, 134, 43, 0.28);
+}
+
+.ws-tube.hinted .ws-tube-glass {
+  border-color: var(--teal);
+  box-shadow: 0 0 0 3px rgba(45, 107, 95, 0.3);
+}
+
+.ws-unit {
+  height: var(--ws-unit-h);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* The run that would actually pour is separated by a hairline, so the
+   player can see how much moves before committing. */
+.ws-unit.lifted {
+  box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.75);
+}
+
+/* Every colour also carries its initial. Ten liquids is more than hue alone
+   can carry reliably — especially for a colour-blind player, and especially
+   at this size. */
+.ws-unit-letter {
+  font-family: Poppins, system-ui, sans-serif;
+  font-size: calc(var(--ws-tube-w) * 0.34);
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.85);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+}
+
+.ws-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 1.2rem;
+}
+
+.ws-actions .btn {
+  flex: 1;
+}
+
+.ws-restart {
+  display: block;
+  margin: 0.6rem auto 0;
+}
+
+.ws-hint-text {
+  margin: 0.2rem 0 0;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--teal);
+  text-align: center;
+}
+
+.ws-result {
+  margin-top: 1rem;
+  text-align: center;
+}
+
+.ws-result h3 {
+  margin: 0 0 0.3rem;
+}
+
+.ws-result-detail {
+  margin: 0 0 0.9rem;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+.ws-result-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.ws-result-actions .btn {
+  flex: 1;
+}

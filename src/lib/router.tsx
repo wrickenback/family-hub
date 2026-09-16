@@ -11,6 +11,9 @@ import UnoIcon from '../assets/game-icons/uno.svg?react';
 import WordSearchIcon from '../assets/game-icons/wordsearch.svg?react';
 import WordleIcon from '../assets/game-icons/wordle.svg?react';
 import ReactionIcon from '../assets/game-icons/reaction.svg?react';
+import SolitaireIcon from '../assets/game-icons/solitaire.svg?react';
+import SimonIcon from '../assets/game-icons/simon.svg?react';
+import WaterSortIcon from '../assets/game-icons/watersort.svg?react';
 import { Cat as CatQueensIcon } from 'lucide-react';
 
 export type Route =
@@ -31,7 +34,10 @@ export type Route =
   | { screen: 'play-reaction' }
   | { screen: 'play-wordle'; mode: 'family' | 'free' }
   | { screen: 'play-hangman'; mode: 'solo' | 'family' }
-  | { screen: 'play-catqueens'; size: 6 | 7 | 8 | 9 };
+  | { screen: 'play-catqueens'; size: 6 | 7 | 8 | 9 }
+  | { screen: 'play-solitaire'; mode: 'daily' | 'free' }
+  | { screen: 'play-simon'; mode: 'solo' | 'pass' }
+  | { screen: 'play-watersort' };
 
 /** Mode string used for any game that doesn't partition its leaderboard by
  * mode (i.e. everything except Blocks' free/daily split and the online
@@ -327,6 +333,68 @@ export const games: GameApp[] = [
       },
     ],
   },
+  {
+    id: 'solitaire',
+    name: 'Solitaire',
+    path: '/solitaire',
+    visibility: 'familyOnly',
+    players: 'solo',
+    scoring: 'bestDuration',
+    icon: SolitaireIcon,
+    blurb: 'Klondike, one card at a time. Everyone gets the same deal today.',
+    built: true,
+    modes: [
+      {
+        id: 'daily',
+        name: "Today's deal",
+        blurb:
+          'The same shuffle for the whole family today. Solve it once — your first time goes on the board.',
+      },
+      {
+        id: 'free',
+        name: 'Free play',
+        blurb:
+          'A fresh deal whenever you want one, draw one or draw three. Nothing is scored.',
+      },
+    ],
+  },
+  {
+    id: 'simon',
+    name: 'Simon',
+    path: '/simon',
+    visibility: 'familyOnly',
+    players: 'both',
+    scoring: 'highScore',
+    icon: SimonIcon,
+    blurb: 'Watch the colours, hear the tones, repeat the pattern. Turn the sound up.',
+    built: true,
+    modes: [
+      {
+        id: 'solo',
+        name: 'Solo',
+        blurb: 'How long a sequence can you hold? Your best goes on the family board.',
+        players: 'solo',
+      },
+      {
+        id: 'pass',
+        name: 'Pass and play',
+        blurb:
+          'Two of you, one phone, taking turns on the same sequence. First to break it loses.',
+        players: 'multi',
+      },
+    ],
+  },
+  {
+    id: 'watersort',
+    name: 'Water Sort',
+    path: '/watersort',
+    visibility: 'familyOnly',
+    players: 'solo',
+    scoring: 'highScore',
+    icon: WaterSortIcon,
+    blurb: 'Pour between tubes until every one holds a single colour.',
+    built: true,
+  },
 ];
 
 export function canAccess(
@@ -388,6 +456,12 @@ export function routeToPath(route: Route): string {
       return `/play/hangman/${route.mode}`;
     case 'play-catqueens':
       return `/play/catqueens/${route.size}`;
+    case 'play-solitaire':
+      return `/play/solitaire/${route.mode}`;
+    case 'play-simon':
+      return `/play/simon/${route.mode}`;
+    case 'play-watersort':
+      return '/play/watersort';
   }
 }
 
@@ -443,6 +517,15 @@ export function pathToRoute(pathname: string): Route | null {
       }
       if (second === 'hangman' && (third === 'solo' || third === 'family')) {
         return { screen: 'play-hangman', mode: third };
+      }
+      if (second === 'solitaire' && (third === 'daily' || third === 'free')) {
+        return { screen: 'play-solitaire', mode: third };
+      }
+      if (second === 'simon' && (third === 'solo' || third === 'pass')) {
+        return { screen: 'play-simon', mode: third };
+      }
+      if (second === 'watersort') {
+        return { screen: 'play-watersort' };
       }
       if (second === 'catqueens' && third) {
         const size = Number(third);
@@ -549,6 +632,27 @@ export function parentChainFor(route: Route): Route[] {
         HOME,
         { screen: 'games' },
         { screen: 'game', gameId: 'hangman' },
+        route,
+      ];
+    case 'play-solitaire':
+      return [
+        HOME,
+        { screen: 'games' },
+        { screen: 'game', gameId: 'solitaire' },
+        route,
+      ];
+    case 'play-simon':
+      return [
+        HOME,
+        { screen: 'games' },
+        { screen: 'game', gameId: 'simon' },
+        route,
+      ];
+    case 'play-watersort':
+      return [
+        HOME,
+        { screen: 'games' },
+        { screen: 'game', gameId: 'watersort' },
         route,
       ];
     default:

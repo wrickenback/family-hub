@@ -1,0 +1,148 @@
+.simon-stats {
+  display: flex;
+  gap: 0.5rem;
+  margin: 0.6rem 0 0.9rem;
+}
+
+.simon-stat {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.15rem;
+  padding: 0.5rem 0.3rem;
+  background: var(--bg-surface);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-card);
+}
+
+.simon-stat-value {
+  font-family: Poppins, system-ui, sans-serif;
+  font-size: 1.3rem;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--text-primary);
+}
+
+.simon-stat-label {
+  font-size: 0.6rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+}
+
+/* The board is a square that always fits the narrowest phone, capped so it
+   doesn't sprawl on a tablet. Sized off the viewport width rather than a
+   fixed pixel value so the four pads stay comfortably thumb-sized. */
+.simon-board {
+  position: relative;
+  width: min(86vw, 420px);
+  aspect-ratio: 1;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
+  gap: 8px;
+  padding: 8px;
+  background: #16120f;
+  border-radius: 50%;
+  box-shadow: var(--shadow-raised);
+}
+
+.simon-pad {
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  /* No transition on the way in: a lit pad has to appear the instant its
+     tone starts, or the light and the sound read as two separate events.
+     The fade only applies on release. */
+  transition: background 140ms ease-out, filter 140ms ease-out;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.simon-pad:disabled {
+  cursor: default;
+}
+
+.simon-pad.lit {
+  transition: none;
+  filter: brightness(1.15);
+  box-shadow: 0 0 24px 4px rgba(255, 255, 255, 0.35) inset;
+}
+
+.simon-pad-0 {
+  border-radius: 100% 0 0 0;
+}
+.simon-pad-1 {
+  border-radius: 0 100% 0 0;
+}
+.simon-pad-2 {
+  border-radius: 0 0 0 100%;
+}
+.simon-pad-3 {
+  border-radius: 0 0 100% 0;
+}
+
+.simon-hub {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 38%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: #16120f;
+  color: #fff;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.1rem;
+  pointer-events: none;
+}
+
+.simon-hub-count {
+  font-family: Poppins, system-ui, sans-serif;
+  font-size: 1.6rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.simon-hub-label {
+  font-size: 0.6rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  opacity: 0.7;
+}
+
+.simon-start {
+  display: block;
+  width: 100%;
+  margin: 1rem 0 0.6rem;
+}
+
+.simon-note {
+  margin: 0;
+  font-size: 0.75rem;
+  line-height: 1.45;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.simon-result {
+  margin-top: 1rem;
+  text-align: center;
+}
+
+.simon-result h3 {
+  margin: 0 0 0.3rem;
+}
+
+.simon-result-detail {
+  margin: 0 0 0.9rem;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}

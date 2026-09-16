@@ -56,6 +56,9 @@ export function GameDetail({
   onPlayCatQueens,
   onPlayWordle,
   onPlayHangman,
+  onPlaySolitaire,
+  onPlaySimon,
+  onPlayWaterSort,
 }: {
   gameId: string;
   /** Mode tab to land on, e.g. from a deep link — falls back to the game's
@@ -76,6 +79,9 @@ export function GameDetail({
   onPlayCatQueens: (size: 6 | 7 | 8 | 9) => void;
   onPlayWordle: (mode: 'family' | 'free') => void;
   onPlayHangman: (mode: 'solo' | 'family') => void;
+  onPlaySolitaire: (mode: 'daily' | 'free') => void;
+  onPlaySimon: (mode: 'solo' | 'pass') => void;
+  onPlayWaterSort: () => void;
 }) {
   const game = getGame(gameId);
   const [modeId, setModeId] = useState(
@@ -120,6 +126,9 @@ export function GameDetail({
   const isCatQueens = game.id === 'catqueens';
   const isWordle = game.id === 'wordle';
   const isHangman = game.id === 'hangman';
+  const isSolitaire = game.id === 'solitaire';
+  const isSimon = game.id === 'simon';
+  const isWaterSort = game.id === 'watersort';
   const catQueensSizes: Record<string, 6 | 7 | 8 | 9> = {
     kitten: 6,
     cat: 7,
@@ -133,7 +142,8 @@ export function GameDetail({
   // Hangman keeps two boards, one per tab: solo rounds and family rounds
   // are different games and shouldn't share a ranking. Daily Word shows the
   // family board on both tabs — free play is unlimited, so it never scores
-  // and has no board of its own to show.
+  // and has no board of its own to show. Solitaire works the same way: only
+  // the daily deal is comparable, since free play deals differ every game.
   const leaderboardMode = isBlocks
     ? mode?.id ?? 'free'
     : isTicTacToe ||
@@ -149,6 +159,8 @@ export function GameDetail({
     ? mode?.id === 'family'
       ? 'online'
       : 'solo'
+    : isSolitaire
+    ? 'daily'
     : DEFAULT_MODE;
   // Scores for a daily-seeded mode aren't comparable to free play, so they get
   // their own scoreboard entry (see sampleData: 'blocks:daily' vs 'blocks').
@@ -320,6 +332,30 @@ export function GameDetail({
         </button>
       )}
 
+      {isSolitaire && (
+        <button
+          className="btn btn-primary blocks-play-btn"
+          onClick={() => onPlaySolitaire(mode?.id === 'free' ? 'free' : 'daily')}
+        >
+          {mode?.id === 'free' ? 'Deal a new game' : "Play today's deal"}
+        </button>
+      )}
+
+      {isSimon && (
+        <button
+          className="btn btn-primary blocks-play-btn"
+          onClick={() => onPlaySimon(mode?.id === 'pass' ? 'pass' : 'solo')}
+        >
+          {mode?.id === 'pass' ? 'Start on this phone' : 'Play now'}
+        </button>
+      )}
+
+      {isWaterSort && (
+        <button className="btn btn-primary blocks-play-btn" onClick={onPlayWaterSort}>
+          Play now
+        </button>
+      )}
+
       {isReaction && (
         <button
           className="btn btn-primary blocks-play-btn"
@@ -401,7 +437,11 @@ export function GameDetail({
           gameId={game.id}
           mode={leaderboardMode}
           scoring={game.scoring}
-          dateKey={isBlocks && mode?.id === 'daily' ? todayKey() : undefined}
+          dateKey={
+            (isBlocks && mode?.id === 'daily') || isSolitaire
+              ? todayKey()
+              : undefined
+          }
           limit={5}
         />
       ) : (
