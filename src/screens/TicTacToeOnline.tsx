@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { Screen } from '../components/Screen';
 import { OnlineLobby } from '../components/OnlineLobby';
 import { IdleClaim } from '../components/IdleClaim';
+import { TurnBanner } from '../components/TurnBanner';
 import { Confetti, MarkGlyph, StrikeLine } from '../components/TttMarks';
 import { IconSpinner } from '../components/icons';
 import { ticTacToeRules, type TttState } from '../lib/onlineTicTacToe';
@@ -155,15 +156,22 @@ export function TicTacToeOnline({ uid, displayName, onBack }: Props) {
         />
 
         <div className="ttt-status-row">
-          <p
-            className={`ttt-status ${game.status === 'done' ? 'settled' : ''}`}
-            aria-live="polite"
-          >
-            {waiting && (
-              <IconSpinner className="ttt-status-spinner" aria-hidden="true" />
-            )}
-            {statusText()}
-          </p>
+          {game.status === 'active' ? (
+            <TurnBanner
+              active={myTurn}
+              label={myTurn ? 'Your turn' : `${opponentName ?? 'Opponent'}'s turn`}
+            />
+          ) : (
+            <p
+              className={`ttt-status ${game.status === 'done' ? 'settled' : ''}`}
+              aria-live="polite"
+            >
+              {waiting && (
+                <IconSpinner className="ttt-status-spinner" aria-hidden="true" />
+              )}
+              {statusText()}
+            </p>
+          )}
           {game.status === 'done' && (
             <button className="btn btn-primary ttt-next-btn" onClick={rematch}>
               Rematch

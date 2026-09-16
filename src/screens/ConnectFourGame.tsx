@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Screen } from '../components/Screen';
+import { TurnBanner } from '../components/TurnBanner';
 import {
   COLS,
   EMPTY_BOARD,
@@ -127,13 +128,17 @@ export function ConnectFourGame({ onBack }: { onBack: () => void }) {
         </div>
       </div>
 
-      <p className={`c4-status ${result ? 'settled' : ''}`} aria-live="polite">
-        {result?.type === 'win'
-          ? `${LABEL[result.disc]} wins!`
-          : result?.type === 'draw'
-          ? 'Draw — board full'
-          : `${LABEL[turn]}'s turn`}
-      </p>
+      {result ? (
+        <p className="c4-status settled" aria-live="polite">
+          {result.type === 'win' ? `${LABEL[result.disc]} wins!` : 'Draw — board full'}
+        </p>
+      ) : (
+        <TurnBanner
+          active
+          label={`${LABEL[turn]}'s turn`}
+          accent={turn === 'R' ? '#E4172A' : '#FFC400'}
+        />
+      )}
 
       <C4Board
         board={board}

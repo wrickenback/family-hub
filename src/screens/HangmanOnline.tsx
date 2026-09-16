@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Screen } from '../components/Screen';
 import { OnlineLobby } from '../components/OnlineLobby';
 import { IdleClaim } from '../components/IdleClaim';
+import { TurnBanner } from '../components/TurnBanner';
 import { HangmanBoard } from '../components/HangmanBoard';
 import { IconSpinner } from '../components/icons';
 import { fetchHangmanHint } from '../lib/firestoreHangman';
@@ -179,22 +180,31 @@ export function HangmanOnline({ uid, displayName, onBack }: Props) {
           onClaim={claimWin}
         />
 
-        <div className="hangman-status-row">
-          <p
-            className={`hangman-status ${finished ? 'settled' : ''}`}
-            aria-live="polite"
-          >
-            {(waiting || (settingUp && !amSetter)) && (
-              <IconSpinner className="hangman-status-spinner" aria-hidden="true" />
+        {!waiting && !finished ? (
+          <div className="hangman-status-row">
+            <TurnBanner
+              active={settingUp ? amSetter : !amSetter}
+              label={statusText()}
+            />
+          </div>
+        ) : (
+          <div className="hangman-status-row">
+            <p
+              className={`hangman-status ${finished ? 'settled' : ''}`}
+              aria-live="polite"
+            >
+              {waiting && (
+                <IconSpinner className="hangman-status-spinner" aria-hidden="true" />
+              )}
+              {statusText()}
+            </p>
+            {finished && (
+              <button className="btn btn-primary hangman-next-btn" onClick={rematch}>
+                Swap and play again
+              </button>
             )}
-            {statusText()}
-          </p>
-          {finished && (
-            <button className="btn btn-primary hangman-next-btn" onClick={rematch}>
-              Swap and play again
-            </button>
-          )}
-        </div>
+          </div>
+        )}
 
         {settingUp && amSetter && (
           <WordSetter

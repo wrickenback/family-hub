@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Screen } from '../components/Screen';
 import { OnlineLobby } from '../components/OnlineLobby';
 import { IdleClaim } from '../components/IdleClaim';
+import { TurnBanner } from '../components/TurnBanner';
 import { IconSpinner } from '../components/icons';
 import { C4Board } from './ConnectFourGame';
 import { EMPTY_BOARD } from '../lib/connectFourEngine';
@@ -12,6 +13,7 @@ import { playClear, playGameOver, playPlace } from '../lib/sound';
 import './ConnectFourGame.css';
 
 const LABEL: Record<string, string> = { R: 'Red', Y: 'Yellow' };
+const DISC_HEX: Record<string, string> = { R: '#E4172A', Y: '#FFC400' };
 
 /** Two family members, two devices. The board lives in the Realtime
  * Database, and the landing slot of the last disc is synced along with it —
@@ -136,25 +138,35 @@ export function ConnectFourOnline({
         onClaim={claimWin}
       />
 
-      <p
-        className={`c4-status ${game.status === 'done' ? 'settled' : ''}`}
-        aria-live="polite"
-      >
-        {waiting && (
-          <IconSpinner className="c4-status-spinner" aria-hidden="true" />
-        )}
-        {waiting
-          ? 'Waiting for someone to join…'
-          : game.status === 'done'
-          ? game.outcome === 'draw'
+      {game.status === 'active' ? (
+        <TurnBanner
+          active={myTurn}
+          label={myTurn ? 'Your turn' : `${opponentName ?? 'Opponent'}'s turn`}
+          accent={
+            game.turn === uid
+              ? myDisc && DISC_HEX[myDisc]
+              : opponentUid && game.state?.discs?.[opponentUid]
+              ? DISC_HEX[game.state.discs[opponentUid]]
+              : undefined
+          }
+        />
+      ) : (
+        <p
+          className={`c4-status ${game.status === 'done' ? 'settled' : ''}`}
+          aria-live="polite"
+        >
+          {waiting && (
+            <IconSpinner className="c4-status-spinner" aria-hidden="true" />
+          )}
+          {waiting
+            ? 'Waiting for someone to join…'
+            : game.outcome === 'draw'
             ? 'Draw — board full'
             : game.winnerUid === uid
             ? 'You win!'
-            : `${opponentName} wins`
-          : myTurn
-          ? 'Your turn'
-          : `${opponentName ?? 'Opponent'}'s turn`}
-      </p>
+            : `${opponentName} wins`}
+        </p>
+      )}
 
       <C4Board
         board={board}

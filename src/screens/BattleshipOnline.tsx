@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Screen } from '../components/Screen';
 import { OnlineLobby } from '../components/OnlineLobby';
 import { IdleClaim } from '../components/IdleClaim';
+import { TurnBanner } from '../components/TurnBanner';
 import { BsPlacementBoard } from '../components/BsPlacementBoard';
 import { ShipHull } from '../components/ShipHull';
 import { IconSpinner } from '../components/icons';
@@ -454,26 +455,28 @@ function BattlePhase({
         </div>
       </div>
 
-      <p
-        className={`bs-status ${game.status === 'done' ? 'settled' : ''}`}
-        aria-live="polite"
-      >
-        {statusText()}
-      </p>
+      {game.status !== 'active' && (
+        <p
+          className={`bs-status ${game.status === 'done' ? 'settled' : ''}`}
+          aria-live="polite"
+        >
+          {statusText()}
+        </p>
+      )}
 
       {/* Two 10x10 grids don't fit on a phone at once, so this rides along
           at the top of the scroll: whose turn it is and what just sank are
           exactly the things you need while looking at either board. */}
       <div className="bs-sticky">
         {game.status === 'active' && (
-          <div
-            className={`bs-turn ${myTurn ? 'mine' : 'theirs'}`}
-            aria-live="polite"
-          >
-            {myTurn
-              ? 'Your turn — fire at enemy waters'
-              : `Waiting for ${opponentName ?? 'your opponent'} to fire`}
-          </div>
+          <TurnBanner
+            active={myTurn}
+            label={
+              myTurn
+                ? 'Your turn — fire at enemy waters'
+                : `Waiting for ${opponentName ?? 'your opponent'} to fire`
+            }
+          />
         )}
 
         {/* Across a table you'd just say "you sank my battleship". */}
