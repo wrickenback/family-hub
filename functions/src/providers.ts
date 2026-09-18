@@ -33,6 +33,12 @@ import { GoogleGenAI, HarmCategory, HarmBlockThreshold } from '@google/genai';
 // flagship model's on the same prompts.
 const GEMINI_MODEL = 'gemini-flash-lite-latest';
 const HAIKU_MODEL = 'claude-haiku-4-5';
+// Only the mini crossword reaches for this one. Filling a 5x5 grid where
+// every across and down run has to be a real word is a constraint-solving
+// problem, not a "write me a list" problem, and the two cheap models fail
+// it far more often than they succeed. Sonnet runs adaptive thinking when
+// no `thinking` parameter is sent, which is exactly what this needs.
+const SONNET_MODEL = 'claude-sonnet-5';
 
 // Belt-and-suspenders for a kids' feature, backed by the API's own
 // content-safety filters — so a refusal doesn't depend on the model
@@ -145,6 +151,53 @@ export function haikuProvider(apiKey: string): ModelProvider {
   };
 }
 
+/** The reasoning-grade provider, for the one generator whose output has to
+ * satisfy hard constraints rather than just read well.
+ *
+ * Streamed rather than awaited in one shot: with adaptive thinking on, a
+ * hard grid can take long enough to bump the callable's own timeout, and a
+ * stream keeps the connection alive while it works. */
+export function sonnetProvider(apiKey: string): ModelProvider {
+  const client = new Anthropic({ apiKey });
+  return {
+    name: 'sonnet',
+    async complete(prompt) {
+      try {
+        // No `thinking` parameter on purpose: Sonnet runs adaptive thinking
+        // when none is given, and the fixed budget_tokens form this model
+        // would otherwise want is rejected outright.
+        const response = await client.messages
+          .stream({
+            model: SONNET_MODEL,
+            max_tokens: 8192,
+            messages: [{ role: 'user', content: prompt }],
+          })
+          .finalMessage();
+        return response.content
+          .filter((block): block is Anthropic.TextBlock => block.type === 'text')
+          .map((block) => block.text)
+          .join('');
+      } catch (err) {
+        if (err instanceof Anthropic.AuthenticationError) {
+          console.error('sonnet: ANTHROPIC_API_KEY rejected');
+        } else if (err instanceof Anthropic.RateLimitError) {
+          console.warn('sonnet: rate limited');
+        } else if (err instanceof Anthropic.APIError) {
+          console.error('sonnet: request failed', {
+            status: err.status,
+            message: err.message,
+          });
+        } else {
+          console.error('sonnet: request failed', {
+            error: err instanceof Error ? err.message : String(err),
+          });
+        }
+        return '';
+      }
+    },
+  };
+}
+
 /** The provider chain, in preference order. A missing key drops that
  * provider rather than failing — so the functions still deploy and run with
  * only one of the two secrets configured. */
@@ -159,12 +212,32 @@ export function providersFrom(
   return providers;
 }
 
+/** Gemini, then Sonnet — the chain for the mini crossword only.
+ *
+ * Haiku is deliberately skipped here, which is the one place it isn't the
+ * second choice. Filling a grid is pass/fail against the validator rather
+ * than a matter of quality, and Haiku almost never passes it; leaving it in
+ * would mostly buy two more slow attempts before the model that can
+ * actually do it gets a turn. Gemini is still first because it's free and
+ * does sometimes land it, and the bundled puzzles catch the day neither
+ * manages. */
+export function deepProvidersFrom(
+  geminiApiKey: string,
+  anthropicApiKey: string
+): ModelProvider[] {
+  const providers: ModelProvider[] = [];
+  if (geminiApiKey) providers.push(geminiProvider(geminiApiKey));
+  if (anthropicApiKey) providers.push(sonnetProvider(anthropicApiKey));
+  if (providers.length === 0) console.error('no model provider is configured');
+  return providers;
+}
+
 /** Which provider actually produced a result — surfaced all the way to the
  * player as a small badge, since "the AI" covers two very different models
  * behind one button and it's been worth knowing which one answered while
  * this is new. `null` means the whole chain came up empty; the caller
  * substitutes its own bundled fallback and labels it as such. */
-export type ProviderSource = 'gemini' | 'haiku';
+export type ProviderSource = 'gemini' | 'haiku' | 'sonnet';
 
 export interface Generated<T> {
   value: T;

@@ -2,13 +2,17 @@ import * as functions from 'firebase-functions';
 import * as admin from 'firebase-admin';
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { defineSecret } from 'firebase-functions/params';
-import { providersFrom } from './providers';
+import { deepProvidersFrom, providersFrom } from './providers';
 import {
   MIN_TOPIC_WORDS,
   fallbackDailyWord,
   fallbackHangmanWord,
+  generateBloomPuzzle,
   generateHangmanHint,
   generateHangmanWord,
+  expandBloomWords,
+  generateMiniCrossword,
+  generateSpellingSuggestion,
   generateTopicWords,
   generateWordleWords,
 } from './wordGames';
@@ -28,6 +32,12 @@ const anthropicApiKey = defineSecret('ANTHROPIC_API_KEY');
  * rotation takes effect without a redeploy. */
 function models() {
   return providersFrom(geminiApiKey.value(), anthropicApiKey.value());
+}
+
+/** Gemini then Sonnet — only the mini crossword uses this. See
+ * deepProvidersFrom for why Haiku sits this one out. */
+function deepModels() {
+  return deepProvidersFrom(geminiApiKey.value(), anthropicApiKey.value());
 }
 
 function slugify(topic: string): string {
@@ -250,10 +260,46 @@ export const getHangmanHint = onCall(
       throw new HttpsError('invalid-argument', 'That word cannot be hinted.');
     }
 
-    const { value: hint, source } = await generateHangmanHint(models(), word);
-    // source is already null exactly when hint is null (generate()'s empty
-    // check is `hint === null`), so this passes both straight through.
-    return { hint: hint ?? '', source };
+    const { value: clue, source } = await generateHangmanHint(models(), word);
+    // Also carries the spelling verdict, so a setter who tapped Suggest
+    // doesn't pay for a second call to checkHangmanWord asking the same
+    // model about the same word. A null correction here means "looks fine",
+    // and the client remembers that against the word it asked about.
+    return {
+      hint: clue?.hint ?? '',
+      correction: clue?.correction ?? null,
+      source: clue?.hint ? source : null,
+    };
+  }
+);
+
+/** "Did you mean…?" for the word the setter typed in the family game.
+ *
+ * Always resolves. A word this can make nothing of is far more likely to be
+ * a name or a family in-joke than a mistake, and the setter's own spelling
+ * has to stand in that case — the guesser is going to be typing letters at
+ * it for the next five minutes, so a wrong "correction" would be much worse
+ * than a missed one. `suggestion` is null for "looks fine to me".
+ */
+export const checkHangmanWord = onCall(
+  { region: 'us-central1', secrets: [geminiApiKey, anthropicApiKey] },
+  async (request) => {
+    await requireFamilyMember(request);
+
+    const word = String(request.data?.word ?? '')
+      .trim()
+      .toUpperCase()
+      .replace(/\s+/g, ' ');
+    if (!/^[A-Z]+( [A-Z]+)*$/.test(word) || word.replace(/ /g, '').length > 18) {
+      throw new HttpsError('invalid-argument', 'That word cannot be checked.');
+    }
+
+    try {
+      const { value } = await generateSpellingSuggestion(models(), word);
+      return { suggestion: value };
+    } catch {
+      return { suggestion: null };
+    }
   }
 );
 
@@ -288,6 +334,154 @@ export const getHangmanWord = onCall(
     );
     const picked = generated ?? fallbackHangmanWord(category, avoid);
     return { ...picked, category, source: servedBy ?? 'fallback' };
+  }
+);
+
+/** A letter set and every word hidden in it, for Word Bloom.
+ *
+ * With a `dateKey` this is the family's shared puzzle for that day, cached
+ * in Firestore so everyone plays the same letters and the day's scores mean
+ * something next to each other. Without one it's a throwaway free-play
+ * round, generated fresh and stored nowhere.
+ *
+ * `avoid` is the bases this player has seen recently. Without it the models
+ * converge on the same handful of pleasingly anagram-rich words (GARDEN,
+ * DANGER and friends) every single time. */
+export const getBloomPuzzle = onCall(
+  { region: 'us-central1', secrets: [geminiApiKey, anthropicApiKey] },
+  async (request) => {
+    await requireFamilyMember(request);
+
+    const dateKey = String(request.data?.dateKey ?? '').trim();
+    const daily = /^\d{4}-\d{2}-\d{2}$/.test(dateKey);
+
+    const doc = daily ? db.doc(`bloomPuzzles/${dateKey}`) : null;
+    if (doc) {
+      const existing = await doc.get();
+      if (existing.exists) {
+        const data = existing.data() ?? {};
+        // Expanded on the way out rather than trusting what was stored: a
+        // day cached before the vocabulary sweep existed would otherwise
+        // keep serving the model's short list until tomorrow.
+        return {
+          base: data.base,
+          words: expandBloomWords(data.base ?? '', data.words ?? []),
+          source: data.source,
+        };
+      }
+    }
+
+    const avoid = Array.isArray(request.data?.avoid)
+      ? (request.data.avoid as unknown[])
+          .filter((w): w is string => typeof w === 'string')
+          .slice(0, 20)
+      : [];
+
+    const { value: puzzle, source } = await generateBloomPuzzle(models(), avoid);
+    if (!puzzle) {
+      // The client falls back to its bundled packs, same as Daily Word.
+      return { base: '', words: [], source: 'fallback' };
+    }
+
+    if (doc) {
+      // Two people opening it at the same moment: create() lets one win and
+      // the other reads back what was actually stored, so they can't end up
+      // on different letters for the same day.
+      try {
+        await doc.create({
+          dateKey,
+          base: puzzle.base,
+          words: puzzle.words,
+          source,
+          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+      } catch {
+        const settled = await doc.get();
+        const data = settled.data() ?? {};
+        return {
+          base: data.base,
+          words: expandBloomWords(data.base ?? '', data.words ?? []),
+          source: data.source,
+        };
+      }
+    }
+
+    return { ...puzzle, source };
+  }
+);
+
+/** Today's 5x5 mini crossword.
+ *
+ * Two things make this different from every other generator here. It runs
+ * the deep chain, because filling a grid is a constraint problem the cheap
+ * models mostly fail. And it's cached in Firestore per day: the whole
+ * family shares one puzzle, so the first person to open it pays for the
+ * generation and everyone after reads it — which also means the crossword
+ * the family compares times on is genuinely the same one.
+ *
+ * The longer timeout is for the Sonnet leg: with thinking on, a hard grid
+ * can take well past the 60s default. */
+export const getMiniCrossword = onCall(
+  {
+    region: 'us-central1',
+    secrets: [geminiApiKey, anthropicApiKey],
+    timeoutSeconds: 180,
+  },
+  async (request) => {
+    await requireFamilyMember(request);
+
+    const dateKey = String(request.data?.dateKey ?? '').trim();
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(dateKey)) {
+      throw new HttpsError('invalid-argument', 'A date is required.');
+    }
+
+    const doc = db.doc(`crosswords/${dateKey}`);
+    const existing = await doc.get();
+    if (existing.exists) {
+      const data = existing.data() ?? {};
+      return { grid: data.grid, entries: data.entries, source: data.source };
+    }
+
+    // Recent answers, so a run of days doesn't circle the same vocabulary.
+    const recent = await db
+      .collection('crosswords')
+      .orderBy('dateKey', 'desc')
+      .limit(3)
+      .get();
+    const avoid: string[] = [];
+    for (const snap of recent.docs) {
+      const entries = (snap.data()?.entries ?? []) as { answer?: string }[];
+      for (const entry of entries) {
+        if (entry.answer) avoid.push(entry.answer);
+      }
+    }
+
+    const { value: puzzle, source } = await generateMiniCrossword(
+      deepModels(),
+      avoid
+    );
+    if (!puzzle) {
+      return { grid: null, entries: null, source: 'fallback' };
+    }
+
+    // A race between two family members opening it at the same moment ends
+    // with one stored puzzle either way; create() loses politely and the
+    // loser re-reads what the winner wrote.
+    try {
+      await doc.create({
+        dateKey,
+        grid: puzzle.grid,
+        entries: puzzle.entries,
+        source,
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+    } catch {
+      const settled = await doc.get();
+      const data = settled.data() ?? {};
+      return { grid: data.grid, entries: data.entries, source: data.source };
+    }
+
+    return { ...puzzle, source };
   }
 );
 

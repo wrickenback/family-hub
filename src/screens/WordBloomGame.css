@@ -1,0 +1,226 @@
+.wb-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 2rem 1rem;
+  text-align: center;
+  color: var(--text-secondary);
+}
+
+.wb-spinner {
+  animation: wb-spin 1s linear infinite;
+}
+
+@keyframes wb-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.wb-scorebar {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.35rem;
+  padding: 0.4rem 0.6rem;
+  background: linear-gradient(135deg, #2d6b5f 0%, #1f4a43 100%);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-card);
+  color: #fff;
+  text-align: center;
+}
+
+.wb-tally {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  min-width: 0;
+}
+
+.wb-tally-label {
+  font-size: 0.55rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  opacity: 0.8;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.wb-tally-value {
+  font-size: 1.1rem;
+  font-weight: 800;
+}
+
+.wb-progress {
+  height: 6px;
+  margin: 0.35rem 0 0.6rem;
+  border-radius: var(--radius-pill);
+  background: var(--sand-200);
+  overflow: hidden;
+}
+
+.wb-progress > span {
+  display: block;
+  height: 100%;
+  background: var(--teal);
+  transition: width 0.3s ease;
+}
+
+/* ---------- the answer board ---------- */
+
+.wb-words {
+  padding: 0.5rem 0.6rem;
+  margin-bottom: 0.6rem;
+}
+
+.wb-word-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.45rem;
+}
+
+.wb-word-row + .wb-word-row {
+  margin-top: 0.4rem;
+  padding-top: 0.4rem;
+  border-top: 1px solid var(--sand-100);
+}
+
+.wb-word-length {
+  flex: 0 0 1.1rem;
+  height: 1.1rem;
+  border-radius: 50%;
+  background: var(--sand-200);
+  color: var(--text-secondary);
+  font-size: 0.65rem;
+  font-weight: 800;
+  line-height: 1.1rem;
+  text-align: center;
+}
+
+.wb-word-slots {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+.wb-word {
+  padding: 0.12rem 0.35rem;
+  border-radius: var(--radius-sm);
+  background: var(--sand-100);
+  color: var(--sand-300);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+}
+
+.wb-word.found {
+  background: var(--teal-soft);
+  color: var(--teal);
+}
+
+/* Shown only once the round is over — the words that were there all along. */
+.wb-word.missed {
+  background: var(--sand-100);
+  color: var(--text-muted);
+}
+
+/* ---------- the letter wheel ---------- */
+
+.wb-current {
+  min-height: 2.2rem;
+  margin-bottom: 0.4rem;
+  font-size: 1.3rem;
+  font-weight: 800;
+  letter-spacing: 0.18em;
+  text-align: center;
+  color: var(--text-primary);
+  line-height: 2.2rem;
+}
+
+.wb-current:empty::after,
+.wb-current {
+  text-transform: uppercase;
+}
+
+.wb-current.good {
+  color: var(--teal);
+}
+
+.wb-current.bad {
+  color: var(--rust);
+}
+
+.wb-wheel {
+  position: relative;
+  width: min(100%, 17rem);
+  margin: 0 auto 0.7rem;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: radial-gradient(circle, var(--sand-50) 55%, var(--sand-100) 100%);
+  box-shadow: var(--shadow-card);
+}
+
+.wb-letter {
+  position: absolute;
+  width: 3rem;
+  height: 3rem;
+  transform: translate(-50%, -50%);
+  border: 2px solid var(--sand-200);
+  border-radius: 50%;
+  background: var(--bg-surface);
+  box-shadow: var(--shadow-card);
+  font-family: 'Poppins', sans-serif;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: transform 0.12s ease, background 0.12s ease;
+}
+
+.wb-letter.used {
+  background: var(--teal);
+  border-color: var(--teal);
+  color: #fff;
+  transform: translate(-50%, -50%) scale(0.88);
+}
+
+.wb-letter:disabled {
+  cursor: default;
+}
+
+.wb-controls {
+  display: grid;
+  grid-template-columns: 1fr 1.6fr 1fr;
+  gap: 0.4rem;
+  align-items: center;
+}
+
+.wb-enter {
+  width: 100%;
+}
+
+.wb-finish {
+  display: block;
+  width: 100%;
+  margin-top: 0.6rem;
+}
+
+.wb-result {
+  margin-top: 0.8rem;
+  padding: 1rem;
+  text-align: center;
+}
+
+.wb-result h3 {
+  margin-bottom: 0.3rem;
+}
+
+.wb-result-score {
+  margin-bottom: 0.8rem;
+  font-size: 1.6rem;
+  font-weight: 800;
+  color: var(--rust);
+}

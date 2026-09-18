@@ -162,6 +162,18 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // Same reasoning as dailyWords: these documents hold the day's answers.
+    // A player who could read the crossword doc would have the filled grid,
+    // and the Word Bloom doc is the whole word list. Both are handed back
+    // through their callable instead, which is also what creates them.
+    match /crosswords/{dateKey} {
+      allow read, write: if false;
+    }
+
+    match /bloomPuzzles/{dateKey} {
+      allow read, write: if false;
+    }
+
     // Schedule (merged from calendar + ICS)
     match /schedule/{eventId} {
       allow read: if isSignedIn() && isAllowed();

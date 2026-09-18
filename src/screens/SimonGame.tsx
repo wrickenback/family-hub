@@ -12,11 +12,11 @@ import { submitScore, watchTopScores } from '../lib/firestoreScores';
 import { DEFAULT_MODE } from '../lib/router';
 import {
   audioNow,
+  ensureAudio,
   playSimonFail,
   playWin,
   scheduleSimonTone,
   startSimonTone,
-  unlockAudio,
 } from '../lib/sound';
 import './SimonGame.css';
 
@@ -100,17 +100,22 @@ export function SimonGame({ mode, uid, displayName, onBack }: SimonGameProps) {
    * so the lights and the sound cannot drift apart, and neither drifts from
    * the tempo however busy the main thread gets. */
   const playSequence = useCallback(
-    (seq: number[]) => {
+    async (seq: number[]) => {
       stopPlayback();
       setPhase('watch');
       setStep(0);
-      unlockAudio();
+
+      // Awaited, not fire-and-forget: until the context is genuinely
+      // running its currentTime is pinned at zero, so tones scheduled
+      // against it never sound and the clock the flashes are driven from
+      // never advances. On iOS this only resolves for a call that began in
+      // a user gesture, which is why Start is the one that kicks it off and
+      // every later round inherits a context that is already awake.
+      const usingAudio = await ensureAudio();
 
       const schedule = playbackSchedule(seq);
       const total = playbackDuration(seq);
-      const clockStart = audioNow();
-      const usingAudio = clockStart !== null;
-      const startAt = (clockStart ?? 0) + LEAD_IN;
+      const startAt = (audioNow() ?? 0) + LEAD_IN;
       fallbackStart.current = performance.now() / 1000 + LEAD_IN;
 
       if (usingAudio) {
@@ -146,14 +151,14 @@ export function SimonGame({ mode, uid, displayName, onBack }: SimonGameProps) {
     setPlayer(0);
     const seq = extendSequence([]);
     setSequence(seq);
-    playSequence(seq);
+    void playSequence(seq);
   };
 
   const nextRound = useCallback(
     (fromSequence: number[]) => {
       const seq = extendSequence(fromSequence);
       setSequence(seq);
-      playSequence(seq);
+      void playSequence(seq);
     },
     [playSequence]
   );
@@ -309,9 +314,8 @@ export function SimonGame({ mode, uid, displayName, onBack }: SimonGameProps) {
             {mode === 'pass' ? 'Start — Player 1 first' : 'Start'}
           </button>
           <p className="simon-note">
-            Sound carries the pattern, so turn it up. On an iPhone the ring
-            switch mutes it — if you hear nothing, that&rsquo;s why. The pads
-            still flash either way.
+            Sound carries the pattern, so turn the volume up. The pads flash
+            in time either way, so a silent phone can still play.
           </p>
         </>
       )}

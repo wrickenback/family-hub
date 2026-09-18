@@ -1,0 +1,306 @@
+.yz-status {
+  text-align: center;
+  font-weight: 700;
+  margin: 0.3rem 0 0.6rem;
+  color: var(--text-secondary);
+}
+
+.yz-status.settled {
+  color: var(--text-primary);
+}
+
+.yz-status-spinner {
+  display: inline-block;
+  vertical-align: -0.15em;
+  margin-right: 0.35rem;
+  animation: yz-spin 1s linear infinite;
+}
+
+@keyframes yz-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.yz-scorebar {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.35rem;
+  padding: 0.4rem 0.6rem;
+  margin-bottom: 0.4rem;
+  background: linear-gradient(135deg, #2d6b5f 0%, #1f4a43 100%);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-card);
+  color: #fff;
+  text-align: center;
+}
+
+.yz-tally {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  min-width: 0;
+}
+
+.yz-tally-label {
+  font-size: 0.55rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  opacity: 0.8;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.yz-tally-value {
+  font-size: 1.1rem;
+  font-weight: 800;
+}
+
+/* ---------- the dice ---------- */
+
+.yz-tray {
+  margin-bottom: 0.7rem;
+}
+
+.yz-dice {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 0.4rem;
+  margin-bottom: 0.6rem;
+}
+
+.yz-die {
+  position: relative;
+  aspect-ratio: 1;
+  padding: 0.35rem;
+  border: 2px solid var(--sand-200);
+  border-radius: var(--radius-sm);
+  background: var(--bg-surface);
+  box-shadow: var(--shadow-card);
+  cursor: pointer;
+  transition: transform 0.12s ease, border-color 0.12s ease,
+    background 0.12s ease;
+}
+
+.yz-die:disabled {
+  cursor: default;
+}
+
+.yz-die.empty {
+  background: var(--sand-100);
+  border-style: dashed;
+  box-shadow: none;
+}
+
+.yz-die.held {
+  border-color: var(--teal);
+  background: var(--teal-soft);
+  transform: translateY(2px) scale(0.96);
+}
+
+.yz-die-keep {
+  position: absolute;
+  inset: auto 0 -0.15rem 0;
+  font-size: 0.42rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  color: var(--teal);
+}
+
+.yz-pips {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(3, 1fr);
+  gap: 2px;
+  width: 100%;
+  height: 100%;
+}
+
+.yz-pips > span {
+  border-radius: 50%;
+}
+
+.yz-pip {
+  background: var(--text-primary);
+}
+
+.yz-roll {
+  width: 100%;
+}
+
+/* ---------- the scorecard ---------- */
+
+.yz-sheet {
+  padding: 0.35rem 0.5rem;
+  overflow: hidden;
+}
+
+.yz-sheet table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.yz-sheet th,
+.yz-sheet td {
+  padding: 0.25rem 0.2rem;
+  text-align: center;
+  vertical-align: middle;
+}
+
+.yz-sheet thead th {
+  font-size: 0.6rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--sand-200);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.yz-sheet thead th.active {
+  color: var(--teal);
+}
+
+.yz-sheet tbody th {
+  width: 52%;
+  text-align: left;
+  font-weight: 600;
+}
+
+.yz-cat-label {
+  display: block;
+  font-size: 0.8rem;
+  color: var(--text-primary);
+}
+
+.yz-cat-hint {
+  display: block;
+  font-size: 0.6rem;
+  font-weight: 500;
+  color: var(--text-muted);
+}
+
+.yz-sheet tbody tr + tr {
+  border-top: 1px solid var(--sand-100);
+}
+
+.yz-cell {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.yz-cell.taken {
+  color: var(--text-secondary);
+}
+
+.yz-cell.empty::after {
+  content: '·';
+  color: var(--sand-300);
+}
+
+/* The one thing you tap most, so it reads as a button and not as a number
+   that happens to be clickable. */
+.yz-take {
+  min-width: 2.6rem;
+  padding: 0.3rem 0.4rem;
+  border: none;
+  border-radius: var(--radius-pill);
+  background: var(--teal);
+  color: #fff;
+  font-size: 0.9rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.yz-take.zero {
+  background: var(--sand-200);
+  color: var(--text-muted);
+}
+
+.yz-subtotal,
+.yz-total {
+  background: var(--sand-50);
+}
+
+.yz-progress {
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+}
+
+.yz-bonus-hit {
+  display: block;
+  font-size: 0.6rem;
+  font-weight: 800;
+  color: var(--teal);
+}
+
+.yz-cell.total {
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: var(--rust);
+}
+
+.yz-result {
+  margin-top: 0.8rem;
+  padding: 1rem;
+  text-align: center;
+}
+
+.yz-result h3 {
+  margin-bottom: 0.7rem;
+}
+
+.yz-final {
+  display: flex;
+  justify-content: center;
+  gap: 1.2rem;
+  margin-bottom: 0.8rem;
+}
+
+.yz-final-seat {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.yz-final-name {
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+}
+
+.yz-final-score {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: var(--text-primary);
+}
+
+.yz-note {
+  margin-top: 0.8rem;
+  font-size: 0.75rem;
+  text-align: center;
+  color: var(--text-muted);
+}
+
+.yz-error {
+  margin-bottom: 0.6rem;
+  padding: 0.6rem 0.8rem;
+  color: var(--rust);
+  font-size: 0.85rem;
+}
+
+.yz-leave {
+  display: block;
+  width: 100%;
+  margin-top: 0.8rem;
+}

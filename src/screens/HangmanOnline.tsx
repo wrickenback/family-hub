@@ -5,7 +5,10 @@ import { IdleClaim } from '../components/IdleClaim';
 import { TurnBanner } from '../components/TurnBanner';
 import { HangmanBoard } from '../components/HangmanBoard';
 import { IconSpinner } from '../components/icons';
-import { fetchHangmanHint } from '../lib/firestoreHangman';
+import {
+  checkHangmanSpelling,
+  fetchHangmanHint,
+} from '../lib/firestoreHangman';
 import { ProviderBadge, type ProviderSource } from '../components/ProviderBadge';
 import {
   hangmanRules,
@@ -285,9 +288,31 @@ function WordSetter({
   const [hint, setHint] = useState('');
   const [problem, setProblem] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [checking, setChecking] = useState(false);
   const [hinting, setHinting] = useState(false);
   const [hintNote, setHintNote] = useState<string | null>(null);
   const [hintSource, setHintSource] = useState<ProviderSource>(null);
+  /** A spelling the model offered, waiting on the setter to take it or
+   * leave it. Never applied on its own: the word may well be a name or a
+   * family in-joke, and only the person who typed it knows that.
+   *
+   * `atSubmit` is what the two buttons do afterwards. Raised from the Set
+   * button, answering it sets the word — the setter had already committed.
+   * Raised from Suggest, it only fixes the text and gets out of the way,
+   * because they were still writing the clue. */
+  const [suggestion, setSuggestion] = useState<{
+    typed: string;
+    fixed: string;
+    atSubmit: boolean;
+  } | null>(null);
+  /** Every word already put to the model, and what it said — the correction
+   * it offered, or null for "looks fine". Suggest fills this in as a side
+   * effect of fetching the clue, so the common path (tap Suggest, then Set)
+   * asks one model one question once instead of twice. */
+  const checked = useRef<Map<string, string | null>>(new Map());
+  /** Words the setter has explicitly okayed, either by keeping their own
+   * spelling or by taking the correction, so they're never asked twice. */
+  const accepted = useRef<Set<string>>(new Set());
 
   /** Lets the setter hand the clue-writing to the AI. It only runs on a
    * word that already passes validation, so it can't be asked to make sense
@@ -310,16 +335,18 @@ function WordSetter({
     } else {
       setHintNote("Couldn't think of one — write your own.");
     }
+
+    // The same call already answered the spelling question. Record it
+    // either way — a null verdict is just as worth remembering, since it's
+    // what lets the Set button skip its own check.
+    checked.current.set(word, suggested.correction);
+    if (suggested.correction && suggested.correction !== word) {
+      setSuggestion({ typed: word, fixed: suggested.correction, atSubmit: false });
+    }
   };
 
-  const submit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const word = normalizeWord(text);
-    if (!word) {
-      setProblem(wordProblem(text));
-      return;
-    }
-    setProblem(null);
+  const save = async (word: string) => {
+    setSuggestion(null);
     setSaving(true);
     try {
       await setHangmanWord(gameId, uid, word, hint.trim().slice(0, 60));
@@ -330,6 +357,56 @@ function WordSetter({
     }
   };
 
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const word = normalizeWord(text);
+    if (!word) {
+      setProblem(wordProblem(text));
+      return;
+    }
+    setProblem(null);
+    setSuggestion(null);
+
+    // The spell check sits between "Set the word" and the word actually
+    // going in, because this is the last moment it can be fixed: once the
+    // guesser has the word, a typo means a round nobody can win, and
+    // hangman gives no way to tell a misspelling from a hard word.
+    if (!accepted.current.has(word)) {
+      let fixed = checked.current.get(word) ?? null;
+      // Only worth a call if Suggest hasn't already asked about this exact
+      // word. `has` rather than a truthiness check: a remembered "looks
+      // fine" is a real answer and mustn't send us round again.
+      if (!checked.current.has(word)) {
+        setChecking(true);
+        fixed = await checkHangmanSpelling(word);
+        setChecking(false);
+        checked.current.set(word, fixed);
+      }
+      if (fixed && fixed !== word) {
+        setSuggestion({ typed: word, fixed, atSubmit: true });
+        return;
+      }
+      accepted.current.add(word);
+    }
+
+    await save(word);
+  };
+
+  /** Both answers to "did you mean" end the question. Which of them changes
+   * the word is the only difference; whether it also sets it depends on
+   * where the question came from. */
+  const resolveSuggestion = (word: string) => {
+    if (!suggestion) return;
+    const atSubmit = suggestion.atSubmit;
+    accepted.current.add(word);
+    checked.current.set(word, null);
+    setText(word);
+    setSuggestion(null);
+    if (atSubmit) void save(word);
+  };
+
+  const trimmedHint = hint.trim();
+
   return (
     <form className="card hangman-setter" onSubmit={submit}>
       <span className="section-title">Set a word for {guesserName}</span>
@@ -337,7 +414,10 @@ function WordSetter({
         type="text"
         className="hangman-input"
         value={text}
-        onChange={(e) => setText(e.target.value)}
+        onChange={(e) => {
+          setText(e.target.value);
+          setSuggestion(null);
+        }}
         placeholder="A word or short phrase"
         maxLength={24}
         autoFocus
@@ -348,6 +428,31 @@ function WordSetter({
         autoCorrect="off"
         spellCheck={false}
       />
+
+      {suggestion && (
+        <div className="hangman-didyoumean">
+          <p className="hangman-didyoumean-q">
+            Did you mean <strong>{suggestion.fixed}</strong>?
+          </p>
+          <div className="hangman-didyoumean-actions">
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={() => resolveSuggestion(suggestion.fixed)}
+            >
+              Use {suggestion.fixed}
+            </button>
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={() => resolveSuggestion(suggestion.typed)}
+            >
+              Keep {suggestion.typed}
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="hangman-hint-row">
         <input
           type="text"
@@ -372,11 +477,26 @@ function WordSetter({
           {hinting ? 'Thinking…' : 'Suggest'}
         </button>
       </div>
+
+      {/* A clue runs to 60 characters and the box shows maybe 20 of them,
+          so the setter was approving clues they could only read a third
+          of. This wraps the whole thing, live, under the box it's typed
+          in — the box stays the place you edit, this is the place you read. */}
+      {trimmedHint && (
+        <p className="hangman-hint-preview" aria-live="polite">
+          {trimmedHint}
+        </p>
+      )}
+
       {hintSource && <ProviderBadge source={hintSource} />}
       {hintNote && <p className="hangman-setter-hint">{hintNote}</p>}
       {problem && <p className="hangman-problem">{problem}</p>}
-      <button className="btn btn-primary" type="submit" disabled={saving}>
-        {saving ? 'Setting…' : 'Set the word'}
+      <button
+        className="btn btn-primary"
+        type="submit"
+        disabled={saving || checking || suggestion?.atSubmit}
+      >
+        {checking ? 'Checking…' : saving ? 'Setting…' : 'Set the word'}
       </button>
       <p className="hangman-setter-hint">
         3 to 18 letters. Spaces are allowed for a two-word phrase.

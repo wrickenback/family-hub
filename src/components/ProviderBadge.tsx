@@ -5,11 +5,15 @@ import './ProviderBadge.css';
  * response all the way to this badge, purely as a debugging aid while the
  * two-model setup is new — worth pulling out once it's clear which one is
  * carrying the load day to day. */
-export type ProviderSource = 'gemini' | 'haiku' | 'fallback' | null;
+export type ProviderSource = 'gemini' | 'haiku' | 'sonnet' | 'fallback' | null;
 
-const LABEL: Record<'gemini' | 'haiku' | 'fallback', string> = {
+const LABEL: Record<'gemini' | 'haiku' | 'sonnet' | 'fallback', string> = {
   gemini: 'Gemini',
   haiku: 'Claude',
+  // Distinguished from Haiku on purpose: Sonnet only ever answers the mini
+  // crossword, and only on a day Gemini couldn't fill the grid, so seeing
+  // it is the signal that the cheap half of the chain is struggling.
+  sonnet: 'Claude Sonnet',
   fallback: 'Offline word list',
 };
 
@@ -25,7 +29,12 @@ export function ProviderBadge({
   className?: string;
 }) {
   if (!source) return null;
-  const Icon = source === 'gemini' ? Sparkles : source === 'haiku' ? Bot : BookOpen;
+  const Icon =
+    source === 'gemini'
+      ? Sparkles
+      : source === 'haiku' || source === 'sonnet'
+      ? Bot
+      : BookOpen;
   return (
     <span
       className={`provider-badge provider-badge-${source} ${className}`}

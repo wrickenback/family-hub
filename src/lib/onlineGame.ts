@@ -30,8 +30,9 @@ export type GameKind =
   | 'battleship'
   | 'hangman'
   | 'dotsandboxes'
-  | 'war'
-  | 'uno';
+  | 'uno'
+  | 'yahtzee'
+  | 'checkers';
 export type OnlineStatus = 'waiting' | 'placing' | 'active' | 'done';
 export type Outcome = 'win' | 'draw' | null;
 

@@ -1,0 +1,191 @@
+.ck-scorebar {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.35rem;
+  padding: 0.4rem 0.6rem;
+  margin-bottom: 0.4rem;
+  background: linear-gradient(135deg, #a85225 0%, #6d3315 100%);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-card);
+  color: #fff;
+  text-align: center;
+}
+
+.ck-tally {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  min-width: 0;
+}
+
+.ck-tally-label {
+  font-size: 0.55rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  opacity: 0.8;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ck-tally-value {
+  font-size: 1.1rem;
+  font-weight: 800;
+}
+
+.ck-status {
+  text-align: center;
+  font-weight: 700;
+  margin: 0.3rem 0 0.6rem;
+  color: var(--text-secondary);
+}
+
+.ck-status.settled {
+  color: var(--text-primary);
+}
+
+.ck-status-spinner {
+  display: inline-block;
+  vertical-align: -0.15em;
+  margin-right: 0.35rem;
+  animation: ck-spin 1s linear infinite;
+}
+
+@keyframes ck-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ---------- the board ---------- */
+
+.ck-wrapper {
+  display: flex;
+  justify-content: center;
+}
+
+.ck-board {
+  display: grid;
+  width: 100%;
+  max-width: min(100%, 26rem);
+  aspect-ratio: 1;
+  border: 3px solid #6d3315;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  box-shadow: var(--shadow-raised);
+}
+
+.ck-square {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: none;
+  aspect-ratio: 1;
+  cursor: pointer;
+}
+
+.ck-square.light {
+  background: #f0dfc8;
+}
+
+.ck-square.dark {
+  background: #a5713f;
+}
+
+.ck-square.quiet,
+.ck-square:disabled {
+  cursor: default;
+}
+
+.ck-square.recent {
+  box-shadow: inset 0 0 0 3px rgba(255, 255, 255, 0.55);
+}
+
+.ck-square.selected {
+  box-shadow: inset 0 0 0 3px var(--gold);
+}
+
+.ck-piece {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 78%;
+  height: 78%;
+  border-radius: 50%;
+  box-shadow: 0 2px 3px rgba(0, 0, 0, 0.35), inset 0 -2px 4px rgba(0, 0, 0, 0.25),
+    inset 0 2px 3px rgba(255, 255, 255, 0.25);
+}
+
+.ck-piece.red {
+  background: radial-gradient(circle at 35% 30%, #d4713c 0%, #a85225 60%, #7d3c17 100%);
+}
+
+.ck-piece.black {
+  background: radial-gradient(circle at 35% 30%, #4a4038 0%, #1a1410 60%, #000 100%);
+}
+
+/* A piece that can actually move gets a quiet ring, so a player who taps a
+   stuck piece can see where the legal ones are instead of guessing. */
+.ck-piece.ready::after {
+  content: '';
+  position: absolute;
+  inset: 12%;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.35);
+}
+
+.ck-crown {
+  width: 42%;
+  height: 42%;
+  background: var(--gold);
+  clip-path: polygon(0% 100%, 12% 28%, 33% 58%, 50% 8%, 67% 58%, 88% 28%, 100% 100%);
+}
+
+.ck-dot {
+  width: 30%;
+  height: 30%;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.75);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+/* A jump reads differently from a slide — it's the move that takes something
+   off the board, and under forced-capture it's often the only one allowed. */
+.ck-square.target-jump .ck-dot {
+  background: var(--gold);
+  box-shadow: 0 0 0 3px rgba(184, 134, 43, 0.35);
+}
+
+.ck-result {
+  margin-top: 0.8rem;
+  padding: 1rem;
+  text-align: center;
+}
+
+.ck-result h3 {
+  margin-bottom: 0.7rem;
+}
+
+.ck-note {
+  margin-top: 0.8rem;
+  font-size: 0.75rem;
+  text-align: center;
+  color: var(--text-muted);
+}
+
+.ck-error {
+  margin-bottom: 0.6rem;
+  padding: 0.6rem 0.8rem;
+  color: var(--rust);
+  font-size: 0.85rem;
+}
+
+.ck-leave {
+  display: block;
+  width: 100%;
+  margin-top: 0.8rem;
+}

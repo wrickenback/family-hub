@@ -91,7 +91,7 @@ export const sampleEvents: ScheduleEvent[] = [
 // print invented names and times on its card and leaderboard as if they
 // were real family results — and set a fake target to beat. 'wordsearch',
 // 'reaction', 'tictactoe', 'connect4', 'wordle', 'hangman', 'catqueens',
-// 'battleship', 'dotsandboxes', 'war' and 'uno' were all dropped from this
+// 'battleship', 'dotsandboxes' and 'uno' were all dropped from this
 // list as they shipped — currently empty since every game is now built.
 export const sampleScores: Record<string, ScoreEntry[]> = {};
 

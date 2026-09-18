@@ -5,7 +5,6 @@ import {
   EMPTY_BOXES,
   EMPTY_EDGES,
   GRID,
-  boxIndex,
   closedABox,
   drawEdge,
   hIndex,
@@ -137,6 +136,36 @@ export function DotsAndBoxesGame({ onBack }: { onBack: () => void }) {
   );
 }
 
+/** The board, drawn as one SVG.
+ *
+ * It used to be a CSS grid of alternating dot / edge / dot tracks, with the
+ * lines centred inside their cells by hand-written calc(). Every one of
+ * those sums had to agree with every other for the lines to meet the dots,
+ * and on a real phone they didn't — lines sat a pixel or two off their dots
+ * and the whole grid read as crooked. In an SVG the geometry is stated once
+ * in board units and the browser scales it, so a line's endpoint IS the
+ * dot's centre by construction and cannot drift at any screen width. */
+
+/** Board-space units. The SVG scales to whatever width it's given, so these
+ * are only ever relative to each other. */
+const CELL = 100;
+const PAD = 14;
+const DOT_R = 7;
+const LINE_UNDRAWN = 5;
+const LINE_DRAWN = 13;
+/** The invisible strip that actually catches the tap. Far wider than the
+ * drawn line, because a thumb is nothing like 13 units wide. */
+const HIT = 46;
+const SPAN = GRID * CELL + 2 * PAD;
+
+/** Centre of dot (row, col) in board units. */
+function dotX(c: number): number {
+  return PAD + c * CELL;
+}
+function dotY(r: number): number {
+  return PAD + r * CELL;
+}
+
 export function DBBoard({
   edges,
   boxes,
@@ -150,86 +179,131 @@ export function DBBoard({
   disabled: boolean;
   onDraw: (edge: number) => void;
 }) {
-  // Sizes come from CSS custom properties (see DotsAndBoxesGame.css) so the
-  // board can scale with the viewport; this only lays out the alternating
-  // dot / edge / dot rhythm the grid needs.
-  const track = Array.from({ length: 2 * GRID + 1 })
-    .map((_, i) => (i % 2 === 0 ? 'var(--db-dot)' : 'var(--db-edge)'))
-    .join(' ');
+  /** Both edge families share everything but their endpoints. */
+  const segments: {
+    edge: number;
+    x1: number;
+    y1: number;
+    x2: number;
+    y2: number;
+  }[] = [];
 
-  const cells: { key: string; el: React.ReactNode }[] = [];
-
-  for (let r = 0; r <= 2 * GRID; r++) {
-    for (let c = 0; c <= 2 * GRID; c++) {
-      const rEven = r % 2 === 0;
-      const cEven = c % 2 === 0;
-      if (rEven && cEven) {
-        cells.push({ key: `d${r}-${c}`, el: <span className="db-dot" /> });
-      } else if (rEven && !cEven) {
-        const edge = hIndex(r / 2, (c - 1) / 2);
-        const drawn = edges[edge] !== '-';
-        cells.push({
-          key: `h${edge}`,
-          el: (
-            <button
-              className={`db-edge db-edge-h ${
-                drawn ? `drawn drawn-${edges[edge]}` : ''
-              } ${
-                lastEdge === edge ? 'newly-drawn' : ''
-              }`}
-              disabled={disabled || drawn}
-              onClick={() => onDraw(edge)}
-              aria-label={`Draw edge ${edge}`}
-            />
-          ),
-        });
-      } else if (!rEven && cEven) {
-        const edge = vIndex((r - 1) / 2, c / 2);
-        const drawn = edges[edge] !== '-';
-        cells.push({
-          key: `v${edge}`,
-          el: (
-            <button
-              className={`db-edge db-edge-v ${
-                drawn ? `drawn drawn-${edges[edge]}` : ''
-              } ${
-                lastEdge === edge ? 'newly-drawn' : ''
-              }`}
-              disabled={disabled || drawn}
-              onClick={() => onDraw(edge)}
-              aria-label={`Draw edge ${edge}`}
-            />
-          ),
-        });
-      } else {
-        const box = boxIndex((r - 1) / 2, (c - 1) / 2);
-        const owner = boxes[box];
-        cells.push({
-          key: `b${box}`,
-          el: (
-            <span
-              className={`db-box ${owner !== '-' ? `owner-${owner}` : ''}`}
-            />
-          ),
-        });
-      }
+  for (let r = 0; r <= GRID; r++) {
+    for (let c = 0; c < GRID; c++) {
+      segments.push({
+        edge: hIndex(r, c),
+        x1: dotX(c),
+        y1: dotY(r),
+        x2: dotX(c + 1),
+        y2: dotY(r),
+      });
+    }
+  }
+  for (let r = 0; r < GRID; r++) {
+    for (let c = 0; c <= GRID; c++) {
+      segments.push({
+        edge: vIndex(r, c),
+        x1: dotX(c),
+        y1: dotY(r),
+        x2: dotX(c),
+        y2: dotY(r + 1),
+      });
     }
   }
 
   return (
     <div className="db-wrapper">
-      <div
-        className="db-grid"
-        style={{ gridTemplateColumns: track, gridTemplateRows: track }}
+      <svg
+        className="db-board"
+        viewBox={`0 0 ${SPAN} ${SPAN}`}
         role="grid"
         aria-label="Dots and boxes board"
       >
-        {cells.map((c) => (
-          <span key={c.key} style={{ display: 'contents' }}>
-            {c.el}
-          </span>
+        {/* Claimed boxes sit underneath everything, so a line always reads
+            on top of the tint rather than being swallowed by it. */}
+        {Array.from({ length: GRID * GRID }).map((_, i) => {
+          const owner = boxes[i];
+          if (owner !== 'A' && owner !== 'B') return null;
+          const r = Math.floor(i / GRID);
+          const c = i % GRID;
+          return (
+            <rect
+              key={`b${i}`}
+              className="db-box"
+              x={dotX(c)}
+              y={dotY(r)}
+              width={CELL}
+              height={CELL}
+              rx={6}
+              fill={PLAYER_HEX[owner]}
+              opacity={0.22}
+            />
+          );
+        })}
+
+        {segments.map(({ edge, x1, y1, x2, y2 }) => {
+          const owner = edges[edge];
+          const drawn = owner !== '-';
+          return (
+            <line
+              key={`l${edge}`}
+              className={`db-line ${drawn ? 'drawn' : ''} ${
+                lastEdge === edge ? 'newly-drawn' : ''
+              }`}
+              x1={x1}
+              y1={y1}
+              x2={x2}
+              y2={y2}
+              stroke={drawn ? PLAYER_HEX[owner as Player] : 'var(--sand-200)'}
+              strokeWidth={drawn ? LINE_DRAWN : LINE_UNDRAWN}
+              strokeLinecap="round"
+            />
+          );
+        })}
+
+        {/* Dots last of the visible layers: a line runs dot-centre to
+            dot-centre, and the dot covers the join. */}
+        {Array.from({ length: (GRID + 1) * (GRID + 1) }).map((_, i) => (
+          <circle
+            key={`d${i}`}
+            className="db-dot"
+            cx={dotX(i % (GRID + 1))}
+            cy={dotY(Math.floor(i / (GRID + 1)))}
+            r={DOT_R}
+          />
         ))}
-      </div>
+
+        {/* Transparent tap targets on top of the lot. Separate from the
+            drawn line so the hit area can be thumb-sized without the board
+            looking like it's made of fat grey bars. */}
+        {segments.map(({ edge, x1, y1, x2, y2 }) => {
+          const taken = edges[edge] !== '-' || disabled;
+          if (taken) return null;
+          return (
+            <line
+              key={`h${edge}`}
+              className="db-hit"
+              x1={x1}
+              y1={y1}
+              x2={x2}
+              y2={y2}
+              stroke="transparent"
+              strokeWidth={HIT}
+              strokeLinecap="butt"
+              role="button"
+              tabIndex={0}
+              aria-label={`Draw edge ${edge}`}
+              onClick={() => onDraw(edge)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  onDraw(edge);
+                }
+              }}
+            />
+          );
+        })}
+      </svg>
     </div>
   );
 }

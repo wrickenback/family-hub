@@ -49,7 +49,6 @@ export function GameDetail({
   onPlayTicTacToe,
   onPlayConnectFour,
   onPlayDotsAndBoxes,
-  onPlayWar,
   onPlayUno,
   onPlayBattleship,
   onPlayReaction,
@@ -59,6 +58,10 @@ export function GameDetail({
   onPlaySolitaire,
   onPlaySimon,
   onPlayWaterSort,
+  onPlayYahtzee,
+  onPlayCheckers,
+  onPlayCrossword,
+  onPlayWordBloom,
 }: {
   gameId: string;
   /** Mode tab to land on, e.g. from a deep link — falls back to the game's
@@ -72,7 +75,6 @@ export function GameDetail({
   onPlayTicTacToe: (mode: 'pass' | 'online') => void;
   onPlayConnectFour: (mode: 'pass' | 'online') => void;
   onPlayDotsAndBoxes: (mode: 'pass' | 'online') => void;
-  onPlayWar: (mode: 'pass' | 'online') => void;
   onPlayUno: (mode: 'pass' | 'online') => void;
   onPlayBattleship: () => void;
   onPlayReaction: () => void;
@@ -82,6 +84,10 @@ export function GameDetail({
   onPlaySolitaire: (mode: 'daily' | 'free') => void;
   onPlaySimon: (mode: 'solo' | 'pass') => void;
   onPlayWaterSort: () => void;
+  onPlayYahtzee: (mode: 'pass' | 'online') => void;
+  onPlayCheckers: (mode: 'pass' | 'online') => void;
+  onPlayCrossword: () => void;
+  onPlayWordBloom: (mode: 'daily' | 'free') => void;
 }) {
   const game = getGame(gameId);
   const [modeId, setModeId] = useState(
@@ -120,7 +126,6 @@ export function GameDetail({
   const isReaction = game.id === 'reaction';
   const isConnectFour = game.id === 'connect4';
   const isDotsAndBoxes = game.id === 'dotsandboxes';
-  const isWar = game.id === 'war';
   const isUno = game.id === 'uno';
   const isBattleship = game.id === 'battleship';
   const isCatQueens = game.id === 'catqueens';
@@ -129,6 +134,10 @@ export function GameDetail({
   const isSolitaire = game.id === 'solitaire';
   const isSimon = game.id === 'simon';
   const isWaterSort = game.id === 'watersort';
+  const isYahtzee = game.id === 'yahtzee';
+  const isCheckers = game.id === 'checkers';
+  const isCrossword = game.id === 'crossword';
+  const isWordBloom = game.id === 'wordbloom';
   const catQueensSizes: Record<string, 6 | 7 | 8 | 9> = {
     kitten: 6,
     cat: 7,
@@ -150,8 +159,9 @@ export function GameDetail({
       isConnectFour ||
       isBattleship ||
       isDotsAndBoxes ||
-      isWar ||
-      isUno
+      isUno ||
+      isYahtzee ||
+      isCheckers
     ? 'online'
     : isWordle
     ? 'family'
@@ -159,7 +169,7 @@ export function GameDetail({
     ? mode?.id === 'family'
       ? 'online'
       : 'solo'
-    : isSolitaire
+    : isSolitaire || isCrossword || isWordBloom
     ? 'daily'
     : DEFAULT_MODE;
   // Scores for a daily-seeded mode aren't comparable to free play, so they get
@@ -278,15 +288,6 @@ export function GameDetail({
         </button>
       )}
 
-      {isWar && (
-        <button
-          className="btn btn-primary blocks-play-btn"
-          onClick={() => onPlayWar(mode?.id === 'online' ? 'online' : 'pass')}
-        >
-          {mode?.id === 'online' ? 'Find a family member' : 'Start on this phone'}
-        </button>
-      )}
-
       {isUno && (
         <button
           className="btn btn-primary blocks-play-btn"
@@ -347,6 +348,39 @@ export function GameDetail({
           onClick={() => onPlaySimon(mode?.id === 'pass' ? 'pass' : 'solo')}
         >
           {mode?.id === 'pass' ? 'Start on this phone' : 'Play now'}
+        </button>
+      )}
+
+      {isYahtzee && (
+        <button
+          className="btn btn-primary blocks-play-btn"
+          onClick={() => onPlayYahtzee(mode?.id === 'online' ? 'online' : 'pass')}
+        >
+          {mode?.id === 'online' ? 'Find a family member' : 'Start on this phone'}
+        </button>
+      )}
+
+      {isCheckers && (
+        <button
+          className="btn btn-primary blocks-play-btn"
+          onClick={() => onPlayCheckers(mode?.id === 'online' ? 'online' : 'pass')}
+        >
+          {mode?.id === 'online' ? 'Find a family member' : 'Start on this phone'}
+        </button>
+      )}
+
+      {isCrossword && (
+        <button className="btn btn-primary blocks-play-btn" onClick={onPlayCrossword}>
+          Play today&rsquo;s crossword
+        </button>
+      )}
+
+      {isWordBloom && (
+        <button
+          className="btn btn-primary blocks-play-btn"
+          onClick={() => onPlayWordBloom(mode?.id === 'free' ? 'free' : 'daily')}
+        >
+          {mode?.id === 'free' ? 'Get fresh letters' : "Play today's letters"}
         </button>
       )}
 
@@ -438,7 +472,10 @@ export function GameDetail({
           mode={leaderboardMode}
           scoring={game.scoring}
           dateKey={
-            (isBlocks && mode?.id === 'daily') || isSolitaire
+            (isBlocks && mode?.id === 'daily') ||
+            isSolitaire ||
+            isCrossword ||
+            isWordBloom
               ? todayKey()
               : undefined
           }

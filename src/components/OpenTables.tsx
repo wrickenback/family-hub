@@ -17,8 +17,9 @@ const GAME_LABEL: Record<GameKind, string> = {
   battleship: 'Battleship',
   hangman: 'Hangman',
   dotsandboxes: 'Dots and Boxes',
-  war: 'War',
   uno: 'Uno',
+  yahtzee: 'Yahtzee',
+  checkers: 'Checkers',
 };
 
 function routeFor(kind: GameKind): Route {
@@ -33,10 +34,12 @@ function routeFor(kind: GameKind): Route {
       return { screen: 'play-hangman', mode: 'family' };
     case 'dotsandboxes':
       return { screen: 'play-dotsandboxes', mode: 'online' };
-    case 'war':
-      return { screen: 'play-war', mode: 'online' };
     case 'uno':
       return { screen: 'play-uno', mode: 'online' };
+    case 'yahtzee':
+      return { screen: 'play-yahtzee', mode: 'online' };
+    case 'checkers':
+      return { screen: 'play-checkers', mode: 'online' };
   }
 }
 

@@ -27,8 +27,11 @@
         ".write": "auth != null && (root.child('allowedUsers').child(auth.uid).exists() || !root.child('allowedUsers').exists()) && (!data.exists() ? newData.child('createdBy').val() === auth.uid : (data.child('players/0').val() === auth.uid || data.child('players/1').val() === auth.uid || (!data.child('players/1').exists() && newData.child('players/1').val() === auth.uid)))",
         ".validate": "newData.hasChildren(['kind', 'status', 'players', 'createdBy'])",
 
+        // Every GameKind in src/lib/onlineGame.ts must be listed here, or
+        // hosting that game fails with a bare "permission denied" — the
+        // write is refused by validation, not by the .write rule above.
         "kind": {
-          ".validate": "newData.isString() && (newData.val() === 'tictactoe' || newData.val() === 'connect4' || newData.val() === 'battleship' || newData.val() === 'hangman' || newData.val() === 'dotsandboxes' || newData.val() === 'war' || newData.val() === 'uno')"
+          ".validate": "newData.isString() && (newData.val() === 'tictactoe' || newData.val() === 'connect4' || newData.val() === 'battleship' || newData.val() === 'hangman' || newData.val() === 'dotsandboxes' || newData.val() === 'uno' || newData.val() === 'yahtzee' || newData.val() === 'checkers')"
         },
         "status": {
           ".validate": "newData.isString() && (newData.val() === 'waiting' || newData.val() === 'placing' || newData.val() === 'active' || newData.val() === 'done')"

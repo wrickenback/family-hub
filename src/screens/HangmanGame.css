@@ -90,6 +90,11 @@
   color: var(--text-secondary);
   text-align: center;
   font-style: italic;
+  /* A clue can run to 60 characters, which is wider than a phone. Wrapping
+     it — including mid-word for one very long word — is what keeps the last
+     few words of a clue from being cut off where nobody can read them. */
+  max-width: 100%;
+  overflow-wrap: anywhere;
 }
 
 .hangman-missed {
@@ -369,4 +374,56 @@
   padding: 0.75rem 1rem;
   font-size: 0.85rem;
   white-space: nowrap;
+}
+
+/* The clue as it will actually appear to the guesser, under the box it's
+   typed in. The box is too narrow to read a full clue back in, and the
+   setter is the one person who has to be sure of the wording. */
+.hangman-hint-preview {
+  margin: 0;
+  padding: 0.5rem 0.7rem;
+  border-left: 3px solid var(--rust);
+  background: var(--sand-50);
+  border-radius: var(--radius-sm);
+  font-size: 0.85rem;
+  font-style: italic;
+  color: var(--text-secondary);
+  overflow-wrap: anywhere;
+}
+
+/* "Did you mean…" — a question, not a correction. Both answers are one tap
+   and both set the word, so an in-joke or a pet's name is never more work
+   than a real word. */
+.hangman-didyoumean {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  padding: 0.75rem 0.9rem;
+  background: var(--sand-50);
+  border: 1px solid var(--sand-200);
+  border-radius: var(--radius-sm);
+}
+
+.hangman-didyoumean-q {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+}
+
+.hangman-didyoumean-q strong {
+  letter-spacing: 0.08em;
+  color: var(--text-primary);
+}
+
+.hangman-didyoumean-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.hangman-didyoumean-actions .btn {
+  flex: 1 1 8rem;
+  padding: 0.6rem 0.8rem;
+  font-size: 0.85rem;
+  overflow-wrap: anywhere;
 }

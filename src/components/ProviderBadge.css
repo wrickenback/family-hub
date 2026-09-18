@@ -21,7 +21,8 @@
   background: rgba(184, 134, 43, 0.12);
 }
 
-.provider-badge-haiku {
+.provider-badge-haiku,
+.provider-badge-sonnet {
   color: var(--rust);
   background: var(--rust-soft);
 }

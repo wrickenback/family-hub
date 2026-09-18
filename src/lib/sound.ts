@@ -5,6 +5,23 @@
 
 let ctx: AudioContext | null = null;
 
+/** iOS routes Web Audio through the "ambient" session by default, which the
+ * physical ring/silent switch mutes outright — the single most common
+ * reason a game is silent on a phone but fine on a laptop. Declaring the
+ * session as playback moves it to the media channel, where the switch no
+ * longer applies. Safari 16.4+ only; everywhere else this is a no-op. */
+function claimPlaybackSession(): void {
+  const session = (
+    navigator as unknown as { audioSession?: { type: string } }
+  ).audioSession;
+  if (!session) return;
+  try {
+    session.type = 'playback';
+  } catch {
+    // Older Safari exposes the object but rejects the value.
+  }
+}
+
 function getContext(): AudioContext | null {
   if (typeof window === 'undefined') return null;
   const AudioCtx =
@@ -12,7 +29,10 @@ function getContext(): AudioContext | null {
     (window as unknown as { webkitAudioContext?: typeof AudioContext })
       .webkitAudioContext;
   if (!AudioCtx) return null;
-  if (!ctx) ctx = new AudioCtx();
+  if (!ctx) {
+    claimPlaybackSession();
+    ctx = new AudioCtx();
+  }
   if (ctx.state === 'suspended') ctx.resume().catch(() => {});
   return ctx;
 }
@@ -78,6 +98,53 @@ export function audioNow(): number | null {
  * the tap that begins a game so the first tone isn't swallowed. */
 export function unlockAudio(): void {
   getContext();
+}
+
+/** True once the context is actually running. A context created outside a
+ * gesture — or one iOS suspended when the phone locked — reports
+ * 'suspended', and in that state currentTime does not advance, so anything
+ * scheduled against the audio clock silently never plays. */
+export function audioRunning(): boolean {
+  return ctx?.state === 'running';
+}
+
+/** Starts (or restarts) audio and waits for it to actually be running.
+ *
+ * resume() is a promise, and on iOS it only settles for a call made inside
+ * a user gesture — so this must be awaited from the tap itself, before
+ * anything is scheduled. Resolves false when there is no Web Audio at all,
+ * or the browser refused, which is the caller's cue to run the game on a
+ * wall clock and stay silent rather than freeze. */
+export async function ensureAudio(): Promise<boolean> {
+  const audio = getContext();
+  if (!audio) return false;
+  claimPlaybackSession();
+  if (audio.state === 'running') return true;
+  try {
+    await audio.resume();
+  } catch {
+    return false;
+  }
+  // Re-read through the module-level handle: TypeScript narrows `audio.state`
+  // to the non-running states from the check above and can't know resume()
+  // moved it on.
+  return audioRunning();
+}
+
+/** The very first tap anywhere in the app opens the audio context, so a
+ * game that starts making noise mid-round (rather than on a Start button)
+ * isn't left waiting for a gesture it never gets. Registered once, removed
+ * as soon as it fires. */
+if (typeof window !== 'undefined') {
+  const wake = () => {
+    void ensureAudio();
+    window.removeEventListener('pointerdown', wake);
+    window.removeEventListener('touchstart', wake);
+    window.removeEventListener('keydown', wake);
+  };
+  window.addEventListener('pointerdown', wake, { once: true, passive: true });
+  window.addEventListener('touchstart', wake, { once: true, passive: true });
+  window.addEventListener('keydown', wake, { once: true });
 }
 
 /** The four Simon pitches, in pad order (green, red, yellow, blue). These

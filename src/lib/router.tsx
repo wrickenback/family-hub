@@ -6,7 +6,6 @@ import ConnectFourIcon from '../assets/game-icons/connect-four.svg?react';
 import HangmanIcon from '../assets/game-icons/hangman.svg?react';
 import BattleshipIcon from '../assets/game-icons/battleship.svg?react';
 import DotsAndBoxesIcon from '../assets/game-icons/dots-boxes.svg?react';
-import WarIcon from '../assets/game-icons/war.svg?react';
 import UnoIcon from '../assets/game-icons/uno.svg?react';
 import WordSearchIcon from '../assets/game-icons/wordsearch.svg?react';
 import WordleIcon from '../assets/game-icons/wordle.svg?react';
@@ -14,6 +13,10 @@ import ReactionIcon from '../assets/game-icons/reaction.svg?react';
 import SolitaireIcon from '../assets/game-icons/solitaire.svg?react';
 import SimonIcon from '../assets/game-icons/simon.svg?react';
 import WaterSortIcon from '../assets/game-icons/watersort.svg?react';
+import YahtzeeIcon from '../assets/game-icons/yahtzee.svg?react';
+import CheckersIcon from '../assets/game-icons/checkers.svg?react';
+import CrosswordIcon from '../assets/game-icons/crossword.svg?react';
+import WordBloomIcon from '../assets/game-icons/wordbloom.svg?react';
 import { Cat as CatQueensIcon } from 'lucide-react';
 
 export type Route =
@@ -28,7 +31,6 @@ export type Route =
   | { screen: 'play-tictactoe'; mode: 'pass' | 'online' }
   | { screen: 'play-connect4'; mode: 'pass' | 'online' }
   | { screen: 'play-dotsandboxes'; mode: 'pass' | 'online' }
-  | { screen: 'play-war'; mode: 'pass' | 'online' }
   | { screen: 'play-uno'; mode: 'pass' | 'online' }
   | { screen: 'play-battleship' }
   | { screen: 'play-reaction' }
@@ -37,7 +39,11 @@ export type Route =
   | { screen: 'play-catqueens'; size: 6 | 7 | 8 | 9 }
   | { screen: 'play-solitaire'; mode: 'daily' | 'free' }
   | { screen: 'play-simon'; mode: 'solo' | 'pass' }
-  | { screen: 'play-watersort' };
+  | { screen: 'play-watersort' }
+  | { screen: 'play-yahtzee'; mode: 'pass' | 'online' }
+  | { screen: 'play-checkers'; mode: 'pass' | 'online' }
+  | { screen: 'play-crossword' }
+  | { screen: 'play-wordbloom'; mode: 'daily' | 'free' };
 
 /** Mode string used for any game that doesn't partition its leaderboard by
  * mode (i.e. everything except Blocks' free/daily split and the online
@@ -288,29 +294,6 @@ export const games: GameApp[] = [
     ],
   },
   {
-    id: 'war',
-    name: 'War',
-    path: '/war',
-    visibility: 'familyOnly',
-    players: 'multi',
-    scoring: 'wins',
-    icon: WarIcon,
-    blurb: 'Highest card takes the pile. Pure luck, pure chaos.',
-    built: true,
-    modes: [
-      {
-        id: 'pass',
-        name: 'Pass and play',
-        blurb: 'Two of you, one phone. Stays on this device.',
-      },
-      {
-        id: 'online',
-        name: 'Play a family member',
-        blurb: 'Two devices, live. Wins count on the family board.',
-      },
-    ],
-  },
-  {
     id: 'uno',
     name: 'Uno',
     path: '/uno',
@@ -385,6 +368,87 @@ export const games: GameApp[] = [
     ],
   },
   {
+    id: 'crossword',
+    name: 'Mini Crossword',
+    path: '/crossword',
+    visibility: 'familyOnly',
+    players: 'solo',
+    scoring: 'bestDuration',
+    icon: CrosswordIcon,
+    blurb: 'A fresh 5x5 every day. Same grid for the whole family.',
+    built: true,
+  },
+  {
+    id: 'wordbloom',
+    name: 'Word Bloom',
+    path: '/wordbloom',
+    visibility: 'familyOnly',
+    players: 'solo',
+    scoring: 'highScore',
+    icon: WordBloomIcon,
+    blurb: 'One ring of letters. Find every word hiding in it.',
+    built: true,
+    modes: [
+      {
+        id: 'daily',
+        name: "Today's letters",
+        blurb:
+          'The same letters for everyone today. Your score goes on the board.',
+      },
+      {
+        id: 'free',
+        name: 'Free play',
+        blurb: 'A fresh set of letters whenever you want one. Nothing is scored.',
+      },
+    ],
+  },
+  {
+    id: 'yahtzee',
+    name: 'Yahtzee',
+    path: '/yahtzee',
+    visibility: 'familyOnly',
+    players: 'multi',
+    scoring: 'wins',
+    icon: YahtzeeIcon,
+    blurb: 'Three rolls a turn, thirteen boxes to fill. Keep the dice you want.',
+    built: true,
+    modes: [
+      {
+        id: 'pass',
+        name: 'Pass and play',
+        blurb: 'Two of you, one phone. Stays on this device.',
+      },
+      {
+        id: 'online',
+        name: 'Play a family member',
+        blurb: 'Two devices, live. Wins count on the family board.',
+      },
+    ],
+  },
+  {
+    id: 'checkers',
+    name: 'Checkers',
+    path: '/checkers',
+    visibility: 'familyOnly',
+    players: 'multi',
+    scoring: 'wins',
+    icon: CheckersIcon,
+    blurb: 'Jump their pieces, crown your own. Captures are compulsory.',
+    built: true,
+    modes: [
+      {
+        id: 'pass',
+        name: 'Pass and play',
+        blurb: 'Two of you, one phone. Stays on this device.',
+      },
+      {
+        id: 'online',
+        name: 'Play a family member',
+        blurb: 'Two devices, live. Wins count on the family board.',
+      },
+    ],
+  },
+  {
     id: 'watersort',
     name: 'Water Sort',
     path: '/watersort',
@@ -442,8 +506,6 @@ export function routeToPath(route: Route): string {
       return `/play/connect4/${route.mode}`;
     case 'play-dotsandboxes':
       return `/play/dotsandboxes/${route.mode}`;
-    case 'play-war':
-      return `/play/war/${route.mode}`;
     case 'play-uno':
       return `/play/uno/${route.mode}`;
     case 'play-battleship':
@@ -462,6 +524,14 @@ export function routeToPath(route: Route): string {
       return `/play/simon/${route.mode}`;
     case 'play-watersort':
       return '/play/watersort';
+    case 'play-yahtzee':
+      return `/play/yahtzee/${route.mode}`;
+    case 'play-checkers':
+      return `/play/checkers/${route.mode}`;
+    case 'play-crossword':
+      return '/play/crossword';
+    case 'play-wordbloom':
+      return `/play/wordbloom/${route.mode}`;
   }
 }
 
@@ -500,9 +570,6 @@ export function pathToRoute(pathname: string): Route | null {
       ) {
         return { screen: 'play-dotsandboxes', mode: third };
       }
-      if (second === 'war' && (third === 'pass' || third === 'online')) {
-        return { screen: 'play-war', mode: third };
-      }
       if (second === 'uno' && (third === 'pass' || third === 'online')) {
         return { screen: 'play-uno', mode: third };
       }
@@ -526,6 +593,18 @@ export function pathToRoute(pathname: string): Route | null {
       }
       if (second === 'watersort') {
         return { screen: 'play-watersort' };
+      }
+      if (second === 'yahtzee' && (third === 'pass' || third === 'online')) {
+        return { screen: 'play-yahtzee', mode: third };
+      }
+      if (second === 'checkers' && (third === 'pass' || third === 'online')) {
+        return { screen: 'play-checkers', mode: third };
+      }
+      if (second === 'crossword') {
+        return { screen: 'play-crossword' };
+      }
+      if (second === 'wordbloom' && (third === 'daily' || third === 'free')) {
+        return { screen: 'play-wordbloom', mode: third };
       }
       if (second === 'catqueens' && third) {
         const size = Number(third);
@@ -583,13 +662,6 @@ export function parentChainFor(route: Route): Route[] {
         HOME,
         { screen: 'games' },
         { screen: 'game', gameId: 'dotsandboxes' },
-        route,
-      ];
-    case 'play-war':
-      return [
-        HOME,
-        { screen: 'games' },
-        { screen: 'game', gameId: 'war' },
         route,
       ];
     case 'play-uno':
@@ -653,6 +725,34 @@ export function parentChainFor(route: Route): Route[] {
         HOME,
         { screen: 'games' },
         { screen: 'game', gameId: 'watersort' },
+        route,
+      ];
+    case 'play-yahtzee':
+      return [
+        HOME,
+        { screen: 'games' },
+        { screen: 'game', gameId: 'yahtzee' },
+        route,
+      ];
+    case 'play-checkers':
+      return [
+        HOME,
+        { screen: 'games' },
+        { screen: 'game', gameId: 'checkers' },
+        route,
+      ];
+    case 'play-crossword':
+      return [
+        HOME,
+        { screen: 'games' },
+        { screen: 'game', gameId: 'crossword' },
+        route,
+      ];
+    case 'play-wordbloom':
+      return [
+        HOME,
+        { screen: 'games' },
+        { screen: 'game', gameId: 'wordbloom' },
         route,
       ];
     default:

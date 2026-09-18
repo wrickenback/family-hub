@@ -60,6 +60,11 @@ export async function fetchHangmanWord(
 export interface HangmanHint {
   hint: string;
   source: 'gemini' | 'haiku' | null;
+  /** A spelling the model thinks was meant instead, or null for "looks
+   * fine". Answered in the same call as the clue — see generateHangmanHint
+   * for why. The caller should remember it against the word it asked
+   * about, so submitting that word doesn't ask a second time. */
+  correction: string | null;
 }
 
 /** Asks for a clue for a word the setter typed. Best-effort by design: an
@@ -67,15 +72,41 @@ export interface HangmanHint {
  * word the model didn't recognize), which is a perfectly normal outcome and
  * leaves the setter writing their own rather than staring at an error. */
 export async function fetchHangmanHint(word: string): Promise<HangmanHint> {
-  if (!functions) return { hint: '', source: null };
+  if (!functions) return { hint: '', source: null, correction: null };
   try {
     const call = httpsCallable(functions, 'getHangmanHint');
     const result = await call({ word });
-    const data = result.data as { hint?: unknown; source?: unknown };
+    const data = result.data as {
+      hint?: unknown;
+      source?: unknown;
+      correction?: unknown;
+    };
     const hint = typeof data.hint === 'string' ? data.hint : '';
     const source = data.source === 'gemini' || data.source === 'haiku' ? data.source : null;
-    return { hint, source: hint ? source : null };
+    const correction =
+      typeof data.correction === 'string' && data.correction
+        ? data.correction
+        : null;
+    return { hint, source: hint ? source : null, correction };
   } catch {
-    return { hint: '', source: null };
+    return { hint: '', source: null, correction: null };
+  }
+}
+
+/** Asks whether the word the setter typed looks misspelled.
+ *
+ * Returns null for "looks fine" — and for every failure too, because the
+ * word going in unchecked is exactly what happened before this existed,
+ * whereas a failure the setter has to acknowledge would be a new way for
+ * the game not to start. */
+export async function checkHangmanSpelling(word: string): Promise<string | null> {
+  if (!functions) return null;
+  try {
+    const call = httpsCallable(functions, 'checkHangmanWord');
+    const result = await call({ word });
+    const data = result.data as { suggestion?: unknown };
+    return typeof data.suggestion === 'string' && data.suggestion ? data.suggestion : null;
+  } catch {
+    return null;
   }
 }

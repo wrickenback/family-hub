@@ -35,8 +35,6 @@ import { ConnectFourGame } from './screens/ConnectFourGame';
 import { ConnectFourOnline } from './screens/ConnectFourOnline';
 import { DotsAndBoxesGame } from './screens/DotsAndBoxesGame';
 import { DotsAndBoxesOnline } from './screens/DotsAndBoxesOnline';
-import { WarGame } from './screens/WarGame';
-import { WarOnline } from './screens/WarOnline';
 import { UnoGame } from './screens/UnoGame';
 import { UnoOnline } from './screens/UnoOnline';
 import { BattleshipOnline } from './screens/BattleshipOnline';
@@ -48,6 +46,12 @@ import { HangmanOnline } from './screens/HangmanOnline';
 import { SolitaireGame } from './screens/SolitaireGame';
 import { SimonGame } from './screens/SimonGame';
 import { WaterSortGame } from './screens/WaterSortGame';
+import { YahtzeeGame } from './screens/YahtzeeGame';
+import { YahtzeeOnline } from './screens/YahtzeeOnline';
+import { CheckersGame } from './screens/CheckersGame';
+import { CheckersOnline } from './screens/CheckersOnline';
+import { MiniCrosswordGame } from './screens/MiniCrosswordGame';
+import { WordBloomGame } from './screens/WordBloomGame';
 import './App.css';
 
 const HOME: Route = { screen: 'home' };
@@ -304,7 +308,6 @@ export function App() {
             onPlayDotsAndBoxes={(mode) =>
               navigate({ screen: 'play-dotsandboxes', mode })
             }
-            onPlayWar={(mode) => navigate({ screen: 'play-war', mode })}
             onPlayUno={(mode) => navigate({ screen: 'play-uno', mode })}
             onPlayBattleship={() => navigate({ screen: 'play-battleship' })}
             onPlayReaction={() => navigate({ screen: 'play-reaction' })}
@@ -314,6 +317,10 @@ export function App() {
             onPlaySolitaire={(mode) => navigate({ screen: 'play-solitaire', mode })}
             onPlaySimon={(mode) => navigate({ screen: 'play-simon', mode })}
             onPlayWaterSort={() => navigate({ screen: 'play-watersort' })}
+            onPlayYahtzee={(mode) => navigate({ screen: 'play-yahtzee', mode })}
+            onPlayCheckers={(mode) => navigate({ screen: 'play-checkers', mode })}
+            onPlayCrossword={() => navigate({ screen: 'play-crossword' })}
+            onPlayWordBloom={(mode) => navigate({ screen: 'play-wordbloom', mode })}
           />
         )}
         {route.screen === 'play-blocks' && (
@@ -362,16 +369,6 @@ export function App() {
           ) : (
             <DotsAndBoxesGame onBack={back} />
           ))}
-        {route.screen === 'play-war' &&
-          (route.mode === 'online' ? (
-            <WarOnline
-              uid={user.uid}
-              displayName={user.displayName || user.email || 'Someone'}
-              onBack={back}
-            />
-          ) : (
-            <WarGame onBack={back} />
-          ))}
         {route.screen === 'play-uno' &&
           (route.mode === 'online' ? (
             <UnoOnline
@@ -414,6 +411,41 @@ export function App() {
         )}
         {route.screen === 'play-watersort' && (
           <WaterSortGame
+            uid={user.uid}
+            displayName={user.displayName || user.email || 'Someone'}
+            onBack={back}
+          />
+        )}
+        {route.screen === 'play-yahtzee' &&
+          (route.mode === 'online' ? (
+            <YahtzeeOnline
+              uid={user.uid}
+              displayName={user.displayName || user.email || 'Someone'}
+              onBack={back}
+            />
+          ) : (
+            <YahtzeeGame onBack={back} />
+          ))}
+        {route.screen === 'play-checkers' &&
+          (route.mode === 'online' ? (
+            <CheckersOnline
+              uid={user.uid}
+              displayName={user.displayName || user.email || 'Someone'}
+              onBack={back}
+            />
+          ) : (
+            <CheckersGame onBack={back} />
+          ))}
+        {route.screen === 'play-crossword' && (
+          <MiniCrosswordGame
+            uid={user.uid}
+            displayName={user.displayName || user.email || 'Someone'}
+            onBack={back}
+          />
+        )}
+        {route.screen === 'play-wordbloom' && (
+          <WordBloomGame
+            mode={route.mode}
             uid={user.uid}
             displayName={user.displayName || user.email || 'Someone'}
             onBack={back}
