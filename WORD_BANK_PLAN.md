@@ -59,11 +59,30 @@ topic vocabulary", "Migrate solo Hangman"). Specifically done:
   and fixed small bugs; check `git diff` / `git log` on `wordBank.ts` for
   anything after commit `4298649`.
 
+**Also done, later still:**
+- Split `providersFrom` into two chains: it was Gemini-first for
+  everything, which was wrong — Gemini's tighter free tier should be
+  reserved for calls that fill something durable (the pool, a cached clue,
+  a shared daily doc), not one-off calls like a clue suggestion or spelling
+  check. New `routineProvidersFrom` (GLM Flash → Haiku, no Gemini) now
+  serves `getHangmanHint` and `checkHangmanWord`.
+- Migrated Wordle (both daily and free play) onto the pool — the gap the
+  user caught after the fact, not something I volunteered proactively.
+  Added an optional `BootstrapOverrides` hook to `wordBank.ts` for Wordle's
+  quality rules (no plurals, no proper nouns) that the generic shape filter
+  can't express. `getWordleWords` deliberately uses `models()` (Gemini
+  chain), not `routineProvidersFrom` — once it's pool-backed, its bootstrap
+  fills the same durable pool the daily word reads too.
+- Deployed functions AND hosting for real, to the live project
+  (`rickenback-hub`) — this was tested live, not just typechecked, per the
+  user's explicit choice after the local emulator turned out to need Java
+  21+ (not installed on this machine).
+
 **Not done — pick up here:**
 - §3's multiplayer hangman suggestion feature's UI (backend is done, see
   above).
-- §3's Bloom and Wordle migrations onto the pool. Bloom specifically needs
-  design work first, not just implementation — see below.
+- §3's Bloom migration onto the pool. Needs design work first, not just
+  implementation — see below.
 - §4's category-discovery UI.
 - §3.6's crossword rebuild (local CSP solver + filler bank + clue-writing
   call) — entirely unbuilt. The algorithm and bank-sizing numbers are
