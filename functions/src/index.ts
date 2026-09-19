@@ -17,6 +17,7 @@ import {
   generateWordleWords,
 } from './wordGames';
 import { buildWordSearchGrid, type Difficulty } from './wordSearchGrid';
+import { seedPool } from './wordBank';
 
 admin.initializeApp();
 const db = admin.firestore();
@@ -121,9 +122,10 @@ export const generateWordSearchPuzzle = onCall(
     // source is never null here — a null source means the whole chain came
     // up empty, which the length check above already turned into a thrown
     // error before this point.
+    const topicSlug = slugify(topic);
     const docRef = await db.collection('wordSearchPuzzles').add({
       topic,
-      topicSlug: slugify(topic),
+      topicSlug,
       difficulty,
       size: puzzle.size,
       grid: puzzle.grid,
@@ -133,6 +135,20 @@ export const generateWordSearchPuzzle = onCall(
       createdByName: caller.name,
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
     });
+
+    // Feed the full candidate list (not just the subset that fit today's
+    // grid — a word this layout couldn't place is still perfectly good
+    // vocabulary for hangman or Bloom) into the shared pool, at zero extra
+    // API cost since it's already been generated. Best-effort: a failure
+    // here must never fail the puzzle the player is actually waiting on.
+    try {
+      await seedPool(db, topicSlug, topic, words, 'wordsearch');
+    } catch (err) {
+      console.error('seedPool: failed to seed word-search words into the pool', {
+        topicSlug,
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
 
     return { id: docRef.id, ...puzzle, topic, difficulty, source };
   }
