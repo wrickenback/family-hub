@@ -2,7 +2,7 @@ import * as functions from 'firebase-functions';
 import * as admin from 'firebase-admin';
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { defineSecret } from 'firebase-functions/params';
-import { deepProvidersFrom, providersFrom } from './providers';
+import { deepProvidersFrom, providersFrom, routineProvidersFrom } from './providers';
 import {
   MIN_TOPIC_WORDS,
   fallbackDailyWord,
@@ -33,10 +33,18 @@ const openRouterApiKey = defineSecret('OPENROUTER_API_KEY');
 // with only some of the three configured.
 const anthropicApiKey = defineSecret('ANTHROPIC_API_KEY');
 
-/** The model chain every generator runs down, built per request so a key
- * rotation takes effect without a redeploy. */
+/** The model chain for anything that fills something durable — the shared
+ * word pool, a pool word's cached clue, a once-a-day shared doc. Built per
+ * request so a key rotation takes effect without a redeploy. */
 function models() {
   return providersFrom(geminiApiKey.value(), openRouterApiKey.value(), anthropicApiKey.value());
+}
+
+/** The model chain for a call whose result is used once and never cached —
+ * see routineProvidersFrom's doc comment. Deliberately skips Gemini, so its
+ * tighter free-tier budget stays reserved for models() above. */
+function routineModels() {
+  return routineProvidersFrom(openRouterApiKey.value(), anthropicApiKey.value());
 }
 
 /** Gemini then Sonnet — only the mini crossword uses this. See
@@ -254,11 +262,14 @@ export const getDailyWord = onCall(
  * word, don't need to be the same for everyone.
  */
 export const getWordleWords = onCall(
-  { region: 'us-central1', secrets: [geminiApiKey, openRouterApiKey, anthropicApiKey] },
+  { region: 'us-central1', secrets: [openRouterApiKey, anthropicApiKey] },
   async (request) => {
     await requireFamilyMember(request);
 
-    const { value: words, source } = await generateWordleWords(models(), [], 12);
+    // routineModels(), not models(): this batch is disposable per this
+    // function's own doc comment, so it shouldn't spend Gemini's free-tier
+    // budget — that's reserved for calls that fill something durable.
+    const { value: words, source } = await generateWordleWords(routineModels(), [], 12);
     if (words.length === 0) {
       // The client falls back to its bundled list, so this is a soft
       // failure rather than an error the player has to look at.
@@ -271,7 +282,7 @@ export const getWordleWords = onCall(
 /** Suggests a clue for a word the setter has typed in the family game.
  * Best-effort: an empty hint means "write your own", not an error. */
 export const getHangmanHint = onCall(
-  { region: 'us-central1', secrets: [geminiApiKey, openRouterApiKey, anthropicApiKey] },
+  { region: 'us-central1', secrets: [openRouterApiKey, anthropicApiKey] },
   async (request) => {
     await requireFamilyMember(request);
 
@@ -280,7 +291,10 @@ export const getHangmanHint = onCall(
       throw new HttpsError('invalid-argument', 'That word cannot be hinted.');
     }
 
-    const { value: clue, source } = await generateHangmanHint(models(), word);
+    // routineModels(): a clue for a human-typed word is used once for this
+    // round and never cached, unlike getHangmanWord's lazy pool-word clue
+    // enrichment, which IS cached — see models()'s doc comment.
+    const { value: clue, source } = await generateHangmanHint(routineModels(), word);
     // Also carries the spelling verdict, so a setter who tapped Suggest
     // doesn't pay for a second call to checkHangmanWord asking the same
     // model about the same word. A null correction here means "looks fine",
@@ -302,7 +316,7 @@ export const getHangmanHint = onCall(
  * than a missed one. `suggestion` is null for "looks fine to me".
  */
 export const checkHangmanWord = onCall(
-  { region: 'us-central1', secrets: [geminiApiKey, openRouterApiKey, anthropicApiKey] },
+  { region: 'us-central1', secrets: [openRouterApiKey, anthropicApiKey] },
   async (request) => {
     await requireFamilyMember(request);
 
@@ -315,7 +329,8 @@ export const checkHangmanWord = onCall(
     }
 
     try {
-      const { value } = await generateSpellingSuggestion(models(), word);
+      // routineModels(): a spelling check is used once and never cached.
+      const { value } = await generateSpellingSuggestion(routineModels(), word);
       return { suggestion: value };
     } catch {
       return { suggestion: null };

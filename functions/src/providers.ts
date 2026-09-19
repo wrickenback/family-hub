@@ -208,12 +208,18 @@ export function sonnetProvider(apiKey: string): ModelProvider {
 // it's already paid for.
 const OPENROUTER_FLASH_MODEL = 'z-ai/glm-5.3-flash';
 
-/** The provider chain, in preference order: Gemini (free), then GLM Flash
- * via OpenRouter (cheap, measured), then Haiku (on the direct Anthropic
- * key — deliberately not routed through OpenRouter, so this app never
- * depends on OpenRouter being up to reach Anthropic at all). A missing key
- * drops that provider rather than failing, so the functions still deploy
- * and run with only some of the three configured. */
+/** Gemini (free), then GLM Flash, then Haiku — reserved for calls that fill
+ * something DURABLE: the shared word pool (WORD_BANK_PLAN.md §2), a pool
+ * word's cached clue, or a once-a-day shared doc (Daily Word, Word Bloom).
+ * Every one of those is read by many future requests — across every family
+ * member, and for the pool, across every game sharing that topic — so it's
+ * worth spending the better model and the tighter free-tier budget on.
+ *
+ * Not for a call whose result is used once and thrown away — see
+ * `routineProvidersFrom` for those. Getting this split wrong in the
+ * direction of using this chain too often is exactly how a 20-requests/day
+ * limit gets burned by disposable clue-suggestion and spell-check calls
+ * instead of the bank-filling calls it's meant for. */
 export function providersFrom(
   geminiApiKey: string,
   openRouterApiKey: string,
@@ -221,6 +227,26 @@ export function providersFrom(
 ): ModelProvider[] {
   const providers: ModelProvider[] = [];
   if (geminiApiKey) providers.push(geminiProvider(geminiApiKey));
+  if (openRouterApiKey) {
+    providers.push(openRouterProvider(openRouterApiKey, OPENROUTER_FLASH_MODEL, { name: 'glm-flash' }));
+  }
+  if (anthropicApiKey) providers.push(haikuProvider(anthropicApiKey));
+  if (providers.length === 0) console.error('no model provider is configured');
+  return providers;
+}
+
+/** GLM Flash, then Haiku — deliberately no Gemini. For a call whose result
+ * is used once for this one request and never cached or shared: a
+ * multiplayer clue suggestion, a spelling check, a disposable free-play
+ * word batch. None of these fill the bank or a shared doc, so none of them
+ * should spend Gemini's free-tier budget — that's reserved for
+ * `providersFrom`'s bank-filling calls, which benefit every future reader
+ * instead of just this one request. */
+export function routineProvidersFrom(
+  openRouterApiKey: string,
+  anthropicApiKey: string
+): ModelProvider[] {
+  const providers: ModelProvider[] = [];
   if (openRouterApiKey) {
     providers.push(openRouterProvider(openRouterApiKey, OPENROUTER_FLASH_MODEL, { name: 'glm-flash' }));
   }
