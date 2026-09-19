@@ -28,6 +28,11 @@
   background: var(--rust-soft);
 }
 
+.provider-badge-pool {
+  color: var(--gold);
+  background: rgba(184, 134, 43, 0.12);
+}
+
 .provider-badge-fallback {
   color: var(--text-muted);
   background: var(--sand-100);

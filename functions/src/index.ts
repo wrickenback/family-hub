@@ -9,7 +9,6 @@ import {
   fallbackHangmanWord,
   generateBloomPuzzle,
   generateHangmanHint,
-  generateHangmanWord,
   expandBloomWords,
   generateMiniCrossword,
   generateSpellingSuggestion,
@@ -17,7 +16,7 @@ import {
   generateWordleWords,
 } from './wordGames';
 import { buildWordSearchGrid, type Difficulty } from './wordSearchGrid';
-import { seedPool } from './wordBank';
+import { seedPool, fetchWords, markUsed, enrichPoolWord } from './wordBank';
 
 admin.initializeApp();
 const db = admin.firestore();
@@ -328,10 +327,14 @@ export const checkHangmanWord = onCall(
  * rounds are disposable, and keeping the word out of Firestore means there
  * is nothing to look up mid-round.
  *
- * `avoid` is the last several words the client has already seen for this
- * category this session — see the comment on generateHangmanWord for why
- * that's what actually stops the same word (looking at you, PLATYPUS) from
- * coming back round after round. */
+ * Draws from the shared word pool (WORD_BANK_PLAN.md §2/§3) rather than
+ * asking a model live on every play — `category` doubles as the pool's
+ * topicSlug, so a category populated by word search's own topics (or an
+ * earlier hangman bootstrap) is served straight from Firestore, with a
+ * repeat structurally impossible until the whole pool has been shown once.
+ * Only a brand-new or exhausted category pays a live-call latency, and
+ * that call tops the pool up for every family member and every game
+ * sharing this topic afterward, not just this one player this once. */
 export const getHangmanWord = onCall(
   { region: 'us-central1', secrets: [geminiApiKey, openRouterApiKey, anthropicApiKey] },
   async (request) => {
@@ -342,19 +345,57 @@ export const getHangmanWord = onCall(
       throw new HttpsError('invalid-argument', 'Unknown category.');
     }
     const label = String(request.data?.label ?? category).trim().slice(0, 40);
-    const avoid = Array.isArray(request.data?.avoid)
-      ? (request.data.avoid as unknown[])
-          .filter((w): w is string => typeof w === 'string')
-          .slice(0, 20)
-      : [];
+    const topic = label || category;
 
-    const { value: generated, source: servedBy } = await generateHangmanWord(
+    const { words: picked, source: fetchSource } = await fetchWords(
+      db,
       models(),
-      label || category,
-      avoid
+      'hangman',
+      category,
+      topic,
+      { minLen: 5, maxLen: 10, allowPhrases: false },
+      1
     );
-    const picked = generated ?? fallbackHangmanWord(category, avoid);
-    return { ...picked, category, source: servedBy ?? 'fallback' };
+    const entry = picked[0];
+
+    if (!entry) {
+      // Pool and live bootstrap both came up empty — same soft-failure
+      // shape the rest of the app uses, never an error the player sees.
+      const avoid = Array.isArray(request.data?.avoid)
+        ? (request.data.avoid as unknown[])
+            .filter((w): w is string => typeof w === 'string')
+            .slice(0, 20)
+        : [];
+      const fallback = fallbackHangmanWord(category, avoid);
+      return { ...fallback, category, source: 'fallback' };
+    }
+
+    // Marked used the moment it's actually served for solo play — there's
+    // no "browse without committing" step here the way multiplayer's
+    // planned suggestion picker will have.
+    await markUsed(db, 'hangman', category, [entry.word]);
+
+    if (entry.hint) {
+      return { word: entry.word, hint: entry.hint, category, source: fetchSource ?? 'pool' };
+    }
+
+    // First time this pool word has been drawn for hangman — word search
+    // never needed a clue for it, so write one now and cache it back onto
+    // the pool entry, for every future draw of this same word by any game.
+    const { value: clue, source: clueSource } = await generateHangmanHint(models(), entry.word);
+    const hint = clue?.hint ?? '';
+    if (hint) {
+      try {
+        await enrichPoolWord(db, category, entry.word, hint);
+      } catch (err) {
+        console.error('enrichPoolWord: failed to cache a hangman clue', {
+          category,
+          word: entry.word,
+          error: err instanceof Error ? err.message : String(err),
+        });
+      }
+    }
+    return { word: entry.word, hint, category, source: clueSource ?? fetchSource ?? 'pool' };
   }
 );
 

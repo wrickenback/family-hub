@@ -210,11 +210,13 @@ export async function enrichPoolWord(
   topicSlug: string,
   word: string,
   hint: string,
-  obvious: string
+  obvious?: string
 ): Promise<void> {
   const poolRef = db.doc(`wordPool/${topicSlug}`);
   const snap = await poolRef.get();
   const words: PoolWord[] = (snap.data()?.words as PoolWord[] | undefined) ?? [];
-  const next = words.map((w) => (w.word === word ? { ...w, hint, obvious } : w));
+  const next = words.map((w) =>
+    w.word === word ? { ...w, hint, ...(obvious ? { obvious } : {}) } : w
+  );
   await poolRef.set({ words: next }, { merge: true });
 }

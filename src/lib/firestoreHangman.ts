@@ -23,7 +23,10 @@ export interface HangmanWord {
   word: string;
   hint: string;
   category: string;
-  source: 'gemini' | 'glm-flash' | 'haiku' | 'fallback';
+  // 'pool': served straight from the shared word bank, no model called this
+  // request at all — see WORD_BANK_PLAN.md §2/§3. This is the common case
+  // once a category's pool is stocked, not a fallback.
+  source: 'gemini' | 'glm-flash' | 'haiku' | 'pool' | 'fallback';
 }
 
 /** Asks the Cloud Function for a word and a clue. The API key stays

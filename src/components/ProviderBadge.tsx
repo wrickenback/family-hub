@@ -5,9 +5,9 @@ import './ProviderBadge.css';
  * response all the way to this badge, purely as a debugging aid while the
  * two-model setup is new — worth pulling out once it's clear which one is
  * carrying the load day to day. */
-export type ProviderSource = 'gemini' | 'glm-flash' | 'haiku' | 'sonnet' | 'fallback' | null;
+export type ProviderSource = 'gemini' | 'glm-flash' | 'haiku' | 'sonnet' | 'pool' | 'fallback' | null;
 
-const LABEL: Record<'gemini' | 'glm-flash' | 'haiku' | 'sonnet' | 'fallback', string> = {
+const LABEL: Record<'gemini' | 'glm-flash' | 'haiku' | 'sonnet' | 'pool' | 'fallback', string> = {
   gemini: 'Gemini',
   'glm-flash': 'GLM Flash',
   haiku: 'Claude',
@@ -15,6 +15,10 @@ const LABEL: Record<'gemini' | 'glm-flash' | 'haiku' | 'sonnet' | 'fallback', st
   // crossword, and only on a day Gemini couldn't fill the grid, so seeing
   // it is the signal that the cheap half of the chain is struggling.
   sonnet: 'Claude Sonnet',
+  // Not "which model answered" — no model was called at all this time.
+  // The word bank (WORD_BANK_PLAN.md §2) served this straight from a
+  // previously-generated pool, which is the common case, not a fallback.
+  pool: 'From the word bank',
   fallback: 'Offline word list',
 };
 
@@ -35,6 +39,8 @@ export function ProviderBadge({
       ? Sparkles
       : source === 'haiku' || source === 'sonnet' || source === 'glm-flash'
       ? Bot
+      : source === 'pool'
+      ? Sparkles
       : BookOpen;
   return (
     <span
