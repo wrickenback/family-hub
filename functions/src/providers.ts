@@ -17,27 +17,28 @@ import { GoogleGenAI, HarmCategory, HarmBlockThreshold } from '@google/genai';
 
 // A stable alias (not a pinned version) so this doesn't silently 404 again
 // the next time Google retires a dated model — it always resolves to
-// whatever flash-lite model is currently recommended.
+// whatever flagship Flash model is currently recommended.
 //
-// Deliberately -lite, not the flagship flash alias. Measured directly
-// against this project's own key: the flagship model's free tier is
-// 20 requests/day, shared across every AI feature in the app — a single
-// family evening burns through that in minutes, which is why Haiku ended
-// up serving nearly every request. Flash-Lite's free tier runs roughly
-// 25x more requests/day, at a real but small quality cost that doesn't
-// matter for what this app asks of it: short, constrained JSON —
-// a word list, a word-and-clue pair, a one-line hint. None of that leans
-// on the reasoning depth flash-lite trades away. Live-tested against all
-// four of this app's prompts (word search topics, Wordle answers, hangman
-// words, hangman hints) before switching; results were as good as the
-// flagship model's on the same prompts.
-const GEMINI_MODEL = 'gemini-flash-lite-latest';
+// Upgraded from -lite back to the flagship alias now that the word-bank
+// rebuild has landed: -lite was chosen when every single play was a live
+// call and the flagship's 20-requests/day free tier would have been blown
+// through in one family evening. Under the bank system a live call only
+// happens on bootstrap or refill — a handful a week at most — which the
+// flagship's tighter limit comfortably covers, and it's the better model.
+// If Gemini's free tier ever does get exhausted, OpenRouter picks up the
+// very next request rather than the player seeing a failure.
+const GEMINI_MODEL = 'gemini-flash-latest';
 const HAIKU_MODEL = 'claude-haiku-4-5';
 // Only the mini crossword reaches for this one. Filling a 5x5 grid where
 // every across and down run has to be a real word is a constraint-solving
 // problem, not a "write me a list" problem, and the two cheap models fail
 // it far more often than they succeed. Sonnet runs adaptive thinking when
 // no `thinking` parameter is sent, which is exactly what this needs.
+//
+// Slated for removal once the crossword moves to a local constraint solver
+// (see WORD_BANK_PLAN.md §3) — every reasoning model tested against the
+// live grid-fill task truncated to zero output, up to $0.05/failed call,
+// which is the real argument for that rebuild, not just cost.
 const SONNET_MODEL = 'claude-sonnet-5';
 
 // Belt-and-suspenders for a kids' feature, backed by the API's own
@@ -198,15 +199,31 @@ export function sonnetProvider(apiKey: string): ModelProvider {
   };
 }
 
-/** The provider chain, in preference order. A missing key drops that
- * provider rather than failing — so the functions still deploy and run with
- * only one of the two secrets configured. */
+// Backs up Gemini for every generator except the crossword. Chosen over
+// Haiku as the *first* fallback because it's the one actually measured
+// against these exact prompts (word list, Wordle answers, hangman word +
+// clue) — reliable and a fraction of Haiku's per-call cost. Haiku stays in
+// the chain behind it: a second, differently-run provider is worth having
+// on the rare day both Gemini and OpenRouter itself are unreachable, and
+// it's already paid for.
+const OPENROUTER_FLASH_MODEL = 'z-ai/glm-5.3-flash';
+
+/** The provider chain, in preference order: Gemini (free), then GLM Flash
+ * via OpenRouter (cheap, measured), then Haiku (on the direct Anthropic
+ * key — deliberately not routed through OpenRouter, so this app never
+ * depends on OpenRouter being up to reach Anthropic at all). A missing key
+ * drops that provider rather than failing, so the functions still deploy
+ * and run with only some of the three configured. */
 export function providersFrom(
   geminiApiKey: string,
+  openRouterApiKey: string,
   anthropicApiKey: string
 ): ModelProvider[] {
   const providers: ModelProvider[] = [];
   if (geminiApiKey) providers.push(geminiProvider(geminiApiKey));
+  if (openRouterApiKey) {
+    providers.push(openRouterProvider(openRouterApiKey, OPENROUTER_FLASH_MODEL, { name: 'glm-flash' }));
+  }
   if (anthropicApiKey) providers.push(haikuProvider(anthropicApiKey));
   if (providers.length === 0) console.error('no model provider is configured');
   return providers;
@@ -237,7 +254,7 @@ export function deepProvidersFrom(
  * behind one button and it's been worth knowing which one answered while
  * this is new. `null` means the whole chain came up empty; the caller
  * substitutes its own bundled fallback and labels it as such. */
-export type ProviderSource = 'gemini' | 'haiku' | 'sonnet';
+export type ProviderSource = 'gemini' | 'glm-flash' | 'haiku' | 'sonnet';
 
 export interface Generated<T> {
   value: T;

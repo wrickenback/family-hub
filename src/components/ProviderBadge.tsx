@@ -5,10 +5,11 @@ import './ProviderBadge.css';
  * response all the way to this badge, purely as a debugging aid while the
  * two-model setup is new — worth pulling out once it's clear which one is
  * carrying the load day to day. */
-export type ProviderSource = 'gemini' | 'haiku' | 'sonnet' | 'fallback' | null;
+export type ProviderSource = 'gemini' | 'glm-flash' | 'haiku' | 'sonnet' | 'fallback' | null;
 
-const LABEL: Record<'gemini' | 'haiku' | 'sonnet' | 'fallback', string> = {
+const LABEL: Record<'gemini' | 'glm-flash' | 'haiku' | 'sonnet' | 'fallback', string> = {
   gemini: 'Gemini',
+  'glm-flash': 'GLM Flash',
   haiku: 'Claude',
   // Distinguished from Haiku on purpose: Sonnet only ever answers the mini
   // crossword, and only on a day Gemini couldn't fill the grid, so seeing
@@ -32,7 +33,7 @@ export function ProviderBadge({
   const Icon =
     source === 'gemini'
       ? Sparkles
-      : source === 'haiku' || source === 'sonnet'
+      : source === 'haiku' || source === 'sonnet' || source === 'glm-flash'
       ? Bot
       : BookOpen;
   return (

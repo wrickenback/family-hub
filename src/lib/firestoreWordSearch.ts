@@ -39,7 +39,7 @@ export interface WordSearchPuzzle {
   /** Which model wrote the word list. Absent on puzzles generated before
    * this was tracked, and on the bundled offline puzzles, which never call
    * a model at all. */
-  source?: 'gemini' | 'haiku';
+  source?: 'gemini' | 'glm-flash' | 'haiku';
 }
 
 /** Calls the Cloud Function that asks Gemini for words and builds the grid

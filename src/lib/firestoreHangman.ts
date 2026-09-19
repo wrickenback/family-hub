@@ -23,7 +23,7 @@ export interface HangmanWord {
   word: string;
   hint: string;
   category: string;
-  source: 'gemini' | 'haiku' | 'fallback';
+  source: 'gemini' | 'glm-flash' | 'haiku' | 'fallback';
 }
 
 /** Asks the Cloud Function for a word and a clue. The API key stays
@@ -59,7 +59,7 @@ export async function fetchHangmanWord(
 
 export interface HangmanHint {
   hint: string;
-  source: 'gemini' | 'haiku' | null;
+  source: 'gemini' | 'glm-flash' | 'haiku' | null;
   /** A spelling the model thinks was meant instead, or null for "looks
    * fine". Answered in the same call as the clue — see generateHangmanHint
    * for why. The caller should remember it against the word it asked
@@ -82,7 +82,10 @@ export async function fetchHangmanHint(word: string): Promise<HangmanHint> {
       correction?: unknown;
     };
     const hint = typeof data.hint === 'string' ? data.hint : '';
-    const source = data.source === 'gemini' || data.source === 'haiku' ? data.source : null;
+    const source =
+      data.source === 'gemini' || data.source === 'glm-flash' || data.source === 'haiku'
+        ? data.source
+        : null;
     const correction =
       typeof data.correction === 'string' && data.correction
         ? data.correction

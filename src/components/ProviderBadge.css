@@ -22,7 +22,8 @@
 }
 
 .provider-badge-haiku,
-.provider-badge-sonnet {
+.provider-badge-sonnet,
+.provider-badge-glm-flash {
   color: var(--rust);
   background: var(--rust-soft);
 }

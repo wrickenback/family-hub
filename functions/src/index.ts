@@ -22,16 +22,21 @@ admin.initializeApp();
 const db = admin.firestore();
 
 const geminiApiKey = defineSecret('GEMINI_API_KEY');
-// Claude Haiku backs Gemini up when it returns a transient 503 or a
-// response nothing usable can be parsed from. Declared as a secret like the
-// Gemini key; providersFrom() simply drops whichever key is absent, so the
-// functions still deploy and run with only one of the two configured.
+// GLM Flash (via OpenRouter) backs Gemini up when it returns a transient
+// 503 or a response nothing usable can be parsed from — first choice of
+// backup because it's the one actually measured against these prompts.
+const openRouterApiKey = defineSecret('OPENROUTER_API_KEY');
+// Claude Haiku, on the direct Anthropic key, is the last resort behind
+// both — deliberately not routed through OpenRouter, so a single outage
+// there can't take out every provider at once. providersFrom() simply
+// drops whichever key is absent, so the functions still deploy and run
+// with only some of the three configured.
 const anthropicApiKey = defineSecret('ANTHROPIC_API_KEY');
 
 /** The model chain every generator runs down, built per request so a key
  * rotation takes effect without a redeploy. */
 function models() {
-  return providersFrom(geminiApiKey.value(), anthropicApiKey.value());
+  return providersFrom(geminiApiKey.value(), openRouterApiKey.value(), anthropicApiKey.value());
 }
 
 /** Gemini then Sonnet — only the mini crossword uses this. See
@@ -82,7 +87,7 @@ async function requireFamilyMember(request: {
  * playing immediately without a second round trip.
  */
 export const generateWordSearchPuzzle = onCall(
-  { region: 'us-central1', secrets: [geminiApiKey, anthropicApiKey] },
+  { region: 'us-central1', secrets: [geminiApiKey, openRouterApiKey, anthropicApiKey] },
   async (request) => {
     const caller = await requireFamilyMember(request);
 
@@ -145,7 +150,7 @@ export const generateWordSearchPuzzle = onCall(
  * winner's word, so the family never splits across two answers.
  */
 export const getDailyWord = onCall(
-  { region: 'us-central1', secrets: [geminiApiKey, anthropicApiKey] },
+  { region: 'us-central1', secrets: [geminiApiKey, openRouterApiKey, anthropicApiKey] },
   async (request) => {
     const caller = await requireFamilyMember(request);
 
@@ -234,7 +239,7 @@ export const getDailyWord = onCall(
  * word, don't need to be the same for everyone.
  */
 export const getWordleWords = onCall(
-  { region: 'us-central1', secrets: [geminiApiKey, anthropicApiKey] },
+  { region: 'us-central1', secrets: [geminiApiKey, openRouterApiKey, anthropicApiKey] },
   async (request) => {
     await requireFamilyMember(request);
 
@@ -251,7 +256,7 @@ export const getWordleWords = onCall(
 /** Suggests a clue for a word the setter has typed in the family game.
  * Best-effort: an empty hint means "write your own", not an error. */
 export const getHangmanHint = onCall(
-  { region: 'us-central1', secrets: [geminiApiKey, anthropicApiKey] },
+  { region: 'us-central1', secrets: [geminiApiKey, openRouterApiKey, anthropicApiKey] },
   async (request) => {
     await requireFamilyMember(request);
 
@@ -282,7 +287,7 @@ export const getHangmanHint = onCall(
  * than a missed one. `suggestion` is null for "looks fine to me".
  */
 export const checkHangmanWord = onCall(
-  { region: 'us-central1', secrets: [geminiApiKey, anthropicApiKey] },
+  { region: 'us-central1', secrets: [geminiApiKey, openRouterApiKey, anthropicApiKey] },
   async (request) => {
     await requireFamilyMember(request);
 
@@ -312,7 +317,7 @@ export const checkHangmanWord = onCall(
  * that's what actually stops the same word (looking at you, PLATYPUS) from
  * coming back round after round. */
 export const getHangmanWord = onCall(
-  { region: 'us-central1', secrets: [geminiApiKey, anthropicApiKey] },
+  { region: 'us-central1', secrets: [geminiApiKey, openRouterApiKey, anthropicApiKey] },
   async (request) => {
     await requireFamilyMember(request);
 
@@ -348,7 +353,7 @@ export const getHangmanWord = onCall(
  * converge on the same handful of pleasingly anagram-rich words (GARDEN,
  * DANGER and friends) every single time. */
 export const getBloomPuzzle = onCall(
-  { region: 'us-central1', secrets: [geminiApiKey, anthropicApiKey] },
+  { region: 'us-central1', secrets: [geminiApiKey, openRouterApiKey, anthropicApiKey] },
   async (request) => {
     await requireFamilyMember(request);
 
@@ -424,7 +429,7 @@ export const getBloomPuzzle = onCall(
 export const getMiniCrossword = onCall(
   {
     region: 'us-central1',
-    secrets: [geminiApiKey, anthropicApiKey],
+    secrets: [geminiApiKey, openRouterApiKey, anthropicApiKey],
     timeoutSeconds: 180,
   },
   async (request) => {
