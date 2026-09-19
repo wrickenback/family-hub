@@ -341,7 +341,11 @@ export const getHangmanWord = onCall(
     await requireFamilyMember(request);
 
     const category = String(request.data?.category ?? 'anything').trim();
-    if (!/^[a-z]{1,20}$/.test(category)) {
+    // Widened from the original [a-z]{1,20} (the five fixed buttons' ids)
+    // to match slugify()'s actual output — this doubles as a wordPool
+    // topicSlug now, and word search's topics can contain digits and
+    // hyphens once they're categories too, per WORD_BANK_PLAN.md §4.
+    if (!/^[a-z0-9-]{1,60}$/.test(category)) {
       throw new HttpsError('invalid-argument', 'Unknown category.');
     }
     const label = String(request.data?.label ?? category).trim().slice(0, 40);
@@ -396,6 +400,74 @@ export const getHangmanWord = onCall(
       }
     }
     return { word: entry.word, hint, category, source: clueSource ?? fetchSource ?? 'pool' };
+  }
+);
+
+/** A batch of candidate words/phrases for the multiplayer setter's "pick a
+ * category" path (WORD_BANK_PLAN.md §3), alongside their existing "write
+ * from scratch" option. Deliberately read-only: browsing suggestions must
+ * never mark a pool entry used, or the pool would exhaust roughly
+ * `count` times faster than actual play — see markHangmanSuggestionUsed
+ * for the real commit step, fired only once the setter actually picks one.
+ *
+ * Wider shape than solo hangman's: multiplayer already allows phrases (see
+ * checkHangmanWord's own validator, matched here — up to 18 letters,
+ * spaces allowed), because a human setter typing "GOLDEN RETRIEVER" was
+ * always fine and a category suggestion shouldn't be more limited than
+ * free typing already is. */
+export const suggestHangmanWords = onCall(
+  { region: 'us-central1', secrets: [geminiApiKey, openRouterApiKey, anthropicApiKey] },
+  async (request) => {
+    await requireFamilyMember(request);
+
+    const category = String(request.data?.category ?? '').trim();
+    if (!/^[a-z0-9-]{1,60}$/.test(category)) {
+      throw new HttpsError('invalid-argument', 'Unknown category.');
+    }
+    const label = String(request.data?.label ?? category).trim().slice(0, 60);
+    const requested = Number(request.data?.count ?? 8);
+    const count = Number.isFinite(requested) ? Math.min(Math.max(Math.trunc(requested), 1), 12) : 8;
+
+    const { words: picked, source } = await fetchWords(
+      db,
+      models(),
+      'hangman',
+      category,
+      label || category,
+      { minLen: 5, maxLen: 18, allowPhrases: true },
+      count
+    );
+
+    return { words: picked.map((entry) => entry.word), category, source: source ?? 'pool' };
+  }
+);
+
+/** The commit step for a suggestion the setter actually picked, as opposed
+ * to one merely shown. Call this alongside (not instead of) the existing
+ * setHangmanWord client-side Firestore write — that write starts the round
+ * directly from the client with no callable in the loop at all, so there's
+ * no other server-side moment to hook this into. A word that was typed
+ * from scratch, never having come from a suggestion, has nothing to mark
+ * here and shouldn't call this at all. */
+export const markHangmanSuggestionUsed = onCall(
+  { region: 'us-central1', secrets: [] },
+  async (request) => {
+    await requireFamilyMember(request);
+
+    const category = String(request.data?.category ?? '').trim();
+    if (!/^[a-z0-9-]{1,60}$/.test(category)) {
+      throw new HttpsError('invalid-argument', 'Unknown category.');
+    }
+    const word = String(request.data?.word ?? '')
+      .trim()
+      .toUpperCase()
+      .replace(/\s+/g, ' ');
+    if (!/^[A-Z]+( [A-Z]+)*$/.test(word) || word.replace(/ /g, '').length > 18) {
+      throw new HttpsError('invalid-argument', 'That word cannot be marked.');
+    }
+
+    await markUsed(db, 'hangman', category, [word]);
+    return { ok: true };
   }
 );
 

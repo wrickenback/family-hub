@@ -60,6 +60,57 @@ export async function fetchHangmanWord(
   }
 }
 
+export interface HangmanSuggestions {
+  words: string[];
+  category: string;
+  source: string;
+}
+
+/** A batch of candidate words/phrases for the multiplayer setter's "pick a
+ * category" option, alongside their existing "write from scratch" field.
+ * Purely browsing — nothing is marked used server-side by calling this, so
+ * "load more" is just calling it again. Only actually setting one of these
+ * as the round's word should follow up with `markHangmanSuggestionUsed`. */
+export async function fetchHangmanSuggestions(
+  category: HangmanCategory,
+  count = 8
+): Promise<HangmanSuggestions> {
+  if (!functions) return { words: [], category: category.id, source: 'fallback' };
+  try {
+    const call = httpsCallable(functions, 'suggestHangmanWords');
+    const result = await call({ category: category.id, label: category.label, count });
+    const data = result.data as { words?: unknown; category?: unknown; source?: unknown };
+    const words = Array.isArray(data.words)
+      ? data.words.filter((w): w is string => typeof w === 'string')
+      : [];
+    return {
+      words,
+      category: typeof data.category === 'string' ? data.category : category.id,
+      source: typeof data.source === 'string' ? data.source : 'pool',
+    };
+  } catch {
+    return { words: [], category: category.id, source: 'fallback' };
+  }
+}
+
+/** Marks a suggestion as served once the setter actually picks it — call
+ * this alongside (not instead of) setHangmanWord, which is what actually
+ * starts the round. Best-effort: a failure here means a suggestion might
+ * come back around sooner than it should, never that the round can't
+ * start, so it's fine to fire-and-forget from the caller's perspective. */
+export async function markHangmanSuggestionUsed(
+  category: HangmanCategory,
+  word: string
+): Promise<void> {
+  if (!functions) return;
+  try {
+    const call = httpsCallable(functions, 'markHangmanSuggestionUsed');
+    await call({ category: category.id, word });
+  } catch {
+    // Best-effort — see the doc comment above.
+  }
+}
+
 export interface HangmanHint {
   hint: string;
   source: 'gemini' | 'glm-flash' | 'haiku' | null;
