@@ -13,10 +13,21 @@ import {
   generateMiniCrossword,
   generateSpellingSuggestion,
   generateTopicWords,
-  generateWordleWords,
+  buildWordleBootstrapPrompt,
 } from './wordGames';
 import { buildWordSearchGrid, type Difficulty } from './wordSearchGrid';
-import { seedPool, fetchWords, markUsed, enrichPoolWord } from './wordBank';
+import { seedPool, fetchWords, markUsed, enrichPoolWord, type BootstrapOverrides } from './wordBank';
+
+// Shared by both Wordle endpoints: a single flat pool (no per-topic
+// subdivision — Wordle has no categories, just "any real 5-letter word"),
+// with the trailing-S check kept as a backstop the same way it always was
+// for generateWordleWords, since a model asked not to write plurals
+// reliably writes some anyway.
+const WORDLE_TOPIC_SLUG = 'wordle';
+const WORDLE_OVERRIDES: BootstrapOverrides = {
+  buildPrompt: (_topic, count) => buildWordleBootstrapPrompt(count),
+  extraFilter: (word) => !word.endsWith('S'),
+};
 
 admin.initializeApp();
 const db = admin.firestore();
@@ -203,31 +214,24 @@ export const getDailyWord = onCall(
       };
     }
 
-    // Two weeks of answers to steer Gemini away from — enough that a repeat
-    // is noticeable, small enough to stay one cheap query.
-    //
-    // Ordered by createdAt, not by document id: Firestore auto-indexes
-    // every field ascending AND descending, but __name__ (the document id)
-    // only gets an automatic ascending index — querying it descending
-    // needs an explicit composite index that was never created, which made
-    // every single call here throw FAILED_PRECONDITION and made Daily
-    // Word unplayable in both modes. createdAt needs no such index and is
-    // the more honest "recent" anyway.
-    const recentSnap = await db
-      .collection('dailyWords')
-      .orderBy('createdAt', 'desc')
-      .limit(14)
-      .get();
-    const recentWords = recentSnap.docs
-      .map((doc) => doc.data().word as string)
-      .filter(Boolean);
-
-    const { value: generated, source: servedBy } = await generateWordleWords(
+    // Drawn from the shared Wordle pool rather than a live call with only a
+    // 14-day lookback — that window had the exact same aging-out weakness
+    // measured on hangman's 8-word window this session (a word ages out of
+    // the lookback and comes right back). A pool draw can't repeat until
+    // every word in it has been used once, not just "not in the last 14."
+    const { words: picked, source: fetchSource } = await fetchWords(
+      db,
       models(),
-      recentWords
+      'wordle-daily',
+      WORDLE_TOPIC_SLUG,
+      'Wordle answers',
+      { minLen: 5, maxLen: 5, allowPhrases: false },
+      1,
+      WORDLE_OVERRIDES
     );
-    const word = generated[0] ?? fallbackDailyWord(dateKey);
-    const source = servedBy ?? 'fallback';
+    const word = picked[0]?.word ?? fallbackDailyWord(dateKey);
+    const source = picked[0] ? fetchSource ?? 'pool' : 'fallback';
+    if (picked[0]) await markUsed(db, 'wordle-daily', WORDLE_TOPIC_SLUG, [picked[0].word]);
 
     try {
       await ref.create({
@@ -262,20 +266,37 @@ export const getDailyWord = onCall(
  * word, don't need to be the same for everyone.
  */
 export const getWordleWords = onCall(
-  { region: 'us-central1', secrets: [openRouterApiKey, anthropicApiKey] },
+  { region: 'us-central1', secrets: [geminiApiKey, openRouterApiKey, anthropicApiKey] },
   async (request) => {
     await requireFamilyMember(request);
 
-    // routineModels(), not models(): this batch is disposable per this
-    // function's own doc comment, so it shouldn't spend Gemini's free-tier
-    // budget — that's reserved for calls that fill something durable.
-    const { value: words, source } = await generateWordleWords(routineModels(), [], 12);
-    if (words.length === 0) {
+    // models(), not routineModels(): this now draws from the same shared
+    // Wordle pool getDailyWord reads, and any bootstrap it triggers fills
+    // that pool durably for every future reader in either mode — the
+    // fetchWords bootstrap always earns the durable chain regardless of
+    // which endpoint happened to trigger it, same as suggestHangmanWords.
+    const { words: picked, source } = await fetchWords(
+      db,
+      models(),
+      'wordle-freeplay',
+      WORDLE_TOPIC_SLUG,
+      'Wordle answers',
+      { minLen: 5, maxLen: 5, allowPhrases: false },
+      12,
+      WORDLE_OVERRIDES
+    );
+    if (picked.length === 0) {
       // The client falls back to its bundled list, so this is a soft
       // failure rather than an error the player has to look at.
       return { words: [], source: 'fallback' };
     }
-    return { words, source };
+    await markUsed(
+      db,
+      'wordle-freeplay',
+      WORDLE_TOPIC_SLUG,
+      picked.map((w) => w.word)
+    );
+    return { words: picked.map((w) => w.word), source: source ?? 'pool' };
   }
 );
 

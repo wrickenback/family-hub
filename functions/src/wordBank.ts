@@ -81,12 +81,15 @@ async function bootstrap(
   providers: ModelProvider[],
   topic: string,
   shape: ShapeFilter,
-  count: number
+  count: number,
+  overrides?: BootstrapOverrides
 ): Promise<{ words: string[]; source: string | null }> {
   const phraseLine = shape.allowPhrases
     ? 'Short phrases are fine where natural (e.g. "GOLDEN RETRIEVER"), or single words — whichever fits the topic better.'
     : 'Each must be a single unbroken token with no spaces — join multi-word names into one word, e.g. "GOLDENRETRIEVER" not "Golden Retriever".';
-  const prompt = `Give me ${count} distinct words or short phrases for a family word game about "${topic}".
+  const prompt =
+    overrides?.buildPrompt?.(topic, count) ??
+    `Give me ${count} distinct words or short phrases for a family word game about "${topic}".
 Rules:
 - If the topic itself is clearly inappropriate for a family app, respond with exactly: []
 ${CONTENT_RATING}
@@ -116,6 +119,7 @@ ${CONTENT_RATING}
         if (typeof raw !== 'string') continue;
         const word = raw.trim().toUpperCase().replace(/\s+/g, ' ');
         if (!fitsShape(word, shape) || seen.has(word)) continue;
+        if (overrides?.extraFilter && !overrides.extraFilter(word)) continue;
         seen.add(word);
         words.push(word);
       }
@@ -125,6 +129,17 @@ ${CONTENT_RATING}
     []
   );
   return { words: value, source };
+}
+
+/** Lets a caller with rules the generic shape filter can't express — Wordle's
+ * "no plurals ending in S, no proper nouns" is the reason this exists — swap
+ * in its own bootstrap prompt and/or an extra post-parse filter, while still
+ * getting every bit of `fetchWords`'s pool-serving, top-up, and dedup logic
+ * for free. Both fields optional; a caller with only a generic shape needs
+ * neither. */
+export interface BootstrapOverrides {
+  buildPrompt?: (topic: string, count: number) => string;
+  extraFilter?: (word: string) => boolean;
 }
 
 /** The one entry point every game calls for an AI-picked word: read what's
@@ -141,7 +156,8 @@ export async function fetchWords(
   topicSlug: string,
   topic: string,
   shape: ShapeFilter,
-  count: number
+  count: number,
+  overrides?: BootstrapOverrides
 ): Promise<{ words: PoolWord[]; source: string | null }> {
   const poolRef = db.doc(`wordPool/${topicSlug}`);
   const usageRef = db.doc(`wordUsage/${game}-${topicSlug}`);
@@ -158,7 +174,8 @@ export async function fetchWords(
       providers,
       topic,
       shape,
-      DEFAULT_BOOTSTRAP_COUNT
+      DEFAULT_BOOTSTRAP_COUNT,
+      overrides
     );
     source = bootstrapSource;
     if (fresh.length > 0) {

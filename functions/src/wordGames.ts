@@ -208,6 +208,21 @@ ${CONTENT_RATING}
 
 // ------------------------------------------------------------- daily word
 
+/** The bootstrap prompt for topping up the shared Wordle pool
+ * (wordBank.ts's `fetchWords`) — this is the one caller with quality rules
+ * the generic shape filter can't express: a plural ending in S makes the
+ * last letter a giveaway, and a proper noun is a famously bad Wordle
+ * answer, neither of which "5 letters, no spaces" catches on its own. */
+export function buildWordleBootstrapPrompt(count: number): string {
+  return `Give me ${count} candidate answers for a Wordle-style puzzle played by a family.
+Rules:
+- Each must be exactly 5 letters, A-Z only, a single English word.
+- No proper nouns, no plurals ending in S, no abbreviations, no slang.
+- Vocabulary a 13-year-old would recognize — familiar words, nothing obscure or technical.
+${CONTENT_RATING}
+- Respond with ONLY a JSON array of uppercase words, nothing else. Example: ["CRANE","PLANT"]`;
+}
+
 /** Five-letter answers, avoiding any used recently. Returns every candidate
  * that survives validation — the daily word takes one, free play takes the
  * lot and plays through them, so a round of free play costs no request. */

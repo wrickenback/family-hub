@@ -18,7 +18,9 @@ export interface DailyWord {
   word: string;
   /** Whoever opened the game first today and so triggered the pick. */
   pickedByName: string | null;
-  source: 'gemini' | 'glm-flash' | 'haiku' | 'fallback';
+  // 'pool': served from the shared word bank, no model called this
+  // request — see WORD_BANK_PLAN.md §2/§3. The common case, not a fallback.
+  source: 'gemini' | 'glm-flash' | 'haiku' | 'pool' | 'fallback';
 }
 
 /** Today's family word. The answer is never readable from Firestore
@@ -42,7 +44,7 @@ export async function fetchDailyWord(dateKey: string): Promise<DailyWord> {
 
 export interface FreePlayWords {
   words: string[];
-  source: 'gemini' | 'glm-flash' | 'haiku' | 'fallback';
+  source: 'gemini' | 'glm-flash' | 'haiku' | 'pool' | 'fallback';
 }
 
 /** A batch of free-play answers. Returns an empty list (never throws) when
@@ -61,7 +63,10 @@ export async function fetchFreePlayWords(): Promise<FreePlayWords> {
         )
       : [];
     const source =
-      data.source === 'gemini' || data.source === 'glm-flash' || data.source === 'haiku'
+      data.source === 'gemini' ||
+      data.source === 'glm-flash' ||
+      data.source === 'haiku' ||
+      data.source === 'pool'
         ? data.source
         : 'fallback';
     return { words, source: words.length > 0 ? source : 'fallback' };
