@@ -415,16 +415,18 @@ export const getHangmanWord = onCall(
     // planned suggestion picker will have.
     await markUsed(db, 'hangman', category, [entry.word]);
 
-    if (entry.hint) {
-      return { word: entry.word, hint: entry.hint, category, source: fetchSource ?? 'pool' };
-    }
-
-    // First time this pool word has been drawn for hangman — word search
-    // never needed a clue for it, so write one now and cache it back onto
-    // the pool entry, for every future draw of this same word by any game.
-    const { value: clue, source: clueSource } = await generateHangmanHint(models(), entry.word);
-    const hint = clue?.hint ?? '';
+    // The word is the durable pool asset (models(), Gemini-first, above).
+    // The clue is deliberately NOT — it's regenerated fresh via the cheap
+    // chain on every single draw, cached word or not, so a word coming
+    // around a second time can land a different clue instead of always
+    // repeating whatever got cached the first time. This also means
+    // Gemini's scarce daily quota is never spent on a clue at all, only on
+    // filling the pool itself.
+    const { value: clue, source: clueSource } = await generateHangmanHint(routineModels(), entry.word);
+    let hint = clue?.hint ?? '';
     if (hint) {
+      // Refresh the cached copy too, purely as a fallback for the day this
+      // live call comes up empty — never a reason to skip generating fresh.
       try {
         await enrichPoolWord(db, category, entry.word, hint);
       } catch (err) {
@@ -434,8 +436,14 @@ export const getHangmanWord = onCall(
           error: err instanceof Error ? err.message : String(err),
         });
       }
+    } else if (entry.hint) {
+      // This draw's live clue call came up empty (provider hiccup, or this
+      // word just stumped it this time) — an earlier draw's cached clue
+      // beats no clue at all.
+      hint = entry.hint;
     }
-    return { word: entry.word, hint, category, source: clueSource ?? fetchSource ?? 'pool' };
+    const source = hint && clue?.hint ? clueSource ?? 'glm-flash' : fetchSource ?? 'pool';
+    return { word: entry.word, hint, category, source };
   }
 );
 

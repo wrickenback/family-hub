@@ -63,6 +63,12 @@ export function App() {
   const [countdowns, setCountdowns] = useState<FirestoreCountdown[]>([]);
   const [presence, setPresence] = useState<PresenceEntry[]>([]);
   const [loading, setLoading] = useState(true);
+  // Surfaces a manual recovery button if `loading` never resolves — an
+  // installed PWA has no browser chrome at all (no address bar, no
+  // pull-to-refresh on most platforms), so a stuck auth/profile check
+  // otherwise leaves someone with no way back in short of force-quitting
+  // the app and hoping. See the effect below for what the button does.
+  const [stuckLoading, setStuckLoading] = useState(false);
   const [stack, setStack] = useState<Route[]>(() =>
     parentChainFor(pathToRoute(window.location.pathname) ?? HOME)
   );
@@ -79,6 +85,42 @@ export function App() {
     }
     // Runs once on mount only — later navigation is handled by navigate()/back().
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // If auth/profile resolution hasn't finished after a generous window,
+  // assume something's actually stuck (a bad service-worker transition, a
+  // hung Firestore listener) rather than just a slow connection, and offer
+  // a way out. Cleared the moment loading actually resolves normally.
+  useEffect(() => {
+    if (!loading) {
+      setStuckLoading(false);
+      return;
+    }
+    const timer = window.setTimeout(() => setStuckLoading(true), 8000);
+    return () => window.clearTimeout(timer);
+  }, [loading]);
+
+  // The hard reset an installed PWA has no other way to trigger: drop every
+  // service worker registration and cache, then reload. A plain reload
+  // sometimes isn't enough mid-way through a service-worker transition —
+  // this is the equivalent of a browser's shift+reload, which isn't
+  // available at all in standalone/installed mode.
+  const handleHardReset = useCallback(async () => {
+    try {
+      if ('serviceWorker' in navigator) {
+        const registrations = await navigator.serviceWorker.getRegistrations();
+        await Promise.all(registrations.map((r) => r.unregister()));
+      }
+      if ('caches' in window) {
+        const keys = await caches.keys();
+        await Promise.all(keys.map((key) => caches.delete(key)));
+      }
+    } catch {
+      // Best-effort — reload regardless, since staying stuck is worse than
+      // an imperfect cleanup.
+    } finally {
+      window.location.reload();
+    }
   }, []);
 
   useEffect(() => {
@@ -217,6 +259,14 @@ export function App() {
     return (
       <div className="loading" role="status" aria-live="polite">
         Loading...
+        {stuckLoading && (
+          <div className="loading-stuck">
+            <p>Taking longer than usual.</p>
+            <button onClick={handleHardReset} className="btn btn-primary">
+              Reload app
+            </button>
+          </div>
+        )}
       </div>
     );
   }
