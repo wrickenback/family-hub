@@ -296,3 +296,110 @@ export function firstJson(text: string, opener: '[' | '{'): string | null {
   const match = text.match(opener === '[' ? /\[[\s\S]*\]/ : /\{[\s\S]*\}/);
   return match ? match[0] : null;
 }
+
+// ---------------------------------------------------------- openrouter
+
+/** OpenRouter reaches every vendor behind one key and one wire format, so
+ * a model swap is a string change here rather than a new SDK, new auth and
+ * new error handling in a new function.
+ *
+ * Deliberately plain `fetch` rather than the OpenAI SDK: the whole contract
+ * is one POST returning one string, Node 20 has fetch built in, and a
+ * dependency that exists to save twenty lines is a dependency that still
+ * has to be patched. */
+export function openRouterProvider(
+  apiKey: string,
+  model: string,
+  options: { name?: string; maxTokens?: number; reasoning?: 'low' | 'medium' | 'high' } = {}
+): ModelProvider {
+  // Always sent, never left to the model's default. The strong open-weight
+  // models are all reasoning models now, their reasoning tokens bill as
+  // output, and — the part that actually bites — they count against
+  // max_tokens. Left uncapped, GLM-5.3 spent all 1024 tokens thinking about
+  // a 20-word list and returned finish_reason=length with an empty string:
+  // a full-price call that parses as a failure. 'low' is the default
+  // because three of the four generators here are recall, not reasoning.
+  // The crossword asks for 'high' explicitly, which is the one place the
+  // thinking is the whole point.
+  const effort = options.reasoning ?? 'low';
+  return {
+    name: options.name ?? 'openrouter',
+    async complete(prompt) {
+      try {
+        const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${apiKey}`,
+            'Content-Type': 'application/json',
+            // Attribution headers. Not required, but they're what makes the
+            // OpenRouter activity page readable per-app instead of one
+            // undifferentiated pile of requests.
+            'HTTP-Referer': 'https://family-hub.web.app',
+            'X-Title': 'Family Hub',
+          },
+          body: JSON.stringify({
+            model,
+            messages: [{ role: 'user', content: prompt }],
+            // Headroom over the 1024 the Anthropic providers use: even at
+            // 'low' effort a reasoning model spends some of this budget
+            // before it writes anything, and running out mid-JSON is
+            // indistinguishable from a refusal by the time it reaches the
+            // parser.
+            max_tokens: options.maxTokens ?? 2048,
+            // Enforced per-request, not just in the account settings, so a
+            // setting flipped in the dashboard later can't quietly opt this
+            // app's traffic into a provider that trains on it. Costs an
+            // occasional routing option; worth it for a kids' app.
+            provider: { data_collection: 'deny' },
+            reasoning: { effort },
+          }),
+        });
+
+        if (!response.ok) {
+          const detail = await response.text().catch(() => '');
+          console.error(`${options.name ?? 'openrouter'}: request failed`, {
+            status: response.status,
+            model,
+            detail: detail.slice(0, 300),
+          });
+          return '';
+        }
+
+        const body = (await response.json()) as {
+          choices?: { message?: { content?: string }; finish_reason?: string }[];
+          error?: { message?: string };
+        };
+        // OpenRouter can return HTTP 200 with an error body when a
+        // downstream provider fails mid-route, so a status check alone
+        // isn't enough to call this a success.
+        if (body.error) {
+          console.error(`${options.name ?? 'openrouter'}: provider error`, {
+            model,
+            message: body.error.message,
+          });
+          return '';
+        }
+        const choice = body.choices?.[0];
+        const content = choice?.message?.content ?? '';
+        // Worth its own line: an empty response and a response that ran out
+        // of room are the same empty string to the caller, but they need
+        // opposite fixes — one is a refusal to retry past, the other is a
+        // budget to raise.
+        if (!content && choice?.finish_reason === 'length') {
+          console.warn(`${options.name ?? 'openrouter'}: truncated before any content`, {
+            model,
+            effort,
+            maxTokens: options.maxTokens ?? 2048,
+          });
+        }
+        return content;
+      } catch (err) {
+        console.error(`${options.name ?? 'openrouter'}: request failed`, {
+          model,
+          error: err instanceof Error ? err.message : String(err),
+        });
+        return '';
+      }
+    },
+  };
+}
