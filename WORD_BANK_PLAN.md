@@ -38,11 +38,32 @@ topic vocabulary", "Migrate solo Hangman"). Specifically done:
   called this request at all, which needed its own honest label rather
   than inheriting whichever provider answered a much earlier bootstrap).
 
+**Also done, later the same evening:**
+- Multiplayer hangman's suggestion-picker backend: `suggestHangmanWords`
+  (browse-only, no side effects) and `markHangmanSuggestionUsed` (the real
+  commit step) — both additive, both using the existing `fetchWords()` API
+  unchanged. Client helpers `fetchHangmanSuggestions`/
+  `markHangmanSuggestionUsed` added to `firestoreHangman.ts`. **The UI is
+  not built** — `HangmanOnline.tsx`'s `WordSetter` component still only
+  offers "write from scratch." Wiring a mode toggle + suggestion list +
+  load-more button into that component is the next step for this feature,
+  and the backend it needs already exists and works.
+- Investigated Bloom's migration and deliberately did NOT force it into
+  `wordBank.ts`'s existing `PoolWord` shape — see the new note in §3's Word
+  Bloom section below. This was a real finding, not a skip: Bloom needs a
+  different pool document shape entirely.
+- A Haiku subagent was mid-run testing `wordBank.ts` against the Firestore
+  emulator when this note was written — check for a `functions/testWordBank.js`
+  scratch file and this doc's own git history / the conversation for its
+  findings before assuming `wordBank.ts` is unverified. It may have found
+  and fixed small bugs; check `git diff` / `git log` on `wordBank.ts` for
+  anything after commit `4298649`.
+
 **Not done — pick up here:**
-- §3's multiplayer hangman suggestion feature (new UI + backend).
-- §3's Bloom and Wordle migrations onto the pool (check each game's actual
-  code before assuming hangman's shape transfers directly — flagged as a
-  real risk in §3 already).
+- §3's multiplayer hangman suggestion feature's UI (backend is done, see
+  above).
+- §3's Bloom and Wordle migrations onto the pool. Bloom specifically needs
+  design work first, not just implementation — see below.
 - §4's category-discovery UI.
 - §3.6's crossword rebuild (local CSP solver + filler bank + clue-writing
   call) — entirely unbuilt. The algorithm and bank-sizing numbers are
@@ -250,16 +271,39 @@ to `wordUsage`. Client work: likely lands in
 `ProviderSource` badge — check that file's current setter-flow UI before
 building, don't assume its shape.
 
-### Word Bloom — apply the same pattern
+### Word Bloom — needs its own pool shape, confirmed this session, not just a port of hangman's
 `getBloomPuzzle`'s base-word convergence (documented in its own code
 comment: GARDEN/DANGER recurring) is the same disease as hangman's, just
 observed live in this session too ("Word Bloom seems to be giving me the
-same results each time"). Same fix: base words served from a pool with
-per-game usage tracking, refilled the same way. Confirm what "category"
-means for Bloom before building — it may be keyed differently than a topic
-string (letter-set based, not topic based); read `bloomEngine.ts` and
-`bloomVocabulary.ts` first rather than assuming it maps 1:1 onto the hangman
-design.
+same results each time"). The FIX is the same principle (a persistent
+pool + usage tracking beats a live call every time), but **do not try to
+route this through `wordBank.ts`'s existing `fetchWords`/`PoolWord` as-is
+— checked this session and it doesn't fit:**
+
+- Hangman/word search pick ONE word (or several) from a category — a flat
+  list is the right shape, which is exactly what `PoolWord` is.
+- Bloom's model call does something structurally different: it invents a
+  6-7 letter base word **and derives its entire playable sub-word list in
+  the same response** (`generateBloomPuzzle` in `wordGames.ts` — read it).
+  The generated content isn't "a word from a list," it's a whole
+  self-contained puzzle object (`{ base, words: string[] }`), and every
+  `word` in that list has to actually be spellable from `base`'s letters —
+  an internal-consistency constraint `PoolWord`'s flat `{word, hint?}`
+  shape has no room for.
+- There's also no "category" or topic concept in Bloom at all today — it's
+  not per-topic, just "pick any good base word," which is arguably *why*
+  it converges (nothing anchors variety the way a topic does for hangman).
+
+**Recommended shape** (not built, this is the design to build against):
+a parallel, Bloom-specific pool — e.g. `bloomBasePool/{base}` holding
+`{ base, words: string[], addedBy }` per entry, with its own usage
+tracking (`bloomBaseUsage` or reuse the `wordUsage` collection with a
+`bloom-anywhere` key if a single global pool is fine, which it probably
+is given there's no topic to key by). Fetch/refill logic mirrors
+`wordBank.ts`'s principle — serve unused entries, bootstrap live when
+exhausted — but needs its own small module or a generalized second
+function in `wordBank.ts`, not a forced fit into `PoolWord`. Do this
+as real design work, not a quick port, when picking Bloom up.
 
 ### Wordle — apply the same pattern, both modes
 `getDailyWord` already has a 14-day avoid-list (same windowing weakness
