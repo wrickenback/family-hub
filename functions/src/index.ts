@@ -1140,3 +1140,78 @@ export const seedTopicPools = onRequest(
     res.json({ provider, done: !stoppedEarly && remaining === 0, seededTopics, seededWords, remaining });
   }
 );
+
+/** Ingests a word list from a source with no API integration here — a
+ * copy-pasted CSV from a web chat session with a frontier model, for
+ * instance, which sidesteps that model's API rate limits entirely (a
+ * claude.ai or Gemini web session runs on a completely separate quota
+ * from the API key our own Cloud Functions use). Runs the same
+ * relevance-check-then-seedPool pipeline every other source uses, so a
+ * hand-brought batch merges into the shared pool exactly like an
+ * automated one — `seedPool`'s arrayUnion doesn't know or care which
+ * source a word came from.
+ *
+ * Body: an array of `{ topic: string, words: string[] }`. No chunking or
+ * quota pacing here — whoever calls this already did that work by
+ * choosing how many topics to paste into one chat turn. */
+export const seedManualWords = onRequest(
+  {
+    region: 'us-central1',
+    secrets: [openRouterApiKey, seedTriggerKey],
+    timeoutSeconds: 300,
+  },
+  async (req, res) => {
+    if (req.get('x-seed-key') !== seedTriggerKey.value()) {
+      res.status(403).json({ error: 'forbidden' });
+      return;
+    }
+    const orKey = openRouterApiKey.value();
+    if (!orKey) {
+      res.status(500).json({ error: 'no OpenRouter key configured' });
+      return;
+    }
+    const glm = openRouterProvider(orKey, 'z-ai/glm-5.3-flash', { name: 'glm-flash' });
+
+    const body = req.body;
+    if (!Array.isArray(body)) {
+      res.status(400).json({ error: 'body must be an array of {topic, words}' });
+      return;
+    }
+
+    let seededTopics = 0;
+    let seededWords = 0;
+    const failed: string[] = [];
+
+    for (const entry of body) {
+      const topic = String((entry as { topic?: unknown })?.topic ?? '').trim();
+      const rawWords = (entry as { words?: unknown })?.words;
+      const words = Array.isArray(rawWords)
+        ? [
+            ...new Set(
+              rawWords
+                .filter((w): w is string => typeof w === 'string')
+                .map((w) => w.trim().toUpperCase())
+                .filter((w) => /^[A-Z]+$/.test(w))
+            ),
+          ]
+        : [];
+      if (!topic || words.length === 0) continue;
+
+      try {
+        const kept = await relevanceCheck(glm, topic, words);
+        const finalWords = kept.length > 0 ? kept : words;
+        await seedPool(db, slugify(topic), topic, finalWords, 'bootstrap');
+        seededTopics++;
+        seededWords += finalWords.length;
+      } catch (err) {
+        failed.push(topic);
+        console.error('seedManualWords: failed on a topic', {
+          topic,
+          error: err instanceof Error ? err.message : String(err),
+        });
+      }
+    }
+
+    res.json({ seededTopics, seededWords, failed });
+  }
+);
