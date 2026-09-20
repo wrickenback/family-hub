@@ -11,3 +11,5 @@ secrets/
 *.log
 .vscode/
 .idea/
+
+scratch/
