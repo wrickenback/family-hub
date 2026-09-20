@@ -452,3 +452,80 @@
   font-size: 0.85rem;
   overflow-wrap: anywhere;
 }
+
+/* --- Multiplayer setter: write-from-scratch vs pick-a-category --- */
+
+.hangman-mode-toggle {
+  display: flex;
+  gap: 0.5rem;
+  margin: 0.5rem 0 0.85rem;
+}
+
+.hangman-mode-btn {
+  flex: 1;
+  padding: 0.55rem 0.5rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  background: var(--sand-50);
+  border: 1px solid var(--sand-200);
+  border-radius: var(--radius-md);
+}
+
+.hangman-mode-btn.active {
+  background: var(--rust-soft);
+  border-color: var(--rust);
+  color: var(--rust);
+}
+
+.hangman-category-browser {
+  margin-bottom: 0.85rem;
+}
+
+.hangman-category-list-compact {
+  flex-direction: row;
+  flex-wrap: wrap;
+}
+
+.hangman-category-list-compact .hangman-category {
+  width: auto;
+  padding: 0.5rem 0.85rem;
+  font-size: 0.85rem;
+}
+
+.hangman-category.active {
+  background: var(--rust-soft);
+  border-color: var(--rust);
+  color: var(--rust);
+}
+
+.hangman-suggestion-list {
+  margin-top: 0.75rem;
+}
+
+.hangman-suggestion-chips {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.hangman-suggestion-chip {
+  padding: 0.45rem 0.75rem;
+  font-size: 0.85rem;
+  background: var(--sand-50);
+  border: 1px solid var(--sand-200);
+  border-radius: var(--radius-pill);
+}
+
+.hangman-suggestion-chip.active {
+  background: var(--rust);
+  border-color: var(--rust);
+  color: var(--sand-50);
+}
+
+.hangman-suggestion-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-top: 0.6rem;
+}

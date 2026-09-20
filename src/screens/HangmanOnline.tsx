@@ -8,6 +8,12 @@ import { IconSpinner } from '../components/icons';
 import {
   checkHangmanSpelling,
   fetchHangmanHint,
+  fetchHangmanSuggestions,
+  fetchHangmanCategories,
+  markHangmanSuggestionUsed,
+  HANGMAN_CATEGORIES,
+  type DiscoveredCategory,
+  type HangmanCategory,
 } from '../lib/firestoreHangman';
 import { ProviderBadge, type ProviderSource } from '../components/ProviderBadge';
 import {
@@ -321,6 +327,70 @@ function WordSetter({
    * spelling or by taking the correction, so they're never asked twice. */
   const accepted = useRef<Set<string>>(new Set());
 
+  /** "Write from scratch" (unchanged) or "pick a category" — the setter's
+   * alternative path, backed by the same shared word pool solo hangman and
+   * word search draw on. */
+  const [mode, setMode] = useState<'scratch' | 'category'>('scratch');
+  const [discovered, setDiscovered] = useState<DiscoveredCategory[]>([]);
+  const [activeCategory, setActiveCategory] = useState<HangmanCategory | null>(null);
+  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [suggestLoading, setSuggestLoading] = useState(false);
+  const [suggestSource, setSuggestSource] = useState<ProviderSource>(null);
+  /** The word currently in `text` because it was tapped from the
+   * suggestion list, and which category it came from — cleared the moment
+   * the setter edits the box by hand, so an edited suggestion doesn't
+   * wrongly mark the ORIGINAL suggestion used at save time. Only committing
+   * (Set the word) on an untouched suggestion calls markHangmanSuggestionUsed
+   * — browsing or loading more never should (see suggestHangmanWords). */
+  const [pickedSuggestion, setPickedSuggestion] = useState<{
+    category: HangmanCategory;
+    word: string;
+  } | null>(null);
+
+  useEffect(() => {
+    if (mode !== 'category') return;
+    let cancelled = false;
+    fetchHangmanCategories().then((categories) => {
+      if (!cancelled) setDiscovered(categories);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [mode]);
+
+  const pickCategory = async (category: HangmanCategory) => {
+    setActiveCategory(category);
+    setSuggestions([]);
+    setPickedSuggestion(null);
+    setSuggestLoading(true);
+    const result = await fetchHangmanSuggestions(category, 8);
+    setSuggestLoading(false);
+    setSuggestions(result.words);
+    setSuggestSource(result.words.length ? (result.source as ProviderSource) : null);
+  };
+
+  const loadMoreSuggestions = async () => {
+    if (!activeCategory) return;
+    setSuggestLoading(true);
+    const result = await fetchHangmanSuggestions(activeCategory, 8);
+    setSuggestLoading(false);
+    setSuggestions(result.words);
+    setSuggestSource(result.words.length ? (result.source as ProviderSource) : null);
+  };
+
+  const pickSuggestion = (word: string) => {
+    if (!activeCategory) return;
+    setText(word);
+    setSuggestion(null);
+    setPickedSuggestion({ category: activeCategory, word });
+    // A pool-sourced word is already real, common vocabulary — skip
+    // spell-checking it the way a from-scratch word needs, same reasoning
+    // as accepted.current elsewhere: don't ask the model a question whose
+    // answer is already known.
+    accepted.current.add(word);
+    checked.current.set(word, null);
+  };
+
   /** Lets the setter hand the clue-writing to the AI. It only runs on a
    * word that already passes validation, so it can't be asked to make sense
    * of half a typed word. */
@@ -357,6 +427,14 @@ function WordSetter({
     setSaving(true);
     try {
       await setHangmanWord(gameId, uid, word, hint.trim().slice(0, 60));
+      // Committing, not browsing — this is the one moment a suggestion
+      // actually gets marked used (see fetchHangmanSuggestions's own doc
+      // comment for why showing it must not). Only fires when the word
+      // being saved is still exactly the untouched suggestion that was
+      // tapped, not something edited afterward.
+      if (pickedSuggestion?.word === word) {
+        void markHangmanSuggestionUsed(pickedSuggestion.category, word);
+      }
     } catch {
       setProblem("That didn't save — try again.");
     } finally {
@@ -414,9 +492,92 @@ function WordSetter({
 
   const trimmedHint = hint.trim();
 
+  const pinnedIds = new Set(HANGMAN_CATEGORIES.map((c) => c.id));
+
   return (
     <form className="card hangman-setter" onSubmit={submit}>
       <span className="section-title">Set a word for {guesserName}</span>
+
+      <div className="hangman-mode-toggle">
+        <button
+          type="button"
+          className={`hangman-mode-btn ${mode === 'scratch' ? 'active' : ''}`}
+          onClick={() => setMode('scratch')}
+        >
+          Write my own
+        </button>
+        <button
+          type="button"
+          className={`hangman-mode-btn ${mode === 'category' ? 'active' : ''}`}
+          onClick={() => setMode('category')}
+        >
+          Pick a category
+        </button>
+      </div>
+
+      {mode === 'category' && (
+        <div className="hangman-category-browser">
+          <ul className="hangman-category-list hangman-category-list-compact">
+            {[...HANGMAN_CATEGORIES, ...discovered.filter((c) => !pinnedIds.has(c.slug)).map((c) => ({ id: c.slug, label: c.label }))].map(
+              (category) => (
+                <li key={category.id}>
+                  <button
+                    type="button"
+                    className={`hangman-category ${activeCategory?.id === category.id ? 'active' : ''}`}
+                    onClick={() => void pickCategory(category)}
+                  >
+                    {category.label}
+                  </button>
+                </li>
+              )
+            )}
+          </ul>
+
+          {activeCategory && (
+            <div className="hangman-suggestion-list">
+              {suggestLoading && suggestions.length === 0 ? (
+                <p className="hangman-setter-hint">Thinking of some options…</p>
+              ) : (
+                <>
+                  <ul className="hangman-suggestion-chips">
+                    {suggestions.map((word) => (
+                      <li key={word}>
+                        <button
+                          type="button"
+                          className={`hangman-suggestion-chip ${
+                            pickedSuggestion?.word === word ? 'active' : ''
+                          }`}
+                          onClick={() => pickSuggestion(word)}
+                        >
+                          {word}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                  <div className="hangman-suggestion-actions">
+                    <button
+                      type="button"
+                      className="btn btn-text"
+                      onClick={() => void loadMoreSuggestions()}
+                      disabled={suggestLoading}
+                    >
+                      {suggestLoading ? 'Loading…' : 'Load more'}
+                    </button>
+                    {suggestSource && <ProviderBadge source={suggestSource} />}
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+          {pickedSuggestion && (
+            <p className="hangman-setter-hint">
+              Picked <strong>{pickedSuggestion.word}</strong> — edit it below if you
+              want, or set it as is.
+            </p>
+          )}
+        </div>
+      )}
+
       <input
         type="text"
         className="hangman-input"
@@ -424,6 +585,7 @@ function WordSetter({
         onChange={(e) => {
           setText(e.target.value);
           setSuggestion(null);
+          setPickedSuggestion(null);
         }}
         placeholder="A word or short phrase"
         maxLength={24}
