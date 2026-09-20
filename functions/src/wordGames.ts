@@ -276,6 +276,7 @@ const VAGUE_CLUE_RULES = `- The clue must be genuinely tricky, not a dictionary 
 - Avoid close synonyms of the word or of its own category, and avoid its defining property — the one fact everyone lists first about it.
 - Write from a slant: a moment it turns up in, what it is mistaken for, what it leaves behind, how someone feels about it. Never "X is a Y that Zs".
 - Someone who already knows the answer should nod; someone who doesn't should need a real guess. If your clue would let a player name the answer without a single letter on the board, it is too obvious — write a different one.
+- Write at a middle-school reading level, roughly ages 10-15 — everyday words in the clue itself, nothing that needs vocabulary a kid that age wouldn't have. Being clever doesn't require being wordy.
 - Example: for PLATYPUS, "An egg-laying mammal with a duck bill" is too direct — prefer something like "Nature's idea of a practical joke."
 - Example: for ICE CREAM, "A frozen treat you eat in a cone" is too direct — prefer something like "Gone in five minutes on a hot afternoon."
 - Example: for LIGHTHOUSE, "A tower that warns ships" is too direct — prefer something like "Talks all night, only in one word."`;
@@ -370,8 +371,18 @@ export interface HangmanClue {
  * who writes their own clue and never taps Suggest at all. */
 export async function generateHangmanHint(
   providers: ModelProvider[],
-  word: string
+  word: string,
+  category?: string
 ): Promise<Generated<HangmanClue | null>> {
+  // Disambiguation only, never a hint to say out loud — a word chosen for
+  // "Sports" still has to have its SPORTS sense clued (OVERTIME as an extra
+  // period, not extra hours at work), but VAGUE_CLUE_RULES already (and
+  // correctly) forbids naming the category in the clue text itself, so this
+  // has to steer the model's pick of meaning without becoming something it
+  // repeats back.
+  const categoryLine = category
+    ? `\nThis word was chosen for the category "${category}". If it has more than one common meaning, write the clue for the one that fits that category — but never name or hint at the category itself in the clue text; that's a separate rule below and still applies.`
+    : '';
   // Asking for the obvious clue first is what actually moves the needle
   // here. Told only to "be vague", a model writes the dictionary definition
   // anyway — that phrasing is simply the likeliest continuation. Made to
@@ -379,7 +390,7 @@ export async function generateHangmanHint(
   // to move away from its own default, and the clue that comes back is the
   // second thought rather than the first. Costs nothing: one call either
   // way, and the obvious version is parsed out and thrown away.
-  const prompt = `Write a clue for a game of hangman. The answer is "${word}".
+  const prompt = `Write a clue for a game of hangman. The answer is "${word}".${categoryLine}
 Work in three steps:
 1. "correction": if "${word}" is a simple misspelling of one ordinary English word or phrase, the corrected spelling. Otherwise null. ${CORRECTION_RULES}
 2. "obvious": the plain, boring, dictionary-style clue most people would write for the answer.

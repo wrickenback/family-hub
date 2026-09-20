@@ -249,6 +249,13 @@ export function HangmanOnline({ uid, displayName, onBack }: Props) {
                     ? `Guessed with ${MAX_WRONG - wrongCount(word, guessed)} to spare`
                     : `${MAX_WRONG} wrong guesses — the figure is finished`}
                 </p>
+                {game.state?.hint && (
+                  // Shown after every round regardless of outcome, same as
+                  // solo hangman — the setter's clue reads differently once
+                  // you know the answer, and seeing both together is half
+                  // the fun of a good one.
+                  <p className="hangman-result-hint">Clue: {game.state.hint}</p>
+                )}
               </div>
             )}
           </>

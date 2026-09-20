@@ -422,7 +422,11 @@ export const getHangmanWord = onCall(
     // repeating whatever got cached the first time. This also means
     // Gemini's scarce daily quota is never spent on a clue at all, only on
     // filling the pool itself.
-    const { value: clue, source: clueSource } = await generateHangmanHint(routineModels(), entry.word);
+    const { value: clue, source: clueSource } = await generateHangmanHint(
+      routineModels(),
+      entry.word,
+      topic
+    );
     let hint = clue?.hint ?? '';
     if (hint) {
       // Refresh the cached copy too, purely as a fallback for the day this

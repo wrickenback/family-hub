@@ -180,6 +180,13 @@ export function HangmanGame({ uid, displayName, onBack }: Props) {
                   } to spare`
                 : `The word was ${word}`}
             </p>
+            {hint && (
+              // Shown after every round regardless of outcome — the clue
+              // read differently mid-guess than it does once you know the
+              // answer, and seeing both together is half the fun of a good
+              // one.
+              <p className="hangman-result-hint">Clue: {hint}</p>
+            )}
             <button
               className="btn btn-primary"
               onClick={() => startRound(category)}

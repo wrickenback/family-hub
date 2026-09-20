@@ -181,6 +181,13 @@
   color: var(--text-secondary);
 }
 
+.hangman-result-hint {
+  margin-top: 0.25rem;
+  font-size: 0.85rem;
+  font-style: italic;
+  color: var(--text-secondary);
+}
+
 .hangman-result .btn {
   margin-top: 0.85rem;
   width: 100%;
