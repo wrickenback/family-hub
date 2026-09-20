@@ -529,3 +529,29 @@
   gap: 0.6rem;
   margin-top: 0.6rem;
 }
+
+/* --- category picker: the shared 198-topic list, shown a few at a time --- */
+
+.hangman-category-group {
+  display: block;
+  margin: 0.9rem 0 0.4rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.hangman-category-list-chips {
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.hangman-category-chip {
+  width: auto;
+  padding: 0.5rem 0.8rem;
+  text-align: center;
+  font-size: 0.85rem;
+  border-radius: var(--radius-pill);
+}

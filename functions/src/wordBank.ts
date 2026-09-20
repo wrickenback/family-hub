@@ -87,6 +87,14 @@ async function bootstrap(
   const phraseLine = shape.allowPhrases
     ? 'Short phrases are fine where natural (e.g. "GOLDEN RETRIEVER"), or single words — whichever fits the topic better.'
     : 'Each must be a single unbroken token with no spaces — join multi-word names into one word, e.g. "GOLDENRETRIEVER" not "Golden Retriever".';
+  // Stating the range isn't enough on its own: asked for "5 to 10 letters"
+  // a model bunches everything at 6-8, and for hangman especially that
+  // makes every round feel like the same puzzle. Only worth saying when
+  // there's actually a range — the crossword asks for one exact length.
+  const spreadLine =
+    shape.minLen === shape.maxLen
+      ? ''
+      : `\n- Spread the lengths right across that range — about as many at ${shape.minLen} letters and at ${shape.maxLen} letters as in the middle. Don't bunch them all at one length.`;
   const prompt =
     overrides?.buildPrompt?.(topic, count) ??
     `Give me ${count} distinct words or short phrases for a family word game about "${topic}".
@@ -94,7 +102,7 @@ Rules:
 - If the topic itself is clearly inappropriate for a family app, respond with exactly: []
 ${CONTENT_RATING}
 - Letters A-Z only (spaces allowed only where noted below).
-- Each must be ${shape.minLen} to ${shape.maxLen} letters long, not counting spaces.
+- Each must be ${shape.minLen} to ${shape.maxLen} letters long, not counting spaces.${spreadLine}
 - ${phraseLine}
 - Common enough that a 13-year-old would recognize it, but cover the full range of the topic — not just the five most obvious picks.
 - Respond with ONLY a JSON array of uppercase strings, nothing else. Example: ["EXAMPLE","WORDS HERE"]`;

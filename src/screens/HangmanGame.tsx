@@ -4,12 +4,12 @@ import { HangmanBoard } from '../components/HangmanBoard';
 import { IconAlert, IconSpinner } from '../components/icons';
 import { ProviderBadge, type ProviderSource } from '../components/ProviderBadge';
 import {
-  HANGMAN_CATEGORIES,
   fetchHangmanWord,
   fetchHangmanCategories,
   type DiscoveredCategory,
   type HangmanCategory,
 } from '../lib/firestoreHangman';
+import { pickRandomTopics, wordSearchTopics } from '../lib/wordSearchTopics';
 import {
   MAX_WRONG,
   addGuess,
@@ -208,6 +208,20 @@ export function HangmanGame({ uid, displayName, onBack }: Props) {
   );
 }
 
+/** Display-only slug, used to dedupe "played before" against the shuffled
+ * ideas list and as a React key. Deliberately NOT sent to the server —
+ * `fetchHangmanWord` sends the topic text and the server derives the real
+ * slug with its own `slugify`, so this staying in sync doesn't affect
+ * which pool anything lands in. */
+function slugFor(topic: string): string {
+  return topic
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 60);
+}
+
 function CategoryPicker({
   onPick,
 }: {
@@ -215,7 +229,12 @@ function CategoryPicker({
 }) {
   const [discovered, setDiscovered] = useState<DiscoveredCategory[]>([]);
   const [customTopic, setCustomTopic] = useState('');
-  const pinnedIds = new Set(HANGMAN_CATEGORIES.map((c) => c.id));
+  // The same 198 curated topics Word Search offers, shown 8 at a time so
+  // the list doesn't become a wall of buttons. Sharing the list is the
+  // point: a topic played in either game stocks one shared pool, so the
+  // other game gets it instantly afterwards.
+  const [suggested, setSuggested] = useState(() => pickRandomTopics(8));
+  const shownSlugs = new Set(suggested.map(slugFor));
 
   useEffect(() => {
     let cancelled = false;
@@ -237,40 +256,57 @@ function CategoryPicker({
     onPick({ id: label, label });
   };
 
+  // Topics whose pool is already stocked answer instantly; everything else
+  // pays one live call to fill its bank the first time. Worth surfacing as
+  // its own row rather than mixed in, since it's the difference between an
+  // immediate word and a few seconds of waiting.
+  const readyNow = discovered.filter((c) => !shownSlugs.has(c.slug)).slice(0, 8);
+
   return (
     <div className="card hangman-categories">
       <span className="section-title">Pick a category</span>
       <p className="hangman-categories-note">
         A word gets picked for you, with a clue to go on.
       </p>
-      <ul className="hangman-category-list">
-        {HANGMAN_CATEGORIES.map((category) => (
-          <li key={category.id}>
+
+      {readyNow.length > 0 && (
+        <>
+          <span className="hangman-category-group">Played before</span>
+          <ul className="hangman-category-list hangman-category-list-chips">
+            {readyNow.map((c) => (
+              <li key={c.slug}>
+                <button
+                  className="hangman-category hangman-category-chip"
+                  onClick={() => onPick({ id: c.slug, label: c.label })}
+                >
+                  {c.label}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+
+      <span className="hangman-category-group">Ideas</span>
+      <ul className="hangman-category-list hangman-category-list-chips">
+        {suggested.map((topic) => (
+          <li key={topic}>
             <button
-              className="hangman-category"
-              onClick={() => onPick(category)}
+              className="hangman-category hangman-category-chip"
+              onClick={() => onPick({ id: slugFor(topic), label: topic })}
             >
-              {category.label}
+              {topic}
             </button>
           </li>
         ))}
-        {/* Topics your family has already explored in word search (or an
-            earlier hangman round) — never duplicating a pinned button even
-            if a topic happens to share its slug (e.g. someone word-searched
-            "Space"). */}
-        {discovered
-          .filter((c) => !pinnedIds.has(c.slug))
-          .map((c) => (
-            <li key={c.slug}>
-              <button
-                className="hangman-category hangman-category-discovered"
-                onClick={() => onPick({ id: c.slug, label: c.label })}
-              >
-                {c.label}
-              </button>
-            </li>
-          ))}
       </ul>
+      <button
+        className="btn btn-secondary hangman-wide-btn"
+        onClick={() => setSuggested((prev) => [...prev, ...pickRandomTopics(8)])}
+      >
+        Load more topics
+      </button>
+
       <form className="hangman-custom-category" onSubmit={submitCustom}>
         <input
           type="text"
@@ -283,6 +319,9 @@ function CategoryPicker({
           Go
         </button>
       </form>
+      <p className="hangman-categories-note">
+        {wordSearchTopics.length} topics, the same ones Word Search uses.
+      </p>
     </div>
   );
 }
