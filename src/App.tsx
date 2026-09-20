@@ -19,6 +19,10 @@ import {
   watchPresence,
   type PresenceEntry,
 } from './lib/presence';
+import {
+  activateWaitingServiceWorker,
+  onUpdateAvailable,
+} from './lib/swRegistration';
 import { AuthScreen } from './components/AuthScreen';
 import { UpdatePrompt } from './components/UpdatePrompt';
 import { Home } from './screens/Home';
@@ -214,44 +218,10 @@ export function App() {
 
   const back = useCallback(() => window.history.back(), []);
 
-  useEffect(() => {
-    if (!('serviceWorker' in navigator)) return;
-
-    navigator.serviceWorker.getRegistration().then((registration) => {
-      if (!registration) return;
-
-      registration.addEventListener('updatefound', () => {
-        const newWorker = registration.installing;
-        if (!newWorker) return;
-
-        newWorker.addEventListener('statechange', () => {
-          if (
-            newWorker.state === 'installed' &&
-            navigator.serviceWorker.controller
-          ) {
-            setUpdateAvailable(true);
-          }
-        });
-      });
-    });
-  }, []);
+  useEffect(() => onUpdateAvailable(() => setUpdateAvailable(true)), []);
 
   const handleUpdateNow = () => {
-    if (!('serviceWorker' in navigator)) return;
-
-    navigator.serviceWorker.getRegistration().then((registration) => {
-      if (!registration) return;
-
-      const worker = registration.installing || registration.waiting;
-      if (worker) {
-        worker.postMessage({ type: 'SKIP_WAITING' });
-      }
-
-      navigator.serviceWorker.addEventListener('controllerchange', () => {
-        setUpdateAvailable(false);
-        window.location.reload();
-      });
-    });
+    activateWaitingServiceWorker();
   };
 
   if (loading) {
