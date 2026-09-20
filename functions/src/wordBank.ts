@@ -126,36 +126,108 @@ ${CONTENT_RATING}
 - Common enough that a 13-year-old would recognize it, but cover the full range of the topic — not just the five most obvious picks.${avoidLine}
 - Respond with ONLY a JSON array of uppercase strings, nothing else. Example: ["EXAMPLE","WORDS HERE"]`;
 
-  const { value, source } = await generate<string[]>(
-    'wordBankBootstrap',
-    providers,
-    prompt,
-    (text) => {
-      const json = firstJson(text, '[');
-      if (!json) return [];
-      let parsed: unknown;
-      try {
-        parsed = JSON.parse(json);
-      } catch {
-        return [];
-      }
-      if (!Array.isArray(parsed)) return [];
-      const seen = new Set<string>();
-      const words: string[] = [];
-      for (const raw of parsed) {
-        if (typeof raw !== 'string') continue;
-        const word = raw.trim().toUpperCase().replace(/\s+/g, ' ');
-        if (!fitsShape(word, shape) || seen.has(word)) continue;
-        if (overrides?.extraFilter && !overrides.extraFilter(word)) continue;
-        seen.add(word);
-        words.push(word);
-      }
-      return words;
-    },
-    (words) => words.length === 0,
-    []
+  const parseResponse = (text: string): string[] => {
+    const json = firstJson(text, '[');
+    if (!json) return [];
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(json);
+    } catch {
+      return [];
+    }
+    if (!Array.isArray(parsed)) return [];
+    const seen = new Set<string>();
+    const words: string[] = [];
+    for (const raw of parsed) {
+      if (typeof raw !== 'string') continue;
+      const word = raw.trim().toUpperCase().replace(/\s+/g, ' ');
+      if (!fitsShape(word, shape) || seen.has(word)) continue;
+      if (overrides?.extraFilter && !overrides.extraFilter(word)) continue;
+      seen.add(word);
+      words.push(word);
+    }
+    return words;
+  };
+
+  // Every durable-chain provider runs in PARALLEL rather than as a
+  // sequential fallback — different models land on different words even
+  // from an identical prompt (measured repeatedly this session), and a
+  // bootstrap is rare enough and valuable enough (it stocks a pool every
+  // future request reads from, not just this one) that GLM Flash's
+  // negligible cost is worth spending on every refill, not only when
+  // Gemini happens to fail. Haiku is deliberately left out of this
+  // parallel run — it costs meaningfully more than GLM Flash for what
+  // would just be a second opinion on the common path — and kept below as
+  // a true last resort for the rare case both come back empty.
+  const durable = providers.filter((p) => p.name === 'gemini' || p.name === 'glm-flash');
+  const attempts = await Promise.all(
+    durable.map(async (p) => ({ name: p.name, words: parseResponse(await p.complete(prompt)) }))
   );
-  return { words: value, source };
+
+  const merged = new Map<string, string>();
+  for (const { name, words } of attempts) {
+    for (const word of words) if (!merged.has(word)) merged.set(word, name);
+  }
+
+  if (merged.size === 0) {
+    const haiku = providers.find((p) => p.name === 'haiku');
+    const words = haiku ? parseResponse(await haiku.complete(prompt)) : [];
+    return { words, source: words.length > 0 ? 'haiku' : null };
+  }
+
+  // One representative source for the badge — which provider "answered"
+  // means less once results are always merged, but Gemini's presence is
+  // the fact worth surfacing, since it's the scarce resource.
+  const contributed = new Set(attempts.filter((a) => a.words.length > 0).map((a) => a.name));
+  const source = contributed.has('gemini') ? 'gemini' : contributed.has('glm-flash') ? 'glm-flash' : null;
+
+  let words = [...merged.keys()];
+
+  // A cheap, fail-open relevance pass over the merged list, catching what
+  // the shape filter can't: an off-topic or barely-related word two
+  // models both happened to produce. Only runs if GLM Flash is actually
+  // available — reusing the same provider instance already in `providers`
+  // rather than requiring a new parameter — and NEVER shrinks the list to
+  // nothing on its own: an over-eager filter that empties a refill is a
+  // worse outcome than a few weak words slipping through, which is
+  // exactly the failure this session already measured once before.
+  const glm = providers.find((p) => p.name === 'glm-flash');
+  if (glm) {
+    const checked = await relevanceCheck(glm, topic, words);
+    if (checked.length > 0) words = checked;
+  }
+
+  return { words, source };
+}
+
+/** Fails open by construction: an error, an unparseable response, or a
+ * response that would reject most of the list all fall through to
+ * keeping every word bootstrap already found. Rejecting a whole batch
+ * reads far more often as a parsing hiccup or an overcautious model than
+ * as every single word actually being wrong. */
+async function relevanceCheck(glm: ModelProvider, topic: string, words: string[]): Promise<string[]> {
+  const prompt = `Here is a candidate word list for the topic "${topic}", for a family word game:
+${words.join(', ')}
+
+Which of these are a genuine fit — real words actually related to that topic, appropriate for a family app? Keep anything plausible; only drop something clearly wrong or unrelated.
+
+Respond with ONLY a JSON array of the words to KEEP, spelled exactly as above, nothing else.`;
+
+  try {
+    const text = await glm.complete(prompt);
+    const json = firstJson(text, '[');
+    if (!json) return [];
+    const parsed = JSON.parse(json);
+    if (!Array.isArray(parsed)) return [];
+    const valid = new Set(words);
+    const kept = parsed.filter((w): w is string => typeof w === 'string' && valid.has(w));
+    // A check that would throw away more than half the list is more
+    // likely unreliable than the list being mostly bad — treat that as a
+    // failure too, not a real filter result.
+    return kept.length >= words.length / 2 ? kept : [];
+  } catch {
+    return [];
+  }
 }
 
 /** Lets a caller with rules the generic shape filter can't express — Wordle's
@@ -217,6 +289,19 @@ export async function fetchWords(
         (w) => fitsShape(w.word, shape) && !used.has(w.word)
       );
     }
+  }
+
+  // The topic is genuinely played out for THIS game: every word already
+  // served, and the refill above (if one fired) turned up nothing new — a
+  // stumped prompt, or a topic whose vocabulary the model has already
+  // exhausted. Reopening just this game's usage means the family replays
+  // a topic they clearly like rather than dropping to the bundled
+  // fallback, which is a worse outcome than a repeat from weeks back.
+  // Scoped to this one game/topic pair — another game sharing the same
+  // pool keeps its own progress untouched.
+  if (available.length === 0 && poolWords.length > 0) {
+    await usageRef.set({ used: [] });
+    available = poolWords.filter((w) => fitsShape(w.word, shape));
   }
 
   const picked = available
