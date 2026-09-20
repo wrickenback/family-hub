@@ -376,16 +376,17 @@ export const getHangmanWord = onCall(
   async (request) => {
     await requireFamilyMember(request);
 
-    const category = String(request.data?.category ?? 'anything').trim();
-    // Widened from the original [a-z]{1,20} (the five fixed buttons' ids)
-    // to match slugify()'s actual output — this doubles as a wordPool
-    // topicSlug now, and word search's topics can contain digits and
-    // hyphens once they're categories too, per WORD_BANK_PLAN.md §4.
-    if (!/^[a-z0-9-]{1,60}$/.test(category)) {
-      throw new HttpsError('invalid-argument', 'Unknown category.');
+    // Free text, exactly like word search's own topic field (§4) — the
+    // slug is derived here, server-side, via the same slugify() word search
+    // uses, rather than trusting the client to compute one. Two players
+    // typing "Ancient Rome" and "ancient rome!" have to land on the same
+    // topicSlug for the pools to actually be shared; only one slugify
+    // implementation existing at all guarantees that.
+    const topic = String(request.data?.topic ?? 'Anything at all').trim().slice(0, 60);
+    if (!topic) {
+      throw new HttpsError('invalid-argument', 'Give a category or topic.');
     }
-    const label = String(request.data?.label ?? category).trim().slice(0, 40);
-    const topic = label || category;
+    const category = slugify(topic) || 'anything';
 
     const { words: picked, source: fetchSource } = await fetchWords(
       db,
@@ -468,11 +469,13 @@ export const suggestHangmanWords = onCall(
   async (request) => {
     await requireFamilyMember(request);
 
-    const category = String(request.data?.category ?? '').trim();
-    if (!/^[a-z0-9-]{1,60}$/.test(category)) {
-      throw new HttpsError('invalid-argument', 'Unknown category.');
+    // Same free-text-in, server-slugifies contract as getHangmanWord above
+    // — see its comment for why the client never computes the slug itself.
+    const topic = String(request.data?.topic ?? '').trim().slice(0, 60);
+    if (!topic) {
+      throw new HttpsError('invalid-argument', 'Give a category or topic.');
     }
-    const label = String(request.data?.label ?? category).trim().slice(0, 60);
+    const category = slugify(topic) || 'anything';
     const requested = Number(request.data?.count ?? 8);
     const count = Number.isFinite(requested) ? Math.min(Math.max(Math.trunc(requested), 1), 12) : 8;
 
@@ -481,12 +484,54 @@ export const suggestHangmanWords = onCall(
       models(),
       'hangman',
       category,
-      label || category,
+      topic,
       { minLen: 5, maxLen: 18, allowPhrases: true },
       count
     );
 
-    return { words: picked.map((entry) => entry.word), category, source: source ?? 'pool' };
+    return { words: picked.map((entry) => entry.word), category, topic, source: source ?? 'pool' };
+  }
+);
+
+// Pools that exist for internal, non-topic reasons rather than because a
+// family typed a real category — offering these back as a hangman category
+// choice would be nonsensical (nobody wants to "pick a category" and get
+// Wordle's flat 5-letter vocabulary). Grows if a similar flat pool ever
+// lands in wordPool rather than its own collection.
+const NON_CATEGORY_POOL_SLUGS = new Set(['wordle']);
+
+/** Topics worth offering as a hangman category beyond the pinned defaults —
+ * anything already in the shared pool with enough vocabulary to support a
+ * round, most recent first. Read-only, no model call, cheap: this is what
+ * lets word search's topics (and any hangman category played before)
+ * surface back as a pickable option instead of being typed again from
+ * scratch (WORD_BANK_PLAN.md §4). */
+export const listHangmanCategories = onCall(
+  { region: 'us-central1', secrets: [] },
+  async (request) => {
+    await requireFamilyMember(request);
+
+    const snap = await db.collection('wordPool').orderBy('createdAt', 'desc').limit(30).get();
+    const categories = snap.docs
+      .filter((doc) => !NON_CATEGORY_POOL_SLUGS.has(doc.id))
+      .map((doc) => {
+        const data = doc.data();
+        const words = (data.words as { word?: unknown }[] | undefined) ?? [];
+        // Hangman's own shape (5-10 letters, no phrases) — a topic whose
+        // words are all too short/long or all phrases isn't a usable
+        // hangman category yet even if it's a fine word-search topic.
+        const usable = words.filter(
+          (w) => typeof w.word === 'string' && /^[A-Z]{5,10}$/.test(w.word)
+        ).length;
+        return {
+          slug: doc.id,
+          label: typeof data.topic === 'string' ? data.topic : doc.id,
+          wordCount: usable,
+        };
+      })
+      .filter((c) => c.wordCount >= 5);
+
+    return { categories };
   }
 );
 

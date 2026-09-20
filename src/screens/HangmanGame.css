@@ -232,6 +232,24 @@
   color: var(--rust);
 }
 
+.hangman-category-discovered {
+  border-style: dashed;
+}
+
+.hangman-custom-category {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.85rem;
+}
+
+.hangman-custom-category input {
+  flex: 1;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--sand-200);
+  border-radius: var(--radius-md);
+  font-size: 0.9rem;
+}
+
 .hangman-scorebar {
   width: 100%;
   display: flex;

@@ -19,6 +19,40 @@ export const HANGMAN_CATEGORIES: HangmanCategory[] = [
   { id: 'anything', label: 'Anything at all' },
 ];
 
+/** A category discovered from the shared word pool — most often a topic
+ * someone already typed into word search, or an earlier hangman category
+ * that's already stocked. Offered alongside `HANGMAN_CATEGORIES`' pinned
+ * defaults, never instead of them. */
+export interface DiscoveredCategory {
+  slug: string;
+  label: string;
+  wordCount: number;
+}
+
+/** Read-only, no model call — lists topics worth offering as a hangman
+ * category beyond the pinned defaults (WORD_BANK_PLAN.md §4). Failing soft
+ * to an empty list on any error: this is a nice-to-have, and the pinned
+ * categories plus typing a custom one both still work regardless. */
+export async function fetchHangmanCategories(): Promise<DiscoveredCategory[]> {
+  if (!functions) return [];
+  try {
+    const call = httpsCallable(functions, 'listHangmanCategories');
+    const result = await call({});
+    const data = result.data as { categories?: unknown };
+    if (!Array.isArray(data.categories)) return [];
+    return data.categories.filter(
+      (c): c is DiscoveredCategory =>
+        !!c &&
+        typeof c === 'object' &&
+        typeof (c as DiscoveredCategory).slug === 'string' &&
+        typeof (c as DiscoveredCategory).label === 'string' &&
+        typeof (c as DiscoveredCategory).wordCount === 'number'
+    );
+  } catch {
+    return [];
+  }
+}
+
 export interface HangmanWord {
   word: string;
   hint: string;
@@ -45,11 +79,11 @@ export async function fetchHangmanWord(
   if (!functions) throw new Error('Firebase is not configured');
   const call = httpsCallable(functions, 'getHangmanWord');
   try {
-    const result = await call({
-      category: category.id,
-      label: category.label,
-      avoid,
-    });
+    // Sends the free-text label as `topic`, same shape word search uses —
+    // the server derives the slug itself (slugify()), so a category
+    // discovered from word search's own topics or typed fresh here always
+    // lands on the identical pool no matter which screen created it.
+    const result = await call({ topic: category.label, avoid });
     return result.data as HangmanWord;
   } catch (err) {
     const message =
@@ -78,7 +112,7 @@ export async function fetchHangmanSuggestions(
   if (!functions) return { words: [], category: category.id, source: 'fallback' };
   try {
     const call = httpsCallable(functions, 'suggestHangmanWords');
-    const result = await call({ category: category.id, label: category.label, count });
+    const result = await call({ topic: category.label, count });
     const data = result.data as { words?: unknown; category?: unknown; source?: unknown };
     const words = Array.isArray(data.words)
       ? data.words.filter((w): w is string => typeof w === 'string')

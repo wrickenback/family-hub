@@ -6,6 +6,8 @@ import { ProviderBadge, type ProviderSource } from '../components/ProviderBadge'
 import {
   HANGMAN_CATEGORIES,
   fetchHangmanWord,
+  fetchHangmanCategories,
+  type DiscoveredCategory,
   type HangmanCategory,
 } from '../lib/firestoreHangman';
 import {
@@ -211,6 +213,30 @@ function CategoryPicker({
 }: {
   onPick: (category: HangmanCategory) => void;
 }) {
+  const [discovered, setDiscovered] = useState<DiscoveredCategory[]>([]);
+  const [customTopic, setCustomTopic] = useState('');
+  const pinnedIds = new Set(HANGMAN_CATEGORIES.map((c) => c.id));
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchHangmanCategories().then((categories) => {
+      if (!cancelled) setDiscovered(categories);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const submitCustom = (e: React.FormEvent) => {
+    e.preventDefault();
+    const label = customTopic.trim();
+    if (!label) return;
+    // No client-side slug — the server derives it the same way word
+    // search's topics do, so typing "Ancient Rome" here lands on the exact
+    // same pool as typing it into word search first.
+    onPick({ id: label, label });
+  };
+
   return (
     <div className="card hangman-categories">
       <span className="section-title">Pick a category</span>
@@ -228,7 +254,35 @@ function CategoryPicker({
             </button>
           </li>
         ))}
+        {/* Topics your family has already explored in word search (or an
+            earlier hangman round) — never duplicating a pinned button even
+            if a topic happens to share its slug (e.g. someone word-searched
+            "Space"). */}
+        {discovered
+          .filter((c) => !pinnedIds.has(c.slug))
+          .map((c) => (
+            <li key={c.slug}>
+              <button
+                className="hangman-category hangman-category-discovered"
+                onClick={() => onPick({ id: c.slug, label: c.label })}
+              >
+                {c.label}
+              </button>
+            </li>
+          ))}
       </ul>
+      <form className="hangman-custom-category" onSubmit={submitCustom}>
+        <input
+          type="text"
+          value={customTopic}
+          onChange={(e) => setCustomTopic(e.target.value)}
+          placeholder="Or type your own topic…"
+          maxLength={60}
+        />
+        <button type="submit" className="btn btn-text" disabled={!customTopic.trim()}>
+          Go
+        </button>
+      </form>
     </div>
   );
 }
