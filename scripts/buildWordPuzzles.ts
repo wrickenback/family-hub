@@ -17,6 +17,8 @@ import {
   BLOOM_BASES,
   FIVE_LETTER_EXTRA,
   FOUR_LETTER,
+  SEVEN_LETTER,
+  SIX_LETTER,
   THREE_LETTER,
 } from './wordPool';
 import { WORDLE_ANSWERS } from '../src/lib/wordleWords';
@@ -28,6 +30,10 @@ const FOUR = dedupe(FOUR_LETTER).filter((w) => w.length === 4);
 const FIVE = dedupe([...WORDLE_ANSWERS, ...FIVE_LETTER_EXTRA]).filter(
   (w) => w.length === 5
 );
+// Bloom-only (see SIX_LETTER/SEVEN_LETTER's own doc comment in wordPool.ts)
+// — kept out of BY_LENGTH below, since the crossword only ever wants 3-5.
+const SIX = dedupe(SIX_LETTER).filter((w) => w.length === 6);
+const SEVEN = dedupe(SEVEN_LETTER).filter((w) => w.length === 7);
 
 // ------------------------------------------------------------- word bloom
 
@@ -43,7 +49,7 @@ function spellableFrom(word: string, base: string): boolean {
 }
 
 function buildBloomPacks() {
-  const pool = [...THREE, ...FOUR, ...FIVE];
+  const pool = [...THREE, ...FOUR, ...FIVE, ...SIX, ...SEVEN];
   const packs: { base: string; words: string[] }[] = [];
 
   for (const raw of BLOOM_BASES) {
@@ -403,7 +409,7 @@ const vocabularyFile = `/** The vetted Word Bloom vocabulary, shared with the bu
  * list can't sneak SCREE or OTIC into a family game. */
 
 export const BLOOM_VOCABULARY: string[] = ${JSON.stringify(
-  [...THREE, ...FOUR, ...FIVE].sort(
+  [...THREE, ...FOUR, ...FIVE, ...SIX, ...SEVEN].sort(
     (a, b) => a.length - b.length || a.localeCompare(b)
   )
 )};
@@ -414,7 +420,7 @@ writeFileSync(
   vocabularyFile
 );
 console.log(
-  `bloom vocabulary: ${THREE.length + FOUR.length + FIVE.length} words`
+  `bloom vocabulary: ${THREE.length + FOUR.length + FIVE.length + SIX.length + SEVEN.length} words`
 );
 
 const wordCounts = packs.map((p) => p.words.length);

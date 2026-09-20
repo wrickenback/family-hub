@@ -203,7 +203,8 @@ export const BLOOM_PACKS: BloomPack[] = [
       "RACE",
       "REAL",
       "CLEAR",
-      "CELLAR"
+      "CELLAR",
+      "RECALL"
     ]
   },
   {
@@ -440,6 +441,7 @@ export const BLOOM_PACKS: BloomPack[] = [
       "GRADE",
       "GRAND",
       "RANGE",
+      "DANGER",
       "GARDEN"
     ]
   },
@@ -525,6 +527,9 @@ export const BLOOM_PACKS: BloomPack[] = [
       "TEARS",
       "TERMS",
       "TRASH",
+      "HEARTS",
+      "MASTER",
+      "STREAM",
       "HAMSTER"
     ]
   },
@@ -574,6 +579,7 @@ export const BLOOM_PACKS: BloomPack[] = [
       "STARE",
       "TEARS",
       "TRASH",
+      "HEARTS",
       "HARVEST"
     ]
   },
@@ -718,6 +724,7 @@ export const BLOOM_PACKS: BloomPack[] = [
       "ALTER",
       "LATER",
       "LEARN",
+      "RENTAL",
       "LANTERN"
     ]
   },
@@ -745,7 +752,8 @@ export const BLOOM_PACKS: BloomPack[] = [
       "TILE",
       "LINES",
       "TILES",
-      "LISTEN"
+      "LISTEN",
+      "SILENT"
     ]
   },
   {
@@ -838,6 +846,7 @@ export const BLOOM_PACKS: BloomPack[] = [
       "STORM",
       "TERMS",
       "TONES",
+      "MENTOR",
       "MONSTER"
     ]
   },
@@ -1274,6 +1283,7 @@ export const BLOOM_PACKS: BloomPack[] = [
       "RESTS",
       "RISES",
       "SITES",
+      "RESIST",
       "SISTER"
     ]
   },
@@ -1391,7 +1401,8 @@ export const BLOOM_PACKS: BloomPack[] = [
       "STALE",
       "TABLE",
       "TALES",
-      "STABLE"
+      "STABLE",
+      "TABLES"
     ]
   },
   {
@@ -1536,7 +1547,8 @@ export const BLOOM_PACKS: BloomPack[] = [
       "WEAN",
       "WEAR",
       "DRAWN",
-      "WANDER"
+      "WANDER",
+      "WARNED"
     ]
   },
   {
