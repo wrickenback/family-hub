@@ -1,8 +1,9 @@
 import * as functions from 'firebase-functions';
 import * as admin from 'firebase-admin';
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
+import { onSchedule } from 'firebase-functions/v2/scheduler';
 import { defineSecret } from 'firebase-functions/params';
-import { providersFrom, routineProvidersFrom } from './providers';
+import { providersFrom, routineProvidersFrom, geminiProvider } from './providers';
 import {
   MIN_TOPIC_WORDS,
   fallbackDailyWord,
@@ -16,7 +17,16 @@ import {
   buildCrosswordFillerPrompt,
 } from './wordGames';
 import { buildWordSearchGrid, type Difficulty } from './wordSearchGrid';
-import { seedPool, fetchWords, markUsed, enrichPoolWord, type BootstrapOverrides } from './wordBank';
+import {
+  seedPool,
+  fetchWords,
+  markUsed,
+  enrichPoolWord,
+  bootstrapTopicChunk,
+  topicsNeedingSeed,
+  type BootstrapOverrides,
+} from './wordBank';
+import { SEED_TOPICS } from './seedTopics';
 import { fetchBloomPuzzle, markBloomBaseUsed } from './bloomBank';
 import { solveCrossword, buildGrid } from './crosswordSolver';
 
@@ -942,3 +952,95 @@ export const sweepStaleGames = functions
     functions.logger.info(`Swept ${toDelete.length} stale games from RTDB`);
     return null;
   });
+
+/** Stocks the shared word pools for the curated topic list, a chunk of
+ * topics per model request, overnight.
+ *
+ * Why scheduled rather than a button: the Gemini free tier bills by
+ * REQUEST (20/day on the flagship), not by tokens, so the whole job is
+ * quota-bound rather than cost-bound. Batching ~15 topics into one request
+ * turns what would be 197 separate calls — ten days of quota — into about
+ * 14, which fits in a single night with room to spare for actual play.
+ *
+ * Deliberately Gemini-ONLY, not the usual chain. If the day's quota is
+ * gone, the right answer is to stop and pick up tomorrow, not to quietly
+ * fall through to a paid provider for a background backfill nobody is
+ * waiting on. Any failed chunk ends the run for the night.
+ *
+ * Safely repeatable: it re-reads which pools are still short each time, so
+ * a partial night simply resumes, and once everything is stocked the run
+ * costs a handful of Firestore reads and no model calls at all. */
+export const seedTopicPools = onSchedule(
+  {
+    region: 'us-central1',
+    schedule: 'every day 04:00',
+    timeZone: 'America/New_York',
+    secrets: [geminiApiKey],
+    timeoutSeconds: 540,
+    memory: '512MiB',
+  },
+  async () => {
+    const key = geminiApiKey.value();
+    if (!key) {
+      console.error('seedTopicPools: no Gemini key configured');
+      return;
+    }
+
+    const pending = await topicsNeedingSeed(db, SEED_TOPICS, slugify);
+    if (pending.length === 0) {
+      console.info('seedTopicPools: every topic already stocked, nothing to do');
+      return;
+    }
+
+    // Leaves headroom in the day's 20 for the games themselves, which also
+    // draw on Gemini first for anything that fills a durable pool.
+    const MAX_CHUNKS_PER_RUN = 14;
+    const TOPICS_PER_CHUNK = 15;
+    // 3-10 letters serves both readers of these pools: word search takes
+    // 3-10, hangman filters the same pool down to 5-10 at read time.
+    const shape = { minLen: 3, maxLen: 10, allowPhrases: false };
+
+    let seededTopics = 0;
+    let seededWords = 0;
+    let chunks = 0;
+
+    for (let i = 0; i < pending.length && chunks < MAX_CHUNKS_PER_RUN; i += TOPICS_PER_CHUNK) {
+      const batch = pending.slice(i, i + TOPICS_PER_CHUNK);
+      chunks++;
+
+      const { byTopic } = await bootstrapTopicChunk([geminiProvider(key)], batch, shape);
+      if (byTopic.size === 0) {
+        // Almost always the daily quota. Either way there's no point
+        // burning the rest of the run on a provider that just failed —
+        // tomorrow's run picks up exactly where this left off.
+        console.warn('seedTopicPools: chunk came back empty, stopping for tonight', {
+          chunkIndex: chunks,
+          topicsInChunk: batch.length,
+          seededSoFar: seededTopics,
+        });
+        break;
+      }
+
+      for (const [topic, words] of byTopic) {
+        try {
+          await seedPool(db, slugify(topic), topic, words, 'bootstrap');
+          seededTopics++;
+          seededWords += words.length;
+        } catch (err) {
+          console.error('seedTopicPools: failed writing a pool', {
+            topic,
+            error: err instanceof Error ? err.message : String(err),
+          });
+        }
+      }
+    }
+
+    console.info('seedTopicPools: run complete', {
+      pendingAtStart: pending.length,
+      chunksUsed: chunks,
+      topicsSeeded: seededTopics,
+      wordsSeeded: seededWords,
+      stillPending: Math.max(pending.length - seededTopics, 0),
+    });
+  }
+);
