@@ -78,24 +78,70 @@ topic vocabulary", "Migrate solo Hangman"). Specifically done:
   user's explicit choice after the local emulator turned out to need Java
   21+ (not installed on this machine).
 
-**Not done — pick up here:**
-- §3's multiplayer hangman suggestion feature's UI (backend is done, see
-  above).
-- §3's Bloom migration onto the pool. Needs design work first, not just
-  implementation — see below.
-- §4's category-discovery UI.
-- §3.6's crossword rebuild (local CSP solver + filler bank + clue-writing
-  call) — entirely unbuilt. The algorithm and bank-sizing numbers are
-  documented in §3.6 from real measurements, but no code for it exists in
-  the repo yet; it only ever ran in this session's scratchpad.
-- `sonnetProvider`/`deepProvidersFrom` and `getMiniCrossword`'s
-  `timeoutSeconds: 180` are still in place, deliberately — removing them
-  before the crossword rebuild replaces their caller would break the
-  crossword entirely. Don't touch them until §3.6 ships.
-- Manual/integration testing: none of this has been run against a real
-  Firebase emulator or deployed project this session, only `tsc --noEmit`
-  and `npm run build`. Test `generateWordSearchPuzzle` and `getHangmanWord`
-  for real before assuming they work end-to-end.
+**Session complete as of 2026-09-19 night — every item that was on this
+list is now done:**
+
+- Multiplayer hangman's suggestion UI is built (mode toggle, category
+  buttons, suggestion chips, load more) in `HangmanOnline.tsx`'s
+  `WordSetter`, on top of the backend that already existed.
+- Bloom is migrated — via its own module (`bloomBank.ts`), not forced into
+  `wordBank.ts`'s shape. See the rewritten §3 Word Bloom section below for
+  why that module exists instead of a `fetchWords` call.
+- Category discovery shipped: a new `listHangmanCategories` callable
+  surfaces word search's topics as pickable hangman categories, in both
+  solo (`HangmanGame.tsx`) and multiplayer. `getHangmanWord` and
+  `suggestHangmanWords` were also unified onto word search's own
+  free-text-topic contract (server derives the slug via `slugify()`,
+  client never guesses at one) — this was a real correctness fix, not
+  just cleanup, since two players typing the same topic differently need
+  to land on the identical pool.
+- The crossword is rebuilt: `crosswordSolver.ts` is a new, self-contained
+  MRV + forward-checking backtracker, **validated directly against real
+  word data before being wired in** (30/30 solves, sample output checked
+  for correct crossings — not just typechecked). `getMiniCrossword` now
+  fetches filler candidates from the shared pool by length, solves
+  locally, then makes one batched call for clues only. See the rewritten
+  §3.6 below for the full design as actually built.
+- `sonnetProvider`, `deepProvidersFrom`, `SONNET_MODEL`, and
+  `getMiniCrossword`'s `timeoutSeconds: 180` are deleted — nothing calls
+  them anymore, and the new pipeline never runs long enough to need a
+  longer timeout.
+- The model chain was also split properly (not in the original plan,
+  came from user feedback mid-session): `providersFrom` (Gemini first) is
+  now reserved for calls that fill something durable — a pool, a cached
+  clue, a shared daily doc — and a new `routineProvidersFrom` (GLM Flash
+  first, no Gemini at all) serves one-off calls that are never cached
+  (`getHangmanHint`, `checkHangmanWord`). Getting this split wrong in the
+  direction of using the durable chain too often is exactly how a
+  20-requests/day free tier gets burned on disposable calls instead of
+  the bank-filling ones it's meant for.
+- Hangman's clue generation itself changed too: it's now **always**
+  regenerated fresh via the cheap chain on every draw, word cached or
+  not — not written once and served from cache forever — so a repeated
+  word can land a different clue, and it also now receives the category
+  as disambiguation context (OVERTIME under Sports no longer gets clued
+  for the workplace sense) plus an explicit middle-school reading-level
+  target. All three came from real play feedback, not speculation.
+
+**What's genuinely still open, all explicitly optional / deferred, not
+missed:**
+- Proactive low-water-mark pool refill (topping a pool up before it hits
+  zero, rather than only when a request comes up short). The plan named
+  15 as a plausible threshold but never committed to it; current
+  behavior (reactive-only) is correct, just not as smooth. Nobody has
+  been blocked by this.
+- End-to-end integration testing for the crossword's FULL callable
+  (fetchWords × 3 + solve + clue-gen + the Firestore create()-race
+  path) hasn't happened outside of a live deploy — the solver itself was
+  independently verified against real data (30/30), and every other
+  piece it's built from (fetchWords, the create()-race pattern) was
+  already proven by earlier callables this session, but the full
+  assembly's first real exercise will be whoever opens the crossword
+  after this deploys. Worth watching the logs the first time it fires
+  live (a fresh, unstocked `wordPool/crossword-filler` doc).
+- The Firestore emulator still can't run locally (Java 21+ missing) —
+  unchanged from earlier in this session, not something this pass tried
+  to fix.
 
 ## 0. What triggered this
 
@@ -273,6 +319,14 @@ wrapper around the shared fetch-or-refill function from §2 with the solo
 shape filter.
 
 ### Hangman (multiplayer) — new feature
+**BUILT.** UI lives in `HangmanOnline.tsx`'s `WordSetter` (mode toggle,
+category buttons, suggestion chips, load more), on top of the
+`suggestHangmanWords`/`markHangmanSuggestionUsed` backend. The rest of this
+section is the original design and matches what shipped, with one
+simplification: "load more" just re-calls `suggestHangmanWords` rather than
+tracking a client-side exclusion set — the pool's own random sampling
+already makes back-to-back identical batches unlikely enough not to bother.
+
 Today: setter can only type their own word; `getHangmanHint` and
 `checkHangmanWord` assist a human-authored word (clue suggestion, spelling
 check) — these two callables are unaffected by any of this, since there's
@@ -291,6 +345,12 @@ to `wordUsage`. Client work: likely lands in
 building, don't assume its shape.
 
 ### Word Bloom — needs its own pool shape, confirmed this session, not just a port of hangman's
+**BUILT** — as `functions/src/bloomBank.ts`, exactly the shape recommended
+below (`bloomBasePool/all` holding `{base, words, addedBy}` entries,
+`wordUsage/{game}-bloom-bases` for per-game usage, `fetchBloomPuzzle`/
+`markBloomBaseUsed` as the two functions `getBloomPuzzle` calls). The
+rest of this section is the design that was actually followed.
+
 `getBloomPuzzle`'s base-word convergence (documented in its own code
 comment: GARDEN/DANGER recurring) is the same disease as hangman's, just
 observed live in this session too ("Word Bloom seems to be giving me the
@@ -333,6 +393,22 @@ long enough in practice). `getWordleWords` (free play) currently has **no**
 avoid-list at all and should get the pool treatment for that reason alone.
 
 ### Mini crossword — separate, already-designed rebuild, not part of the pool system
+**BUILT.** `crosswordSolver.ts` is the solver (MRV + forward-checking,
+validated against real word data before being wired in — 30/30 solves).
+`getMiniCrossword` fetches filler by length via `wordBank.ts`'s existing
+`fetchWords` (topicSlug `crossword-filler`, three shape-filtered calls for
+3/4/5-letter, counts 200/300/700 matching the sizing below) — deliberately
+never calling `markUsed`, since a crossword filler word repeating across
+different days is normal and unnoticed, unlike hangman/Wordle's answers;
+what has to stay fresh is the grid as a whole, which the pool's random
+sampling plus the solver's own per-length shuffle already provides.
+`generateCrosswordClues` (new, in `wordGames.ts`) writes clues for the
+already-solved answers in one batched call. `sonnetProvider`/
+`deepProvidersFrom` are deleted, not just unused — nothing calls them.
+One deviation from "OPEN" item #5 below: filler sourcing went with the
+model-bootstrapped option, not a bundled list, for consistency with the
+rest of the app's "never baked-only" standard.
+
 This was designed earlier in the same conversation and deliberately does
 **not** join the shared topic-pool system above — a crossword has no
 "category," it's "give me a valid 5×5 grid today." Keep it as its own,
@@ -384,6 +460,15 @@ simpler piece:
    `timeoutSeconds: 180` dead weight — remove them once this ships.
 
 ## 4. Category discovery (word search → hangman)
+
+**BUILT** — as a new `listHangmanCategories` callable (queries `wordPool`
+directly, filtered to entries with enough hangman-shaped vocabulary and a
+small blocklist for non-category pools like `wordle`) plus two separate,
+not-shared UIs consuming it: solo's `CategoryPicker` and multiplayer's
+`WordSetter` category mode. The "OPEN" question below (shared vs. separate
+entry UIs) was resolved in favor of separate — they're different
+interaction patterns (a one-time picker vs. an in-form category browser)
+and forcing one shared component didn't seem worth it for two call sites.
 
 **Decided:** don't maintain two separate category systems. Hangman's
 category picker (solo and the new multiplayer suggestion flow) should
