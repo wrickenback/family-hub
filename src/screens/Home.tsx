@@ -2,17 +2,14 @@ import type { ReactNode } from 'react';
 import { useEffect, useRef, useState } from 'react';
 import { User } from 'firebase/auth';
 import {
-  IconCalendar,
   IconChevronRight,
-  IconClock,
   IconGames,
   IconHourglass,
   IconTrophy,
 } from '../components/icons';
 import { Avatar } from '../components/Avatar';
 import { OpenTables } from '../components/OpenTables';
-import { dayLabel, daysUntil, timeLabel } from '../lib/format';
-import { sampleEvents } from '../lib/sampleData';
+import { daysUntil } from '../lib/format';
 import type { FirestoreCountdown } from '../lib/firestoreCountdowns';
 import { isActive, type PresenceEntry } from '../lib/presence';
 import type { Role, Route } from '../lib/router';
@@ -41,10 +38,6 @@ export function Home({
     .map((c) => ({ ...c, days: daysUntil(c.target) }))
     .filter((c) => c.days >= 0)
     .sort((a, b) => a.days - b.days);
-  const upNext = sampleEvents
-    .filter((e) => e.start.getTime() >= Date.now() - 3600000)
-    .sort((a, b) => a.start.getTime() - b.start.getTime())
-    .slice(0, 3);
   const gameCount = getVisibleGames(userRole).length;
 
   // Presence is only refreshed when Firestore data changes, but "active"
@@ -126,44 +119,6 @@ export function Home({
         )}
 
         <section className="section">
-          <div className="section-head">
-            <span className="section-title">
-              <IconClock aria-hidden="true" />
-              Up next
-            </span>
-            <button
-              className="btn btn-text"
-              onClick={() => onNavigate({ screen: 'calendar' })}
-            >
-              See all
-            </button>
-          </div>
-          {upNext.length === 0 ? (
-            <div className="card empty-state">Nothing scheduled.</div>
-          ) : (
-            <ul className="event-list card">
-              {upNext.map((event) => (
-                <li key={event.id} className="event-row">
-                  <div className="event-when">
-                    <span className="event-day">{dayLabel(event.start)}</span>
-                    <span className="event-time">
-                      {event.allDay ? 'All day' : timeLabel(event.start)}
-                    </span>
-                  </div>
-                  <div className="event-what">
-                    <span className="event-title">{event.title}</span>
-                    {event.location && (
-                      <span className="event-location">{event.location}</span>
-                    )}
-                  </div>
-                  <span className="event-source">{event.source}</span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
-
-        <section className="section">
           <div className="hub-grid">
             <HubCard
               icon={<IconGames aria-hidden="true" />}
@@ -178,13 +133,6 @@ export function Home({
               meta="Family top 10s"
               tone="gold"
               onClick={() => onNavigate({ screen: 'scores' })}
-            />
-            <HubCard
-              icon={<IconCalendar aria-hidden="true" />}
-              title="Calendar"
-              meta="School, track & family"
-              tone="teal"
-              onClick={() => onNavigate({ screen: 'calendar' })}
             />
             <HubCard
               icon={<IconHourglass aria-hidden="true" />}

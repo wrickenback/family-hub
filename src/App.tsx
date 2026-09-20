@@ -25,7 +25,6 @@ import { Home } from './screens/Home';
 import { GamesScreen } from './screens/GamesScreen';
 import { GameDetail } from './screens/GameDetail';
 import { ScoresScreen } from './screens/ScoresScreen';
-import { CalendarScreen } from './screens/CalendarScreen';
 import { CountdownsScreen } from './screens/CountdownsScreen';
 import { BlocksGame } from './screens/BlocksGame';
 import { WordSearchGame } from './screens/WordSearchGame';
@@ -534,7 +533,6 @@ export function App() {
         {route.screen === 'scores' && (
           <ScoresScreen userRole={userRole} onBack={back} />
         )}
-        {route.screen === 'calendar' && <CalendarScreen onBack={back} />}
         {route.screen === 'countdowns' && (
           <CountdownsScreen
             countdowns={countdowns}

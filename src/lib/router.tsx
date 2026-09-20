@@ -23,7 +23,6 @@ export type Route =
   | { screen: 'home' }
   | { screen: 'games' }
   | { screen: 'scores' }
-  | { screen: 'calendar' }
   | { screen: 'countdowns' }
   | { screen: 'game'; gameId: string; modeId?: string }
   | { screen: 'play-blocks'; mode: 'free' | 'daily' }
@@ -488,8 +487,6 @@ export function routeToPath(route: Route): string {
       return '/games';
     case 'scores':
       return '/scores';
-    case 'calendar':
-      return '/calendar';
     case 'countdowns':
       return '/countdowns';
     case 'game':
@@ -547,8 +544,6 @@ export function pathToRoute(pathname: string): Route | null {
         : { screen: 'games' };
     case 'scores':
       return { screen: 'scores' };
-    case 'calendar':
-      return { screen: 'calendar' };
     case 'countdowns':
       return { screen: 'countdowns' };
     case 'play': {

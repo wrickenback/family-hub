@@ -798,37 +798,10 @@ export const getMiniCrossword = onCall(
   }
 );
 
-// TODO: Implement scheduled functions
-
-/**
- * Sync ICS feeds (school calendar, track team calendar)
- * Run every few hours
- */
-export const syncIcsFeeds = functions
-  .region('us-central1')
-  .pubsub.schedule('every 4 hours')
-  .onRun(async () => {
-    // Fetch school and track team ICS feeds
-    // Parse events
-    // Upsert into Firestore /schedule collection
-    functions.logger.info('ICS sync started');
-    return null;
-  });
-
-/**
- * Sync Google Calendar events
- * Run every few hours (same cadence as ICS for consistency)
- */
-export const syncGoogleCalendar = functions
-  .region('us-central1')
-  .pubsub.schedule('every 4 hours')
-  .onRun(async () => {
-    // Use stored refresh token to fetch user's Google Calendar
-    // Parse events
-    // Upsert into Firestore /schedule collection
-    functions.logger.info('Google Calendar sync started');
-    return null;
-  });
+// Calendar sync (ICS feeds + Google Calendar) was never implemented — both
+// stubs are parked in calendar-feature/functions-index-stubs.ts at the repo
+// root instead of deploying as no-op scheduled functions that still cost a
+// Cloud Scheduler fee. Restore them there when the feature gets built.
 
 // Deliberately no server-side "initialize user profile on sign-in" trigger
 // here — that's handled client-side by ensureUserProfile() in
