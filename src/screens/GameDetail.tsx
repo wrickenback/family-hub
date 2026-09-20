@@ -15,6 +15,7 @@ import {
 } from '../components/icons';
 import { DEFAULT_MODE, getGame } from '../lib/router';
 import { todayKey } from '../lib/blocksEngine';
+import { easternDateKey } from '../lib/miniCrosswordEngine';
 import { sampleScores } from '../lib/sampleData';
 import { generatePuzzle, type WordSearchDifficulty } from '../lib/firestoreWordSearch';
 import {
@@ -61,6 +62,7 @@ export function GameDetail({
   onPlayYahtzee,
   onPlayCheckers,
   onPlayCrossword,
+  onOpenCrosswordArchive,
   onPlayWordBloom,
 }: {
   gameId: string;
@@ -86,7 +88,8 @@ export function GameDetail({
   onPlayWaterSort: () => void;
   onPlayYahtzee: (mode: 'pass' | 'online') => void;
   onPlayCheckers: (mode: 'pass' | 'online') => void;
-  onPlayCrossword: () => void;
+  onPlayCrossword: (mode: 'daily' | 'free') => void;
+  onOpenCrosswordArchive: () => void;
   onPlayWordBloom: (mode: 'daily' | 'free') => void;
 }) {
   const game = getGame(gameId);
@@ -370,9 +373,24 @@ export function GameDetail({
       )}
 
       {isCrossword && (
-        <button className="btn btn-primary blocks-play-btn" onClick={onPlayCrossword}>
-          Play today&rsquo;s crossword
-        </button>
+        <>
+          <button
+            className="btn btn-primary blocks-play-btn"
+            onClick={() =>
+              onPlayCrossword(mode?.id === 'free' ? 'free' : 'daily')
+            }
+          >
+            {mode?.id === 'free' ? 'Get a fresh 5x5' : "Play today's crossword"}
+          </button>
+          {mode?.id !== 'free' && (
+            <button
+              className="btn btn-text blocks-play-btn"
+              onClick={onOpenCrosswordArchive}
+            >
+              Play a past day
+            </button>
+          )}
+        </>
       )}
 
       {isWordBloom && (
@@ -472,12 +490,13 @@ export function GameDetail({
           mode={leaderboardMode}
           scoring={game.scoring}
           dateKey={
-            (isBlocks && mode?.id === 'daily') ||
-            isSolitaire ||
-            isCrossword ||
-            isWordBloom
-              ? todayKey()
-              : undefined
+            isCrossword
+              ? mode?.id === 'free'
+                ? undefined
+                : easternDateKey()
+              : (isBlocks && mode?.id === 'daily') || isSolitaire || isWordBloom
+                ? todayKey()
+                : undefined
           }
           limit={5}
         />

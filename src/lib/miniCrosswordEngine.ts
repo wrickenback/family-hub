@@ -5,6 +5,23 @@ import { seedFromDateKey } from './blocksEngine';
  * than imported so this file stays free of anything Firebase-shaped. */
 export type PuzzleSource = 'gemini' | 'haiku' | 'sonnet' | 'fallback';
 
+/** The date key the daily crossword rolls over on, fixed to US Eastern
+ * regardless of the player's own timezone — simpler than a per-family
+ * local-time key (see wordleEngine's localDateKey) since crossword's
+ * scored leaderboard is meant to be one puzzle a day for everyone, not one
+ * per timezone. Intl.DateTimeFormat handles the EST/EDT switch correctly,
+ * unlike a fixed UTC offset. */
+export function easternDateKey(date = new Date()): string {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/New_York',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(date);
+  const get = (type: string) => parts.find((p) => p.type === type)?.value;
+  return `${get('year')}-${get('month')}-${get('day')}`;
+}
+
 /** The 5x5 mini crossword.
  *
  * The block pattern is fixed and shared with the generator prompt on the
@@ -167,6 +184,13 @@ export function entriesFor(
 export function fallbackCrossword(dateKey: string): MiniCrossword | null {
   const grid =
     MINI_GRIDS[Math.abs(seedFromDateKey(dateKey)) % MINI_GRIDS.length];
+  const entries = entriesFor(grid, (answer) => CLUES[answer]);
+  return entries ? { grid, entries, source: 'fallback' } : null;
+}
+
+/** A random bundled puzzle, for free play with no date to seed off. */
+export function randomFallbackCrossword(): MiniCrossword | null {
+  const grid = MINI_GRIDS[Math.floor(Math.random() * MINI_GRIDS.length)];
   const entries = entriesFor(grid, (answer) => CLUES[answer]);
   return entries ? { grid, entries, source: 'fallback' } : null;
 }

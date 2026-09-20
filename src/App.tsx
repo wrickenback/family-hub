@@ -54,6 +54,7 @@ import { YahtzeeOnline } from './screens/YahtzeeOnline';
 import { CheckersGame } from './screens/CheckersGame';
 import { CheckersOnline } from './screens/CheckersOnline';
 import { MiniCrosswordGame } from './screens/MiniCrosswordGame';
+import { CrosswordArchiveScreen } from './screens/CrosswordArchiveScreen';
 import { WordBloomGame } from './screens/WordBloomGame';
 import './App.css';
 
@@ -338,7 +339,8 @@ export function App() {
             onPlayWaterSort={() => navigate({ screen: 'play-watersort' })}
             onPlayYahtzee={(mode) => navigate({ screen: 'play-yahtzee', mode })}
             onPlayCheckers={(mode) => navigate({ screen: 'play-checkers', mode })}
-            onPlayCrossword={() => navigate({ screen: 'play-crossword' })}
+            onPlayCrossword={(mode) => navigate({ screen: 'play-crossword', mode })}
+            onOpenCrosswordArchive={() => navigate({ screen: 'crossword-archive' })}
             onPlayWordBloom={(mode) => navigate({ screen: 'play-wordbloom', mode })}
           />
         )}
@@ -459,6 +461,17 @@ export function App() {
           <MiniCrosswordGame
             uid={user.uid}
             displayName={user.displayName || user.email || 'Someone'}
+            mode={route.mode}
+            archiveDateKey={route.dateKey}
+            onBack={back}
+          />
+        )}
+        {route.screen === 'crossword-archive' && (
+          <CrosswordArchiveScreen
+            uid={user.uid}
+            onPlay={(dateKey) =>
+              navigate({ screen: 'play-crossword', mode: 'daily', dateKey })
+            }
             onBack={back}
           />
         )}

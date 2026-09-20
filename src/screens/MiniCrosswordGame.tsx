@@ -7,6 +7,7 @@ import { IconChevronLeft, IconChevronRight } from '../components/icons';
 import {
   SIZE,
   cellsOf,
+  easternDateKey,
   emptyBoard,
   isBlock,
   isSolved,
@@ -15,8 +16,11 @@ import {
   type CrosswordEntry,
   type MiniCrossword,
 } from '../lib/miniCrosswordEngine';
-import { fetchMiniCrossword } from '../lib/firestoreCrossword';
-import { todayKey } from '../lib/blocksEngine';
+import {
+  fetchMiniCrossword,
+  hasCrosswordPlayed,
+  markCrosswordPlayed,
+} from '../lib/firestoreCrossword';
 import { submitScore } from '../lib/firestoreScores';
 import { playClear, playPlace, playWin } from '../lib/sound';
 import './MiniCrosswordGame.css';
@@ -28,7 +32,7 @@ const KEY_ROWS = ['QWERTYUIOP', 'ASDFGHJKL', 'ZXCVBNM'];
  * constraint problem, not write a sentence — so the wait says what's
  * actually happening instead of spinning silently for two minutes. */
 const WAIT_STAGES: { after: number; text: string }[] = [
-  { after: 0, text: "Building today's crossword…" },
+  { after: 0, text: 'Building the crossword…' },
   { after: 6, text: 'Fitting the words together…' },
   { after: 18, text: 'This one is being stubborn — trying a smarter model…' },
   { after: 45, text: 'Still going. A tricky grid can take a minute.' },
@@ -43,10 +47,17 @@ function formatElapsed(ms: number): string {
 export function MiniCrosswordGame({
   uid,
   displayName,
+  mode,
+  archiveDateKey,
   onBack,
 }: {
   uid: string;
   displayName: string;
+  /** 'daily' plays (and scores) today's puzzle, or a past one named by
+   * archiveDateKey. 'free' generates an unlimited, unscored puzzle each
+   * time — same convention as Word Bloom's free play. */
+  mode: 'daily' | 'free';
+  archiveDateKey?: string;
   onBack: () => void;
 }) {
   const [puzzle, setPuzzle] = useState<MiniCrossword | null>(null);
@@ -58,9 +69,12 @@ export function MiniCrosswordGame({
   const [wrong, setWrong] = useState<Set<string>>(new Set());
   const [solved, setSolved] = useState(false);
   const [elapsed, setElapsed] = useState(0);
+  const [alreadyPlayed, setAlreadyPlayed] = useState(false);
   const startedAt = useRef<number | null>(null);
   const submitted = useRef(false);
-  const dateKey = todayKey();
+  const dateKey =
+    mode === 'daily' ? archiveDateKey ?? easternDateKey() : undefined;
+  const isToday = mode === 'daily' && dateKey === easternDateKey();
 
   useEffect(() => {
     let live = true;
@@ -74,6 +88,19 @@ export function MiniCrosswordGame({
       live = false;
     };
   }, [dateKey]);
+
+  // Archive replay: know up front whether this day's already on the board,
+  // so a replay can still be played for fun without quietly double-scoring.
+  useEffect(() => {
+    if (mode !== 'daily' || !dateKey) return;
+    let live = true;
+    hasCrosswordPlayed(uid, dateKey).then((played) => {
+      if (live) setAlreadyPlayed(played);
+    });
+    return () => {
+      live = false;
+    };
+  }, [mode, dateKey, uid]);
 
   // Ticks the wait message along while the grid is being built.
   useEffect(() => {
@@ -183,7 +210,16 @@ export function MiniCrosswordGame({
   }, [board, puzzle, solved]);
 
   useEffect(() => {
-    if (!solved || submitted.current || !startedAt.current) return;
+    if (
+      !solved ||
+      submitted.current ||
+      !startedAt.current ||
+      mode !== 'daily' ||
+      !dateKey ||
+      alreadyPlayed
+    ) {
+      return;
+    }
     submitted.current = true;
     submitScore({
       gameId: 'crossword',
@@ -192,10 +228,12 @@ export function MiniCrosswordGame({
       uid,
       name: displayName,
       value: elapsed,
-    }).catch(() => {
-      submitted.current = false;
-    });
-  }, [solved, elapsed, dateKey, uid, displayName]);
+    })
+      .then(() => markCrosswordPlayed(uid, dateKey))
+      .catch(() => {
+        submitted.current = false;
+      });
+  }, [solved, elapsed, mode, dateKey, alreadyPlayed, uid, displayName]);
 
   const tapCell = (row: number, col: number) => {
     if (isBlock(row, col)) return;
@@ -213,11 +251,14 @@ export function MiniCrosswordGame({
     bad.size === 0 ? playClear(1) : playPlace();
   };
 
+  const puzzleSubtitle =
+    mode === 'free' ? 'Free play' : isToday ? "Today's puzzle" : dateKey;
+
   if (loading) {
     const stage =
       [...WAIT_STAGES].reverse().find((s) => waited >= s.after) ?? WAIT_STAGES[0];
     return (
-      <Screen title="Mini Crossword" subtitle="Today's puzzle" onBack={onBack}>
+      <Screen title="Mini Crossword" subtitle={puzzleSubtitle} onBack={onBack}>
         <div className="card mc-waiting">
           <div className="mc-wait-grid" aria-hidden="true">
             {Array.from({ length: SIZE * SIZE }).map((_, i) => (
@@ -241,7 +282,7 @@ export function MiniCrosswordGame({
     return (
       <Screen title="Mini Crossword" onBack={onBack}>
         <div className="card empty-state">
-          Couldn&rsquo;t build today&rsquo;s crossword. Try again in a bit.
+          Couldn&rsquo;t build that crossword. Try again in a bit.
         </div>
       </Screen>
     );
@@ -252,10 +293,18 @@ export function MiniCrosswordGame({
   return (
     <Screen
       title="Mini Crossword"
-      subtitle={solved ? `Solved in ${formatElapsed(elapsed)}` : "Today's puzzle"}
+      subtitle={solved ? `Solved in ${formatElapsed(elapsed)}` : puzzleSubtitle}
       onBack={onBack}
     >
       {solved && <Confetti />}
+
+      {mode === 'daily' && alreadyPlayed && !solved && (
+        <div className="sample-note">
+          <span className="pill pill-sample">Replay</span>
+          You already solved this one — playing again for fun won&rsquo;t
+          change the board.
+        </div>
+      )}
 
       <div className="mc-timer">{formatElapsed(elapsed)}</div>
 
@@ -354,16 +403,22 @@ export function MiniCrosswordGame({
 
       <ProviderBadge source={puzzle.source} />
 
-      <div className="section-head">
-        <span className="section-title">Today&rsquo;s fastest</span>
-      </div>
-      <GameLeaderboard
-        gameId="crossword"
-        mode="daily"
-        scoring="bestDuration"
-        dateKey={dateKey}
-        limit={5}
-      />
+      {mode === 'daily' && dateKey && (
+        <>
+          <div className="section-head">
+            <span className="section-title">
+              {isToday ? "Today's fastest" : 'Fastest that day'}
+            </span>
+          </div>
+          <GameLeaderboard
+            gameId="crossword"
+            mode="daily"
+            scoring="bestDuration"
+            dateKey={dateKey}
+            limit={5}
+          />
+        </>
+      )}
     </Screen>
   );
 }

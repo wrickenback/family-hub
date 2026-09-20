@@ -77,6 +77,13 @@ service cloud.firestore {
       match /dailyWordProgress/{dateKey} {
         allow read, write: if request.auth.uid == uid;
       }
+
+      // Mini Crossword: marks which days this player has already solved, so
+      // the archive screen can show what's left and a replay from the
+      // archive doesn't post a second score for a day already on the board.
+      match /crosswordPlayed/{dateKey} {
+        allow read, write: if request.auth.uid == uid;
+      }
     }
 
     // Real-time 2-player games

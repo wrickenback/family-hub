@@ -41,7 +41,8 @@ export type Route =
   | { screen: 'play-watersort' }
   | { screen: 'play-yahtzee'; mode: 'pass' | 'online' }
   | { screen: 'play-checkers'; mode: 'pass' | 'online' }
-  | { screen: 'play-crossword' }
+  | { screen: 'play-crossword'; mode: 'daily' | 'free'; dateKey?: string }
+  | { screen: 'crossword-archive' }
   | { screen: 'play-wordbloom'; mode: 'daily' | 'free' };
 
 /** Mode string used for any game that doesn't partition its leaderboard by
@@ -376,6 +377,19 @@ export const games: GameApp[] = [
     icon: CrosswordIcon,
     blurb: 'A fresh 5x5 every day. Same grid for the whole family.',
     built: true,
+    modes: [
+      {
+        id: 'daily',
+        name: "Today's puzzle",
+        blurb:
+          'The same grid for everyone today. Your time goes on the board.',
+      },
+      {
+        id: 'free',
+        name: 'Free play',
+        blurb: 'A fresh 5x5 whenever you want one. Nothing is scored.',
+      },
+    ],
   },
   {
     id: 'wordbloom',
@@ -526,7 +540,11 @@ export function routeToPath(route: Route): string {
     case 'play-checkers':
       return `/play/checkers/${route.mode}`;
     case 'play-crossword':
-      return '/play/crossword';
+      return route.dateKey
+        ? `/play/crossword/${route.mode}/${route.dateKey}`
+        : `/play/crossword/${route.mode}`;
+    case 'crossword-archive':
+      return '/crossword/archive';
     case 'play-wordbloom':
       return `/play/wordbloom/${route.mode}`;
   }
@@ -536,7 +554,7 @@ export function pathToRoute(pathname: string): Route | null {
   const segments = pathname.split('/').filter(Boolean);
   if (segments.length === 0) return { screen: 'home' };
 
-  const [first, second, third] = segments;
+  const [first, second, third, fourth] = segments;
   switch (first) {
     case 'games':
       return second
@@ -546,6 +564,9 @@ export function pathToRoute(pathname: string): Route | null {
       return { screen: 'scores' };
     case 'countdowns':
       return { screen: 'countdowns' };
+    case 'crossword':
+      if (second === 'archive') return { screen: 'crossword-archive' };
+      return null;
     case 'play': {
       if (second === 'blocks' && (third === 'free' || third === 'daily')) {
         return { screen: 'play-blocks', mode: third };
@@ -595,8 +616,12 @@ export function pathToRoute(pathname: string): Route | null {
       if (second === 'checkers' && (third === 'pass' || third === 'online')) {
         return { screen: 'play-checkers', mode: third };
       }
-      if (second === 'crossword') {
-        return { screen: 'play-crossword' };
+      if (second === 'crossword' && (third === 'daily' || third === 'free')) {
+        return {
+          screen: 'play-crossword',
+          mode: third,
+          dateKey: third === 'daily' && fourth ? fourth : undefined,
+        };
       }
       if (second === 'wordbloom' && (third === 'daily' || third === 'free')) {
         return { screen: 'play-wordbloom', mode: third };
@@ -737,6 +762,13 @@ export function parentChainFor(route: Route): Route[] {
         route,
       ];
     case 'play-crossword':
+      return [
+        HOME,
+        { screen: 'games' },
+        { screen: 'game', gameId: 'crossword' },
+        route,
+      ];
+    case 'crossword-archive':
       return [
         HOME,
         { screen: 'games' },

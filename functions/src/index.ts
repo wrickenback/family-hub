@@ -671,7 +671,7 @@ export const getBloomPuzzle = onCall(
   }
 );
 
-/** Today's 5x5 mini crossword.
+/** Today's 5x5 mini crossword, or a fresh one for free play.
  *
  * The grid is filled by a local constraint solver (crosswordSolver.ts),
  * not a model — filling a grid is a constraint-satisfaction problem, and
@@ -681,10 +681,10 @@ export const getBloomPuzzle = onCall(
  * solver already knows are correct, which is fast, cheap recall — no more
  * long-running generation, no more timeout to accommodate.
  *
- * Cached in Firestore per day like before: the whole family shares one
- * puzzle, so the first person to open it pays for generation and
- * everyone after reads it — which also means the crossword the family
- * compares times on is genuinely the same one. */
+ * A valid dateKey means the daily puzzle: cached in Firestore per day so
+ * the whole family shares one, the same as before. No dateKey (free play)
+ * skips the cache in both directions — never read, never written — so
+ * every request generates its own fresh grid, same as getBloomPuzzle. */
 export const getMiniCrossword = onCall(
   {
     region: 'us-central1',
@@ -694,15 +694,15 @@ export const getMiniCrossword = onCall(
     await requireFamilyMember(request);
 
     const dateKey = String(request.data?.dateKey ?? '').trim();
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(dateKey)) {
-      throw new HttpsError('invalid-argument', 'A date is required.');
-    }
+    const daily = /^\d{4}-\d{2}-\d{2}$/.test(dateKey);
 
-    const doc = db.doc(`crosswords/${dateKey}`);
-    const existing = await doc.get();
-    if (existing.exists) {
-      const data = existing.data() ?? {};
-      return { grid: data.grid, entries: data.entries, source: data.source };
+    const doc = daily ? db.doc(`crosswords/${dateKey}`) : null;
+    if (doc) {
+      const existing = await doc.get();
+      if (existing.exists) {
+        const data = existing.data() ?? {};
+        return { grid: data.grid, entries: data.entries, source: data.source };
+      }
     }
 
     // Filler candidates from the shared pool, one length at a time — never
@@ -779,19 +779,22 @@ export const getMiniCrossword = onCall(
 
     // A race between two family members opening it at the same moment ends
     // with one stored puzzle either way; create() loses politely and the
-    // loser re-reads what the winner wrote.
-    try {
-      await doc.create({
-        dateKey,
-        grid,
-        entries,
-        source,
-        createdAt: admin.firestore.FieldValue.serverTimestamp(),
-      });
-    } catch {
-      const settled = await doc.get();
-      const data = settled.data() ?? {};
-      return { grid: data.grid, entries: data.entries, source: data.source };
+    // loser re-reads what the winner wrote. Free play has no doc to race
+    // over — every request is its own puzzle.
+    if (doc) {
+      try {
+        await doc.create({
+          dateKey,
+          grid,
+          entries,
+          source,
+          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+      } catch {
+        const settled = await doc.get();
+        const data = settled.data() ?? {};
+        return { grid: data.grid, entries: data.entries, source: data.source };
+      }
     }
 
     return { grid, entries, source };
