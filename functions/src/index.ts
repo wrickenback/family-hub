@@ -3,7 +3,7 @@ import * as admin from 'firebase-admin';
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { onSchedule } from 'firebase-functions/v2/scheduler';
 import { defineSecret } from 'firebase-functions/params';
-import { providersFrom, routineProvidersFrom, geminiProvider } from './providers';
+import { providersFrom, routineProvidersFrom, geminiProvider, openRouterProvider } from './providers';
 import {
   MIN_TOPIC_WORDS,
   fallbackDailyWord,
@@ -23,6 +23,7 @@ import {
   markUsed,
   enrichPoolWord,
   bootstrapTopicChunk,
+  relevanceCheck,
   topicsNeedingSeed,
   type BootstrapOverrides,
 } from './wordBank';
@@ -975,7 +976,10 @@ export const seedTopicPools = onSchedule(
     region: 'us-central1',
     schedule: 'every day 04:00',
     timeZone: 'America/New_York',
-    secrets: [geminiApiKey],
+    // Gemini stays the ONLY generator here (see the doc comment above), but
+    // GLM Flash is also needed now for the post-generation relevance check
+    // — a cheap, fail-open pass, not a second source of words.
+    secrets: [geminiApiKey, openRouterApiKey],
     timeoutSeconds: 540,
     memory: '512MiB',
   },
@@ -985,6 +989,8 @@ export const seedTopicPools = onSchedule(
       console.error('seedTopicPools: no Gemini key configured');
       return;
     }
+    const orKey = openRouterApiKey.value();
+    const glm = orKey ? openRouterProvider(orKey, 'z-ai/glm-5.3-flash', { name: 'glm-flash' }) : null;
 
     const pending = await topicsNeedingSeed(db, SEED_TOPICS, slugify);
     if (pending.length === 0) {
@@ -1021,7 +1027,22 @@ export const seedTopicPools = onSchedule(
         break;
       }
 
-      for (const [topic, words] of byTopic) {
+      // One relevance check per topic, run in parallel across the whole
+      // chunk rather than sequentially — GLM Flash calls are cheap and
+      // fast, and there's no reason topic 15 should wait on topics 1-14.
+      // Same fail-open contract as the live per-play path: skipped
+      // entirely with no GLM key, and any topic whose check errors, comes
+      // back empty, or would reject more than half its list keeps
+      // bootstrapTopicChunk's unfiltered words rather than losing them.
+      const checked = await Promise.all(
+        [...byTopic].map(async ([topic, words]) => {
+          if (!glm) return [topic, words] as const;
+          const kept = await relevanceCheck(glm, topic, words);
+          return [topic, kept.length > 0 ? kept : words] as const;
+        })
+      );
+
+      for (const [topic, words] of checked) {
         try {
           await seedPool(db, slugify(topic), topic, words, 'bootstrap');
           seededTopics++;

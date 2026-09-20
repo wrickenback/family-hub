@@ -205,7 +205,7 @@ ${CONTENT_RATING}
  * keeping every word bootstrap already found. Rejecting a whole batch
  * reads far more often as a parsing hiccup or an overcautious model than
  * as every single word actually being wrong. */
-async function relevanceCheck(glm: ModelProvider, topic: string, words: string[]): Promise<string[]> {
+export async function relevanceCheck(glm: ModelProvider, topic: string, words: string[]): Promise<string[]> {
   const prompt = `Here is a candidate word list for the topic "${topic}", for a family word game:
 ${words.join(', ')}
 
