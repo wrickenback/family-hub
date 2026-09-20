@@ -437,31 +437,3 @@ ${CONTENT_RATING}
   return { byTopic: value, source };
 }
 
-/** How many words a pool needs before the seeder leaves it alone. Set
- * against what the games actually draw: hangman takes one word per round
- * from the 5-10 letter slice, word search takes 20 from the 3-10 slice, so
- * a pool this size is many rounds deep for both without being so ambitious
- * that narrow topics can never satisfy it and get re-seeded forever. */
-export const SEEDED_ENOUGH = 40;
-
-/** Which of `topics` still need stocking. Reads the pool docs directly so
- * a re-run costs Firestore reads rather than model calls — the whole point
- * of the seeder being safely repeatable. */
-export async function topicsNeedingSeed(
-  db: Firestore,
-  topics: string[],
-  slugify: (topic: string) => string
-): Promise<string[]> {
-  const needed: string[] = [];
-  // Chunked to keep each getAll() well under Firestore's limits.
-  for (let i = 0; i < topics.length; i += 50) {
-    const batch = topics.slice(i, i + 50);
-    const refs = batch.map((t) => db.doc(`wordPool/${slugify(t)}`));
-    const snaps = await db.getAll(...refs);
-    snaps.forEach((snap, j) => {
-      const words = (snap.data()?.words as unknown[] | undefined) ?? [];
-      if (words.length < SEEDED_ENOUGH) needed.push(batch[j]);
-    });
-  }
-  return needed;
-}
