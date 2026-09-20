@@ -725,25 +725,6 @@ function crosswordSlots(): Slot[] {
 
 export const CROSSWORD_SLOTS = crosswordSlots();
 
-function describeSlots(): string {
-  return CROSSWORD_SLOTS.map(
-    (slot) =>
-      `- ${slot.direction} starting row ${slot.row}, column ${slot.col}: ${slot.length} letters`
-  ).join('\n');
-}
-
-/** Reads the answer a filled grid actually contains for one slot. */
-function readSlot(grid: string[], slot: Slot): string {
-  let word = '';
-  for (let i = 0; i < slot.length; i++) {
-    word +=
-      slot.direction === 'across'
-        ? grid[slot.row][slot.col + i]
-        : grid[slot.row + i][slot.col];
-  }
-  return word;
-}
-
 /** A filled 5x5 mini with clues.
  *
  * This is the strictest validator in the file, and it has to be: a
@@ -754,107 +735,72 @@ function readSlot(grid: string[], slot: Slot): string {
  * the blocks have to sit exactly where the pattern says, and every slot
  * needs its own clue. Anything short of all of that is rejected and the
  * next provider gets a turn. */
-export async function generateMiniCrossword(
+/** Clues for an already-filled grid (crosswordSolver.ts picks the answers;
+ * this only ever writes the clue text).
+ *
+ * The grid used to be the model's job too — asking it to find 10 mutually
+ * crossing words in one pass, with no ability to backtrack, is exactly the
+ * kind of constraint-satisfaction task language models are unreliable at.
+ * Measured directly this session: every reasoning model tried (GLM-5.3,
+ * GLM-5.3-Flash, DeepSeek V4 Pro) truncated to zero output attempting it,
+ * at every effort level, up to $0.05 per failed call — not a close call,
+ * a consistent wall. Splitting the job so the model only ever writes
+ * clues for answers that are already known-correct turns it back into
+ * the kind of task it's actually good at: pure recall and phrasing, the
+ * same shape as generateHangmanHint, with zero crossing constraints to
+ * satisfy and nothing to backtrack from.
+ *
+ * Deliberately the OPPOSITE framing from hangman's clues: hangman wants
+ * VAGUE_CLUE_RULES because guessing blind is the whole game. A crossword
+ * clue should be direct and gettable — the fun is filling the grid, not
+ * decoding the clue — so this explicitly says so rather than leaving the
+ * model to default toward hangman-style indirection if it's ever seen
+ * both styles of prompt. */
+export async function generateCrosswordClues(
   providers: ModelProvider[],
-  avoid: string[] = []
-): Promise<Generated<MiniCrossword | null>> {
-  const avoidLine = avoid.length
-    ? `\n- Try not to reuse these answers from recent puzzles: ${avoid.slice(0, 20).join(', ')}.`
-    : '';
-
-  const prompt = `Build a 5x5 mini crossword.
-
-The grid is 5 rows of 5 characters. Two corners are blocked and MUST be exactly these squares, written as '#':
-${CROSSWORD_PATTERN.join('\n')}
-
-So the answers to fill are:
-${describeSlots()}
+  answers: string[]
+): Promise<Generated<Record<string, string> | null>> {
+  const list = answers.map((a, i) => `${i + 1}. ${a}`).join('\n');
+  const prompt = `Write one clue for each of these ${answers.length} mini crossword answers:
+${list}
 
 Rules:
-- Every one of those runs must be a real, common English word, reading left-to-right or top-to-bottom.
-- Crossing letters must agree — this is a real crossword, every letter is shared by one across answer and one down answer.
-- Only common words a 13-year-old would know. No proper nouns, no abbreviations, no obscure words.${avoidLine}
-- Give every answer a short, clear clue of at most 8 words. The clue must not contain the answer.
+- This is a clue for a mini crossword, not a riddle — clear and direct, roughly 7th-8th grade reading level. The fun is filling the grid, not decoding the clue.
+- At most 8 words per clue.
+- The clue for an answer must NOT contain that answer or any part of it spelled out.
 ${CONTENT_RATING}
-- Check your grid before answering: read each run out of the grid you wrote and confirm it spells the answer you listed.
-- Respond with ONLY JSON, the grid as 5 strings of 5 characters:
-{"grid":["CAT##","ABIDE","RIVER","EDGES","##TRY"],"entries":[{"direction":"across","row":0,"col":0,"answer":"CAT","clue":"Purring pet"}]}`;
+- Respond with ONLY a JSON object mapping each answer to its clue, nothing else. Example: {"CAT":"Purring pet","RIVER":"Flows to the sea"}`;
 
-  return generate<MiniCrossword | null>(
-    'generateMiniCrossword',
+  return generate<Record<string, string> | null>(
+    'generateCrosswordClues',
     providers,
     prompt,
     (text) => {
       const json = firstJson(text, '{');
       if (!json) return null;
-      let parsed: { grid?: unknown; entries?: unknown };
+      let parsed: unknown;
       try {
         parsed = JSON.parse(json);
       } catch {
         return null;
       }
+      if (!parsed || typeof parsed !== 'object') return null;
 
-      // --- the grid itself
-      if (!Array.isArray(parsed.grid) || parsed.grid.length !== CROSSWORD_SIZE) {
-        return null;
-      }
-      const grid: string[] = [];
-      for (const raw of parsed.grid) {
-        if (typeof raw !== 'string') return null;
-        const row = raw.trim().toUpperCase();
-        if (!/^[A-Z#]{5}$/.test(row)) return null;
-        grid.push(row);
-      }
-      // Blocks exactly where the pattern says, and nowhere else.
-      for (let r = 0; r < CROSSWORD_SIZE; r++) {
-        for (let c = 0; c < CROSSWORD_SIZE; c++) {
-          const shouldBlock = CROSSWORD_PATTERN[r][c] === '#';
-          if (shouldBlock !== (grid[r][c] === '#')) return null;
+      const clues: Record<string, string> = {};
+      for (const answer of answers) {
+        const raw = (parsed as Record<string, unknown>)[answer];
+        const clue = String(raw ?? '').trim().slice(0, 80);
+        // A missing or self-revealing clue for one answer doesn't spoil the
+        // rest — better to serve nine good clues and one blank than throw
+        // the whole grid's worth of clues away over one bad line.
+        if (clue && !clue.toUpperCase().includes(answer)) {
+          clues[answer] = clue;
         }
       }
-
-      // --- the clues, matched to slots by position and direction
-      if (!Array.isArray(parsed.entries)) return null;
-      const clues = new Map<string, string>();
-      for (const raw of parsed.entries) {
-        if (!raw || typeof raw !== 'object') continue;
-        const entry = raw as Record<string, unknown>;
-        const direction = String(entry.direction ?? '').trim().toLowerCase();
-        if (direction !== 'across' && direction !== 'down') continue;
-        const row = Number(entry.row);
-        const col = Number(entry.col);
-        if (!Number.isInteger(row) || !Number.isInteger(col)) continue;
-        const clue = String(entry.clue ?? '').trim().slice(0, 80);
-        if (!clue) continue;
-        clues.set(`${direction}:${row}:${col}`, clue);
-      }
-
-      const entries: CrosswordEntry[] = [];
-      for (const slot of CROSSWORD_SLOTS) {
-        const answer = readSlot(grid, slot);
-        if (!/^[A-Z]+$/.test(answer)) return null;
-        const clue = clues.get(`${slot.direction}:${slot.row}:${slot.col}`);
-        if (!clue) return null;
-        // A clue containing its own answer gives the square away.
-        if (clue.toUpperCase().includes(answer)) return null;
-        entries.push({
-          direction: slot.direction,
-          row: slot.row,
-          col: slot.col,
-          answer,
-          clue,
-        });
-      }
-
-      return { grid, entries };
+      return Object.keys(clues).length > 0 ? clues : null;
     },
-    (puzzle) => puzzle === null,
-    null,
-    // One attempt each: this chain is Gemini then Sonnet, and a model that
-    // can't fill the grid usually can't fill it on the retry either. The
-    // player is waiting on this one, so spend the time on the next model
-    // rather than the same one again.
-    1
+    (clues) => clues === null,
+    null
   );
 }
 

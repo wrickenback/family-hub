@@ -2,21 +2,23 @@ import * as functions from 'firebase-functions';
 import * as admin from 'firebase-admin';
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { defineSecret } from 'firebase-functions/params';
-import { deepProvidersFrom, providersFrom, routineProvidersFrom } from './providers';
+import { providersFrom, routineProvidersFrom } from './providers';
 import {
   MIN_TOPIC_WORDS,
   fallbackDailyWord,
   fallbackHangmanWord,
   generateHangmanHint,
   expandBloomWords,
-  generateMiniCrossword,
+  generateCrosswordClues,
   generateSpellingSuggestion,
   generateTopicWords,
   buildWordleBootstrapPrompt,
+  type CrosswordEntry,
 } from './wordGames';
 import { buildWordSearchGrid, type Difficulty } from './wordSearchGrid';
 import { seedPool, fetchWords, markUsed, enrichPoolWord, type BootstrapOverrides } from './wordBank';
 import { fetchBloomPuzzle, markBloomBaseUsed } from './bloomBank';
+import { solveCrossword, buildGrid } from './crosswordSolver';
 
 // Shared by both Wordle endpoints: a single flat pool (no per-topic
 // subdivision — Wordle has no categories, just "any real 5-letter word"),
@@ -56,12 +58,6 @@ function models() {
  * tighter free-tier budget stays reserved for models() above. */
 function routineModels() {
   return routineProvidersFrom(openRouterApiKey.value(), anthropicApiKey.value());
-}
-
-/** Gemini then Sonnet — only the mini crossword uses this. See
- * deepProvidersFrom for why Haiku sits this one out. */
-function deepModels() {
-  return deepProvidersFrom(geminiApiKey.value(), anthropicApiKey.value());
 }
 
 function slugify(topic: string): string {
@@ -645,20 +641,22 @@ export const getBloomPuzzle = onCall(
 
 /** Today's 5x5 mini crossword.
  *
- * Two things make this different from every other generator here. It runs
- * the deep chain, because filling a grid is a constraint problem the cheap
- * models mostly fail. And it's cached in Firestore per day: the whole
- * family shares one puzzle, so the first person to open it pays for the
- * generation and everyone after reads it — which also means the crossword
- * the family compares times on is genuinely the same one.
+ * The grid is filled by a local constraint solver (crosswordSolver.ts),
+ * not a model — filling a grid is a constraint-satisfaction problem, and
+ * every reasoning model tried this session (GLM-5.3, GLM-5.3-Flash,
+ * DeepSeek V4 Pro) failed it outright at every effort level, truncating to
+ * zero output. The model's only job now is writing clues for answers the
+ * solver already knows are correct, which is fast, cheap recall — no more
+ * long-running generation, no more timeout to accommodate.
  *
- * The longer timeout is for the Sonnet leg: with thinking on, a hard grid
- * can take well past the 60s default. */
+ * Cached in Firestore per day like before: the whole family shares one
+ * puzzle, so the first person to open it pays for generation and
+ * everyone after reads it — which also means the crossword the family
+ * compares times on is genuinely the same one. */
 export const getMiniCrossword = onCall(
   {
     region: 'us-central1',
     secrets: [geminiApiKey, openRouterApiKey, anthropicApiKey],
-    timeoutSeconds: 180,
   },
   async (request) => {
     await requireFamilyMember(request);
@@ -675,27 +673,51 @@ export const getMiniCrossword = onCall(
       return { grid: data.grid, entries: data.entries, source: data.source };
     }
 
-    // Recent answers, so a run of days doesn't circle the same vocabulary.
-    const recent = await db
-      .collection('crosswords')
-      .orderBy('dateKey', 'desc')
-      .limit(3)
-      .get();
-    const avoid: string[] = [];
-    for (const snap of recent.docs) {
-      const entries = (snap.data()?.entries ?? []) as { answer?: string }[];
-      for (const entry of entries) {
-        if (entry.answer) avoid.push(entry.answer);
-      }
-    }
+    // Filler candidates from the shared pool, one length at a time — never
+    // marked used. Unlike hangman/Wordle, a crossword filler word repeating
+    // across different days is normal and unnoticeable (real crosswords
+    // reuse common short "glue" words constantly); what has to stay fresh
+    // is the GRID as a whole, and a large, randomly-sampled pool plus the
+    // solver's own per-length shuffle already measured this session as
+    // producing near-zero exact-puzzle repeats without any usage tracking
+    // at all. Counts match the bank-sizing this session measured against a
+    // real frequency word list: 5-letter slots are the actual bottleneck
+    // (need 600+ before the solve rate is reliably near 100%); 3- and
+    // 4-letter need far less. Each count also doubles as the target size
+    // fetchWords' own top-up logic grows that length's view of the pool
+    // toward, a little more each time a bootstrap fires.
+    const topic = 'common English words for a crossword puzzle';
+    const [threes, fours, fives] = await Promise.all([
+      fetchWords(db, models(), 'crossword', 'crossword-filler', topic, { minLen: 3, maxLen: 3, allowPhrases: false }, 200),
+      fetchWords(db, models(), 'crossword', 'crossword-filler', topic, { minLen: 4, maxLen: 4, allowPhrases: false }, 300),
+      fetchWords(db, models(), 'crossword', 'crossword-filler', topic, { minLen: 5, maxLen: 5, allowPhrases: false }, 700),
+    ]);
+    const candidatesByLength: Record<number, string[]> = {
+      3: threes.words.map((w) => w.word),
+      4: fours.words.map((w) => w.word),
+      5: fives.words.map((w) => w.word),
+    };
+    const bootstrapSource = threes.source ?? fours.source ?? fives.source;
 
-    const { value: puzzle, source } = await generateMiniCrossword(
-      deepModels(),
-      avoid
-    );
-    if (!puzzle) {
+    const solved = solveCrossword(candidatesByLength);
+    if (!solved) {
+      // Extremely unlikely once the pool has matured past a few days of
+      // bootstraps, and never the player's problem either way — same soft
+      // failure the rest of the app uses, straight to the bundled fallback.
       return { grid: null, entries: null, source: 'fallback' };
     }
+
+    const answers = solved.map((s) => s.answer);
+    const { value: clues, source: clueSource } = await generateCrosswordClues(models(), answers);
+    const entries: CrosswordEntry[] = solved.map((s) => ({
+      direction: s.direction,
+      row: s.row,
+      col: s.col,
+      answer: s.answer,
+      clue: clues?.[s.answer] ?? '',
+    }));
+    const grid = buildGrid(solved);
+    const source = clueSource ?? bootstrapSource ?? 'pool';
 
     // A race between two family members opening it at the same moment ends
     // with one stored puzzle either way; create() loses politely and the
@@ -703,8 +725,8 @@ export const getMiniCrossword = onCall(
     try {
       await doc.create({
         dateKey,
-        grid: puzzle.grid,
-        entries: puzzle.entries,
+        grid,
+        entries,
         source,
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
       });
@@ -714,7 +736,7 @@ export const getMiniCrossword = onCall(
       return { grid: data.grid, entries: data.entries, source: data.source };
     }
 
-    return { ...puzzle, source };
+    return { grid, entries, source };
   }
 );
 
