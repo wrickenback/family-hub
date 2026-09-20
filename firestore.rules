@@ -191,6 +191,14 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // Word Bloom's own pool (functions/src/bloomBank.ts) — same reasoning
+    // as wordPool above, kept as a separate collection because each entry
+    // is a whole puzzle (a base plus its derived word list), not a flat
+    // word wordPool's shape could hold.
+    match /bloomBasePool/{entryId} {
+      allow read, write: if false;
+    }
+
     // Schedule (merged from calendar + ICS)
     match /schedule/{eventId} {
       allow read: if isSignedIn() && isAllowed();

@@ -549,7 +549,7 @@ export const MIN_BLOOM_WORDS = 8;
  * generator safe: a model asked for anagrams will confidently return words
  * using letters that aren't there, and every one of those would be a word
  * the player can see on the wheel but never enter. */
-function spellableFrom(word: string, base: string): boolean {
+export function spellableFrom(word: string, base: string): boolean {
   const available = new Map<string, number>();
   for (const letter of base) {
     available.set(letter, (available.get(letter) ?? 0) + 1);

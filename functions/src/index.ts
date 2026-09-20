@@ -7,7 +7,6 @@ import {
   MIN_TOPIC_WORDS,
   fallbackDailyWord,
   fallbackHangmanWord,
-  generateBloomPuzzle,
   generateHangmanHint,
   expandBloomWords,
   generateMiniCrossword,
@@ -17,6 +16,7 @@ import {
 } from './wordGames';
 import { buildWordSearchGrid, type Difficulty } from './wordSearchGrid';
 import { seedPool, fetchWords, markUsed, enrichPoolWord, type BootstrapOverrides } from './wordBank';
+import { fetchBloomPuzzle, markBloomBaseUsed } from './bloomBank';
 
 // Shared by both Wordle endpoints: a single flat pool (no per-topic
 // subdivision — Wordle has no categories, just "any real 5-letter word"),
@@ -568,12 +568,15 @@ export const markHangmanSuggestionUsed = onCall(
  *
  * With a `dateKey` this is the family's shared puzzle for that day, cached
  * in Firestore so everyone plays the same letters and the day's scores mean
- * something next to each other. Without one it's a throwaway free-play
- * round, generated fresh and stored nowhere.
+ * something next to each other. Without one it's a free-play round.
  *
- * `avoid` is the bases this player has seen recently. Without it the models
- * converge on the same handful of pleasingly anagram-rich words (GARDEN,
- * DANGER and friends) every single time. */
+ * Draws from the Bloom base pool (bloomBank.ts) rather than a live call
+ * every time — same structural fix as hangman and Wordle got, for the same
+ * documented reason: the old per-request `avoid` list (still accepted
+ * below, layered on top) only ever steered the model away from a short
+ * recent window, and it reliably converged back onto the same handful of
+ * anagram-rich bases (GARDEN, DANGER) once that window passed. A pool draw
+ * can't repeat a base until every base in it has been used once. */
 export const getBloomPuzzle = onCall(
   { region: 'us-central1', secrets: [geminiApiKey, openRouterApiKey, anthropicApiKey] },
   async (request) => {
@@ -581,6 +584,7 @@ export const getBloomPuzzle = onCall(
 
     const dateKey = String(request.data?.dateKey ?? '').trim();
     const daily = /^\d{4}-\d{2}-\d{2}$/.test(dateKey);
+    const game = daily ? 'bloom-daily' : 'bloom-freeplay';
 
     const doc = daily ? db.doc(`bloomPuzzles/${dateKey}`) : null;
     if (doc) {
@@ -604,11 +608,13 @@ export const getBloomPuzzle = onCall(
           .slice(0, 20)
       : [];
 
-    const { value: puzzle, source } = await generateBloomPuzzle(models(), avoid);
-    if (!puzzle) {
+    const { puzzle: entry, source } = await fetchBloomPuzzle(db, models(), game, avoid);
+    if (!entry) {
       // The client falls back to its bundled packs, same as Daily Word.
       return { base: '', words: [], source: 'fallback' };
     }
+    await markBloomBaseUsed(db, game, entry.base);
+    const puzzle = { base: entry.base, words: entry.words };
 
     if (doc) {
       // Two people opening it at the same moment: create() lets one win and
@@ -633,7 +639,7 @@ export const getBloomPuzzle = onCall(
       }
     }
 
-    return { ...puzzle, source };
+    return { ...puzzle, source: source ?? 'pool' };
   }
 );
 

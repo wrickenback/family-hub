@@ -9,7 +9,7 @@ import { seedFromDateKey, mulberry32 } from './blocksEngine';
  * for the game to accept something the wheel can't spell or reject
  * something it promised. */
 
-export type PuzzleSource = 'gemini' | 'haiku' | 'sonnet' | 'fallback';
+export type PuzzleSource = 'gemini' | 'glm-flash' | 'haiku' | 'sonnet' | 'pool' | 'fallback';
 
 export interface BloomPuzzle {
   base: string;
