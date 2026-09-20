@@ -13,7 +13,6 @@ import {
   generateSpellingSuggestion,
   generateTopicWords,
   buildWordleBootstrapPrompt,
-  type CrosswordEntry,
 } from './wordGames';
 import { buildWordSearchGrid, type Difficulty } from './wordSearchGrid';
 import { seedPool, fetchWords, markUsed, enrichPoolWord, type BootstrapOverrides } from './wordBank';
@@ -709,13 +708,22 @@ export const getMiniCrossword = onCall(
 
     const answers = solved.map((s) => s.answer);
     const { value: clues, source: clueSource } = await generateCrosswordClues(models(), answers);
-    const entries: CrosswordEntry[] = solved.map((s) => ({
-      direction: s.direction,
-      row: s.row,
-      col: s.col,
-      answer: s.answer,
-      clue: clues?.[s.answer] ?? '',
-    }));
+    // The client's own merge logic (firestoreCrossword.ts) falls back to a
+    // bundled clue for any entry that "arrives without one" — checked via
+    // `typeof entry.clue === 'string'`, which an empty string still
+    // satisfies. Omitting the key entirely for an answer clue generation
+    // missed is what actually triggers that fallback instead of silently
+    // shipping a blank clue for one square.
+    const entries = solved.map((s) => {
+      const clue = clues?.[s.answer];
+      return {
+        direction: s.direction,
+        row: s.row,
+        col: s.col,
+        answer: s.answer,
+        ...(clue ? { clue } : {}),
+      };
+    });
     const grid = buildGrid(solved);
     const source = clueSource ?? bootstrapSource ?? 'pool';
 
