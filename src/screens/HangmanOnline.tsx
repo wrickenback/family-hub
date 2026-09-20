@@ -365,6 +365,13 @@ function WordSetter({
     setSuggestLoading(true);
     const result = await fetchHangmanSuggestions(category, 8);
     setSuggestLoading(false);
+    // Adopt the slug the SERVER resolved rather than keeping the id this
+    // client guessed at — that's the key markHangmanSuggestionUsed has to
+    // write under for usage tracking to line up with the pool the words
+    // actually came from. They agree today (pinned ids are kept equal to
+    // slugify(label)), but this stops a future drift in that invariant from
+    // silently writing usage to a pool nobody reads.
+    setActiveCategory({ id: result.category, label: category.label });
     setSuggestions(result.words);
     setSuggestSource(result.words.length ? (result.source as ProviderSource) : null);
   };

@@ -123,6 +123,40 @@ list is now done:**
   for the workplace sense) plus an explicit middle-school reading-level
   target. All three came from real play feedback, not speculation.
 
+**Post-build audit (same night) — four real bugs found and fixed after
+everything was already "done", worth recording because three of them were
+introduced by the late topic-unification change and none would have
+surfaced as a type error or a failed build:**
+
+1. **Pinned category slugs broke two of seven categories.** Unifying on
+   free-text topics meant the slug became `slugify(label)`, but two pinned
+   categories had hand-written ids that didn't match their own label —
+   `household` for "Around the house", `anything` for "Anything at all".
+   Result: both lost their bundled fallback pack, both orphaned whatever
+   pool already existed under the old id, and both would have appeared
+   TWICE in the picker once a pool existed under the real slug (the
+   dedup compares pinned `id` to discovered `slug`). Fixed by making
+   `id === slugify(label)` a real invariant on both sides — client ids and
+   `FALLBACK_HANGMAN` keys renamed to the slugs — and verified by a script
+   that parses both source files and checks them against each other, not
+   by eye.
+2. **`listHangmanCategories` would have offered internal pools as
+   categories.** The blocklist only excluded `wordle`; the crossword's
+   filler pool (700 five-letter words) passes the usability filter, so a
+   button labelled "common English words for a crossword puzzle" would
+   have shown up in both hangman pickers. Both slugs are now shared
+   constants used by their writers AND the blocklist, so a future internal
+   pool can't be added without the blocklist seeing the same string.
+3. **Crossword filler had lost its quality rules.** Using wordBank.ts's
+   generic bootstrap prompt dropped "no proper nouns, no abbreviations, no
+   obscure words" — an explicit rule of the old crossword prompt. Caught
+   by actually reading solver output (ASIA, LATIN). Now has its own
+   prompt via the same `BootstrapOverrides` hook Wordle uses.
+4. **Stale-client tolerance.** `getHangmanWord`/`suggestHangmanWords` now
+   accept the pre-unification `label`/`category` fields as a fallback for
+   `topic`, so a phone running a cached build doesn't silently collapse
+   every category into the default until its service worker updates.
+
 **What's genuinely still open, all explicitly optional / deferred, not
 missed:**
 - Proactive low-water-mark pool refill (topping a pool up before it hits
@@ -397,7 +431,15 @@ avoid-list at all and should get the pool treatment for that reason alone.
 validated against real word data before being wired in — 30/30 solves).
 `getMiniCrossword` fetches filler by length via `wordBank.ts`'s existing
 `fetchWords` (topicSlug `crossword-filler`, three shape-filtered calls for
-3/4/5-letter, counts 200/300/700 matching the sizing below) — deliberately
+3/4/5-letter, counts 150/300/700 matching the sizing below; 3-letter sits
+at the low end of its measured range deliberately, because a target the
+pool can never reach means `fetchWords` re-bootstraps on every generation
+forever, and English has comparatively few common 3-letter words) —
+each length uses its own bootstrap prompt (`buildCrosswordFillerPrompt`)
+rather than the generic pool one, since "no proper nouns, no
+abbreviations, no obscure words" was an explicit rule of the old
+crossword prompt and isn't something a shape filter can express.
+The fetches are deliberately
 never calling `markUsed`, since a crossword filler word repeating across
 different days is normal and unnoticed, unlike hangman/Wordle's answers;
 what has to stay fresh is the grid as a whole, which the pool's random

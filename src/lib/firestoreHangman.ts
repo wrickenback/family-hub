@@ -6,17 +6,24 @@ export interface HangmanCategory {
   label: string;
 }
 
-/** The solo categories, in the order they're shown. Ids are what the Cloud
- * Function validates against and what its offline fallback words are filed
- * under, so adding one here means adding it there too. */
+/** The solo categories, in the order they're shown.
+ *
+ * Every `id` here MUST equal the server's `slugify(label)`, because the
+ * label is what gets sent as the topic and the slug derived from it is
+ * what keys both the shared word pool and the bundled fallback packs
+ * (FALLBACK_HANGMAN in wordGames.ts). Two of these used to be shorter
+ * hand-written ids — 'household' and 'anything' — which stopped matching
+ * their own labels the moment topics were unified, silently costing those
+ * categories their fallback pack and making them show up twice in the
+ * picker once a pool existed under the real slug. */
 export const HANGMAN_CATEGORIES: HangmanCategory[] = [
   { id: 'animals', label: 'Animals' },
   { id: 'food', label: 'Food' },
   { id: 'sports', label: 'Sports' },
   { id: 'places', label: 'Places' },
-  { id: 'household', label: 'Around the house' },
+  { id: 'around-the-house', label: 'Around the house' },
   { id: 'space', label: 'Space' },
-  { id: 'anything', label: 'Anything at all' },
+  { id: 'anything-at-all', label: 'Anything at all' },
 ];
 
 /** A category discovered from the shared word pool — most often a topic

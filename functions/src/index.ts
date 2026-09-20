@@ -13,6 +13,7 @@ import {
   generateSpellingSuggestion,
   generateTopicWords,
   buildWordleBootstrapPrompt,
+  buildCrosswordFillerPrompt,
 } from './wordGames';
 import { buildWordSearchGrid, type Difficulty } from './wordSearchGrid';
 import { seedPool, fetchWords, markUsed, enrichPoolWord, type BootstrapOverrides } from './wordBank';
@@ -29,6 +30,18 @@ const WORDLE_OVERRIDES: BootstrapOverrides = {
   buildPrompt: (_topic, count) => buildWordleBootstrapPrompt(count),
   extraFilter: (word) => !word.endsWith('S'),
 };
+
+/** The crossword's flat filler vocabulary — one pool, read at three
+ * different lengths. Not a topic anyone chose, same as Wordle's. */
+const CROSSWORD_FILLER_SLUG = 'crossword-filler';
+
+/** Pools that exist for internal reasons rather than because a family
+ * typed a real topic. `listHangmanCategories` hides these — nobody wants
+ * to "pick a category" and get Wordle's 5-letter vocabulary or the
+ * crossword's filler bank. Anything added to `wordPool` that isn't a
+ * player-facing topic belongs here, which is why both entries are the
+ * same constants their writers use rather than re-typed strings. */
+const NON_CATEGORY_POOL_SLUGS = new Set<string>([WORDLE_TOPIC_SLUG, CROSSWORD_FILLER_SLUG]);
 
 admin.initializeApp();
 const db = admin.firestore();
@@ -377,11 +390,19 @@ export const getHangmanWord = onCall(
     // typing "Ancient Rome" and "ancient rome!" have to land on the same
     // topicSlug for the pools to actually be shared; only one slugify
     // implementation existing at all guarantees that.
-    const topic = String(request.data?.topic ?? 'Anything at all').trim().slice(0, 60);
+    // `label`/`category` are the pre-unification shape, still accepted so a
+    // phone running a cached build from before this shipped doesn't have
+    // every category silently collapse into the default one until its
+    // service worker catches up.
+    const topic = String(
+      request.data?.topic ?? request.data?.label ?? request.data?.category ?? 'Anything at all'
+    )
+      .trim()
+      .slice(0, 60);
     if (!topic) {
       throw new HttpsError('invalid-argument', 'Give a category or topic.');
     }
-    const category = slugify(topic) || 'anything';
+    const category = slugify(topic) || 'anything-at-all';
 
     const { words: picked, source: fetchSource } = await fetchWords(
       db,
@@ -465,12 +486,17 @@ export const suggestHangmanWords = onCall(
     await requireFamilyMember(request);
 
     // Same free-text-in, server-slugifies contract as getHangmanWord above
-    // — see its comment for why the client never computes the slug itself.
-    const topic = String(request.data?.topic ?? '').trim().slice(0, 60);
+    // — see its comment for why the client never computes the slug itself,
+    // and for why the older `label`/`category` shape is still accepted.
+    const topic = String(
+      request.data?.topic ?? request.data?.label ?? request.data?.category ?? ''
+    )
+      .trim()
+      .slice(0, 60);
     if (!topic) {
       throw new HttpsError('invalid-argument', 'Give a category or topic.');
     }
-    const category = slugify(topic) || 'anything';
+    const category = slugify(topic) || 'anything-at-all';
     const requested = Number(request.data?.count ?? 8);
     const count = Number.isFinite(requested) ? Math.min(Math.max(Math.trunc(requested), 1), 12) : 8;
 
@@ -487,13 +513,6 @@ export const suggestHangmanWords = onCall(
     return { words: picked.map((entry) => entry.word), category, topic, source: source ?? 'pool' };
   }
 );
-
-// Pools that exist for internal, non-topic reasons rather than because a
-// family typed a real category — offering these back as a hangman category
-// choice would be nonsensical (nobody wants to "pick a category" and get
-// Wordle's flat 5-letter vocabulary). Grows if a similar flat pool ever
-// lands in wordPool rather than its own collection.
-const NON_CATEGORY_POOL_SLUGS = new Set(['wordle']);
 
 /** Topics worth offering as a hangman category beyond the pinned defaults —
  * anything already in the shared pool with enough vocabulary to support a
@@ -684,12 +703,29 @@ export const getMiniCrossword = onCall(
     // (need 600+ before the solve rate is reliably near 100%); 3- and
     // 4-letter need far less. Each count also doubles as the target size
     // fetchWords' own top-up logic grows that length's view of the pool
-    // toward, a little more each time a bootstrap fires.
+    // toward, a little more each time a bootstrap fires. 3-letter is set at
+    // the low end of its measured range on purpose: English simply has
+    // fewer common 3-letter words, and a target the pool can never reach
+    // means fetchWords re-bootstraps on every single generation forever.
     const topic = 'common English words for a crossword puzzle';
+    const fillerFor = (length: number, count: number) =>
+      fetchWords(
+        db,
+        models(),
+        'crossword',
+        CROSSWORD_FILLER_SLUG,
+        topic,
+        { minLen: length, maxLen: length, allowPhrases: false },
+        count,
+        // Its own prompt, not the generic pool one: "no proper nouns, no
+        // abbreviations, no obscure words" was an explicit rule of the old
+        // crossword prompt and isn't something a shape filter can express.
+        { buildPrompt: (_topic, n) => buildCrosswordFillerPrompt(length, n) }
+      );
     const [threes, fours, fives] = await Promise.all([
-      fetchWords(db, models(), 'crossword', 'crossword-filler', topic, { minLen: 3, maxLen: 3, allowPhrases: false }, 200),
-      fetchWords(db, models(), 'crossword', 'crossword-filler', topic, { minLen: 4, maxLen: 4, allowPhrases: false }, 300),
-      fetchWords(db, models(), 'crossword', 'crossword-filler', topic, { minLen: 5, maxLen: 5, allowPhrases: false }, 700),
+      fillerFor(3, 150),
+      fillerFor(4, 300),
+      fillerFor(5, 700),
     ]);
     const candidatesByLength: Record<number, string[]> = {
       3: threes.words.map((w) => w.word),

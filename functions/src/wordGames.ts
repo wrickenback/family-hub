@@ -37,6 +37,13 @@ const FALLBACK_DAILY = [
  * one word covers the whole day — a player can burn through ten of these in
  * ten minutes. This is also the only layer that survives with no signal at
  * all, which no second provider can help with. */
+// Keyed by the category's SLUG, which since the topic contract was unified
+// (WORD_BANK_PLAN.md §4) means exactly `slugify(label)` — the same string
+// that keys `wordPool`. Two of these used to be short ids that didn't match
+// their own label's slug ('household' for "Around the house", 'anything'
+// for "Anything at all"), which quietly cost those two categories their
+// bundled pack. Keep every key here equal to slugify(the label shown in
+// HANGMAN_CATEGORIES) or that breaks again silently.
 const FALLBACK_HANGMAN: Record<string, { word: string; hint: string }[]> = {
   animals: [
     { word: 'PENGUIN', hint: 'Dresses for dinner, swims for lunch' },
@@ -94,7 +101,7 @@ const FALLBACK_HANGMAN: Record<string, { word: string; hint: string }[]> = {
     { word: 'LIGHTHOUSE', hint: 'Warns ships off the rocks' },
     { word: 'MARKET', hint: 'Stalls, haggling and fresh bread' },
   ],
-  household: [
+  'around-the-house': [
     { word: 'TOASTER', hint: 'Pops up in the morning' },
     { word: 'BLANKET', hint: 'Keeps you warm on the sofa' },
     { word: 'UMBRELLA', hint: 'Only useful when it rains' },
@@ -122,7 +129,7 @@ const FALLBACK_HANGMAN: Record<string, { word: string; hint: string }[]> = {
     { word: 'GRAVITY', hint: 'What keeps you on the ground' },
     { word: 'ASTRONAUT', hint: 'Floats at work' },
   ],
-  anything: [
+  'anything-at-all': [
     { word: 'PUZZLE', hint: 'Pieces that need a place' },
     { word: 'GUITAR', hint: 'Six strings and a song' },
     { word: 'RAINBOW', hint: 'Seven colours after the rain' },
@@ -159,7 +166,7 @@ export function fallbackHangmanWord(
   category: string,
   avoid: string[] = []
 ): HangmanWord {
-  const pool = FALLBACK_HANGMAN[category] ?? FALLBACK_HANGMAN.anything;
+  const pool = FALLBACK_HANGMAN[category] ?? FALLBACK_HANGMAN['anything-at-all'];
   const avoidSet = new Set(avoid.map((word) => word.toUpperCase()));
   // Same reasoning as the AI generators: skip anything just played so a
   // provider outage doesn't turn into its own kind of repetition.
@@ -221,6 +228,28 @@ Rules:
 - Vocabulary a 13-year-old would recognize — familiar words, nothing obscure or technical.
 ${CONTENT_RATING}
 - Respond with ONLY a JSON array of uppercase words, nothing else. Example: ["CRANE","PLANT"]`;
+}
+
+/** The bootstrap prompt for the crossword's filler bank, one length at a
+ * time.
+ *
+ * Needed as an override rather than using wordBank.ts's generic bootstrap
+ * for the same reason Wordle needs one: the constraints that matter here
+ * can't be expressed by a length/phrase shape filter. "No proper nouns, no
+ * abbreviations, no obscure words" was an explicit rule of the old
+ * crossword prompt, and dropping it quietly let names and acronyms into
+ * grid fill. The generic prompt also frames everything as "words about a
+ * topic", which for a topic like "crossword words" invites crossword
+ * jargon (ACROSS, CLUE, GRID) rather than ordinary vocabulary. */
+export function buildCrosswordFillerPrompt(length: number, count: number): string {
+  return `Give me ${count} common English words of exactly ${length} letters, for filling a family crossword grid.
+Rules:
+- Exactly ${length} letters, A-Z only, one word with no spaces, hyphens or punctuation.
+- No proper nouns, no abbreviations, no acronyms, no obscure or archaic words.
+- Ordinary everyday vocabulary a 13-year-old would know. Not words about crosswords — words that go IN one.
+- Give a varied spread of starting and ending letters, not many words beginning the same way.
+${CONTENT_RATING}
+- Respond with ONLY a JSON array of uppercase words, nothing else. Example: ["TABLE","RIVER"]`;
 }
 
 /** Five-letter answers, avoiding any used recently. Returns every candidate
