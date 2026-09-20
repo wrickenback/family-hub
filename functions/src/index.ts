@@ -1,7 +1,6 @@
 import * as functions from 'firebase-functions';
 import * as admin from 'firebase-admin';
-import { onCall, HttpsError } from 'firebase-functions/v2/https';
-import { onSchedule } from 'firebase-functions/v2/scheduler';
+import { onCall, onRequest, HttpsError } from 'firebase-functions/v2/https';
 import { defineSecret } from 'firebase-functions/params';
 import { providersFrom, routineProvidersFrom, geminiProvider, openRouterProvider } from './providers';
 import {
@@ -24,7 +23,6 @@ import {
   enrichPoolWord,
   bootstrapTopicChunk,
   relevanceCheck,
-  topicsNeedingSeed,
   type BootstrapOverrides,
 } from './wordBank';
 import { SEED_TOPICS } from './seedTopics';
@@ -68,6 +66,11 @@ const openRouterApiKey = defineSecret('OPENROUTER_API_KEY');
 // drops whichever key is absent, so the functions still deploy and run
 // with only some of the three configured.
 const anthropicApiKey = defineSecret('ANTHROPIC_API_KEY');
+// A shared secret for seedTopicPools only — that endpoint is triggered from
+// server-side tooling with no Firebase Auth session available, not from
+// the app, so it's checked against a header instead of a family member's
+// sign-in. Set once with `firebase functions:secrets:set SEED_TRIGGER_KEY`.
+const seedTriggerKey = defineSecret('SEED_TRIGGER_KEY');
 
 /** The model chain for anything that fills something durable — the shared
  * word pool, a pool word's cached clue, a once-a-day shared doc. Built per
@@ -971,37 +974,101 @@ export const sweepStaleGames = functions
  * Safely repeatable: it re-reads which pools are still short each time, so
  * a partial night simply resumes, and once everything is stocked the run
  * costs a handful of Firestore reads and no model calls at all. */
-export const seedTopicPools = onSchedule(
+/** Per-provider seeding progress, so re-invoking never re-asks a provider
+ * about a topic it has already answered — independent of whether the
+ * OTHER provider has also covered it. That independence is the whole
+ * point: Gemini and GLM run on completely different schedules (GLM has no
+ * daily request cap and can cover all 197 topics in one sitting; Gemini
+ * is capped at 20 requests/day and needs several invocations), and both
+ * write into the same wordPool doc via seedPool's arrayUnion, so the
+ * union naturally accumulates regardless of order or timing — but only if
+ * neither provider's run is gated on total pool size, which would let
+ * GLM's contribution alone (repeat over enough topics) make the pool look
+ * "done" and cause Gemini's run to skip topics it never actually touched. */
+async function seededTopicsFor(provider: 'gemini' | 'glm'): Promise<Set<string>> {
+  const snap = await db.doc(`seedProgress/${provider}`).get();
+  return new Set((snap.data()?.done as string[] | undefined) ?? []);
+}
+async function markTopicsSeeded(provider: 'gemini' | 'glm', topics: string[]): Promise<void> {
+  if (topics.length === 0) return;
+  await db
+    .doc(`seedProgress/${provider}`)
+    .set({ done: admin.firestore.FieldValue.arrayUnion(...topics) }, { merge: true });
+}
+
+/** Stocks the shared word pools for the curated topic list — one provider
+ * per invocation, triggered by hand rather than on a schedule.
+ *
+ * Was a nightly `onSchedule` function. Converted after working out its
+ * real cost: Cloud Scheduler bills $0.10/job/month per job that EXISTS,
+ * not per run, regardless of whether that run finds anything to do — and
+ * this project already had 5 scheduled jobs before this one, past the
+ * 3-free-per-billing-account tier. A job whose real work is meant to
+ * finish in a handful of invocations and then never fire usefully again
+ * isn't worth a permanent recurring charge; a manual trigger costs
+ * nothing between uses.
+ *
+ * `onRequest`, not `onCall`: there's no browser session available to
+ * trigger this from, only server-side tooling, so it's gated by a shared
+ * secret header instead of a family member's Firebase Auth token.
+ *
+ * Query params: `provider` (`gemini` or `glm`, required).
+ *
+ * Gemini and GLM are always separate invocations, deliberately — Gemini's
+ * daily quota means a real backfill takes several days of one-chunk-at-
+ * a-time progress, while GLM has no such limit and can run through every
+ * remaining chunk in a single call. Both write into the same pool via
+ * seedPool's arrayUnion, so running GLM to completion today and Gemini
+ * over the next several days still ends up merged and deduped together —
+ * that's the pool's existing design, not something this function has to
+ * do itself. */
+export const seedTopicPools = onRequest(
   {
     region: 'us-central1',
-    schedule: 'every day 04:00',
-    timeZone: 'America/New_York',
-    // Gemini stays the ONLY generator here (see the doc comment above), but
-    // GLM Flash is also needed now for the post-generation relevance check
-    // — a cheap, fail-open pass, not a second source of words.
-    secrets: [geminiApiKey, openRouterApiKey],
+    secrets: [geminiApiKey, openRouterApiKey, seedTriggerKey],
     timeoutSeconds: 540,
     memory: '512MiB',
   },
-  async () => {
-    const key = geminiApiKey.value();
-    if (!key) {
-      console.error('seedTopicPools: no Gemini key configured');
+  async (req, res) => {
+    if (req.get('x-seed-key') !== seedTriggerKey.value()) {
+      res.status(403).json({ error: 'forbidden' });
       return;
     }
+
+    const provider = req.query.provider === 'glm' ? 'glm' : req.query.provider === 'gemini' ? 'gemini' : null;
+    if (!provider) {
+      res.status(400).json({ error: "query param 'provider' must be 'gemini' or 'glm'" });
+      return;
+    }
+
+    const geminiKey = geminiApiKey.value();
     const orKey = openRouterApiKey.value();
-    const glm = orKey ? openRouterProvider(orKey, 'z-ai/glm-5.3-flash', { name: 'glm-flash' }) : null;
+    if (provider === 'gemini' && !geminiKey) {
+      res.status(500).json({ error: 'no Gemini key configured' });
+      return;
+    }
+    if (!orKey) {
+      // Needed either way: as the generator for a 'glm' run, or as the
+      // relevance checker for a 'gemini' run.
+      res.status(500).json({ error: 'no OpenRouter key configured' });
+      return;
+    }
+    const glm = openRouterProvider(orKey, 'z-ai/glm-5.3-flash', { name: 'glm-flash' });
+    const generator = provider === 'gemini' ? geminiProvider(geminiKey) : glm;
 
-    const pending = await topicsNeedingSeed(db, SEED_TOPICS, slugify);
+    const done = await seededTopicsFor(provider);
+    const pending = SEED_TOPICS.filter((t) => !done.has(t));
     if (pending.length === 0) {
-      console.info('seedTopicPools: every topic already stocked, nothing to do');
+      res.json({ provider, done: true, message: 'every topic already covered by this provider', seededTopics: 0, seededWords: 0 });
       return;
     }
 
-    // Leaves headroom in the day's 20 for the games themselves, which also
-    // draw on Gemini first for anything that fills a durable pool.
-    const MAX_CHUNKS_PER_RUN = 14;
     const TOPICS_PER_CHUNK = 15;
+    // Gemini stops well short of its real daily cap (20), leaving room
+    // for actual play; GLM has no daily cap at all, so a single call can
+    // run through every remaining chunk — the only real constraint there
+    // is this function's own 540s timeout, not quota.
+    const MAX_CHUNKS_PER_RUN = provider === 'gemini' ? 14 : 40;
     // 3-10 letters serves both readers of these pools: word search takes
     // 3-10, hangman filters the same pool down to 5-10 at read time.
     const shape = { minLen: 3, maxLen: 10, allowPhrases: false };
@@ -1009,42 +1076,46 @@ export const seedTopicPools = onSchedule(
     let seededTopics = 0;
     let seededWords = 0;
     let chunks = 0;
+    let stoppedEarly = false;
 
     for (let i = 0; i < pending.length && chunks < MAX_CHUNKS_PER_RUN; i += TOPICS_PER_CHUNK) {
       const batch = pending.slice(i, i + TOPICS_PER_CHUNK);
       chunks++;
 
-      const { byTopic } = await bootstrapTopicChunk([geminiProvider(key)], batch, shape);
+      const { byTopic } = await bootstrapTopicChunk([generator], batch, shape);
       if (byTopic.size === 0) {
-        // Almost always the daily quota. Either way there's no point
+        // For Gemini this is almost always the daily quota; for GLM it's
+        // a real failure worth noticing. Either way there's no point
         // burning the rest of the run on a provider that just failed —
-        // tomorrow's run picks up exactly where this left off.
-        console.warn('seedTopicPools: chunk came back empty, stopping for tonight', {
+        // the next invocation resumes from here via seedProgress.
+        console.warn('seedTopicPools: chunk came back empty, stopping', {
+          provider,
           chunkIndex: chunks,
           topicsInChunk: batch.length,
           seededSoFar: seededTopics,
         });
+        stoppedEarly = true;
         break;
       }
 
-      // One relevance check per topic, run in parallel across the whole
-      // chunk rather than sequentially — GLM Flash calls are cheap and
-      // fast, and there's no reason topic 15 should wait on topics 1-14.
-      // Same fail-open contract as the live per-play path: skipped
-      // entirely with no GLM key, and any topic whose check errors, comes
-      // back empty, or would reject more than half its list keeps
+      // One relevance check per topic, in parallel across the whole
+      // chunk — GLM Flash calls are cheap and fast, no reason topic 15
+      // should wait on topics 1-14. Same fail-open contract as the live
+      // per-play path: any topic whose check errors, comes back empty, or
+      // would reject more than half its list keeps
       // bootstrapTopicChunk's unfiltered words rather than losing them.
       const checked = await Promise.all(
         [...byTopic].map(async ([topic, words]) => {
-          if (!glm) return [topic, words] as const;
           const kept = await relevanceCheck(glm, topic, words);
           return [topic, kept.length > 0 ? kept : words] as const;
         })
       );
 
+      const doneThisChunk: string[] = [];
       for (const [topic, words] of checked) {
         try {
           await seedPool(db, slugify(topic), topic, words, 'bootstrap');
+          doneThisChunk.push(topic);
           seededTopics++;
           seededWords += words.length;
         } catch (err) {
@@ -1054,14 +1125,18 @@ export const seedTopicPools = onSchedule(
           });
         }
       }
+      await markTopicsSeeded(provider, doneThisChunk);
     }
 
+    const remaining = Math.max(pending.length - seededTopics, 0);
     console.info('seedTopicPools: run complete', {
+      provider,
       pendingAtStart: pending.length,
       chunksUsed: chunks,
       topicsSeeded: seededTopics,
       wordsSeeded: seededWords,
-      stillPending: Math.max(pending.length - seededTopics, 0),
+      remaining,
     });
+    res.json({ provider, done: !stoppedEarly && remaining === 0, seededTopics, seededWords, remaining });
   }
 );
